@@ -1,0 +1,2 @@
+﻿SELECT person_id,concept_id,obs_datetime,value_coded FROM obs o
+where concept_id=1505 and voided=0;

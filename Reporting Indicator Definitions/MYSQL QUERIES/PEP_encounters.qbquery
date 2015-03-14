@@ -1,0 +1,13 @@
+﻿
+/*PEP  ENCOUNTERs ONLY*/
+SELECT e.`patient_id`, e.`location_id`, date(e.encounter_datetime)as pep_date,p.gender,p.birthdate,(year(encounter_datetime)-year(birthdate))as Age
+,concept_id, value_coded,encounter_type
+ FROM encounter e
+ Join person p
+on
+e.patient_id =p.person_id
+join
+obs o
+on
+e.patient_id =o.person_id
+where encounter_type  in(56,57)  and o.concept_id in(1061)and o.person_id not in (145991) and o.voided=0;

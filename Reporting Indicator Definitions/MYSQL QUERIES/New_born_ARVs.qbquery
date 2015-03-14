@@ -1,0 +1,5 @@
+﻿/*** new born ARVs on Prophylaxis******/
+select person_id, concept_id, obs_datetime, value_coded, location_id
+from obs
+where voided=0 and
+concept_id in (1187) or (concept_id=1387 and value_coded=1065) ;

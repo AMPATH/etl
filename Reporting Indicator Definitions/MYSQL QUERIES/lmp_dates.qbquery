@@ -1,0 +1,6 @@
+﻿SELECT o.person_id, o.concept_id, o.obs_datetime, o.value_datetime
+FROM obs o where
+concept_id in(1836)
+
+and voided=0
+;

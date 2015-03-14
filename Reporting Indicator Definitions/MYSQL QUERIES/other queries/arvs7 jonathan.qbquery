@@ -1,0 +1,11 @@
+﻿SELECT o.obs_id,o.person_id as patient_id ,o.encounter_id
+   as person_id,concept_id,date(obs_datetime)as obs_datetime,o.value_coded,value_numeric,date_created
+FROM obs o
+where 
+	o.voided=0
+	and (
+			concept_id in (966,1085,1086,1087,1088,1147,1176,1187,1192,1250,1251,1252,1255,1499,1999,2154,2157,2155,1992)
+			or (concept_id =1193 and value_coded in (630,792,6180,628,797,625,633,814,794,796,802,749,6156))
+			or (concept_id=1895 and value_coded in (625,628,630,631,633,635,749,791,792,794,795,796,797,802,814,1400,5424,5811,6156,6157,6158,6159,6160,6180,6467))
+	) and o.date_created<='2014-07-23' and '2014-06-01'>=o.date_created
+ ;

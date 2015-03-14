@@ -1,0 +1,1 @@
+﻿SELECT c.concept_id, c.name FROM concept_name c where voided =0;

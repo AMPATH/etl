@@ -1,0 +1,18 @@
+﻿/* Deaths Combined Final Query */
+SELECT person_id, value_datetime, obs_datetime, concept_id, value_coded
+FROM obs o
+where (concept_id in(1734,1573,1570)) or (concept_id in(1596) and value_coded in(1593)) or (concept_id in(6042,1733,6206)
+and value_coded in(159)) and voided=0
+
+UNION
+
+SELECT e.encounter_id, e.encounter_type, e.patient_id , e.encounter_datetime, e.location_id
+FROM encounter e
+where encounter_type  in(31)  and e.voided=0
+
+UNION
+
+SELECT p.person_id, p.dead, p.death_date, p.cause_of_death,p.date_voided
+FROM person p
+WHERE DEAD=1 OR DEATH_DATE <>NULL OR CAUSE_OF_DEATH <>NULL and voided=0
+;

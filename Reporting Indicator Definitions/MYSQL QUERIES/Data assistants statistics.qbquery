@@ -1,0 +1,5 @@
+﻿SELECT count(*),u.username FROM encounter e
+join users u
+on e.creator=u.user_id
+where date(e.date_created)='2009-06-16' and e.voided=0 and u.voided=0
+group by u.username order by count(*);

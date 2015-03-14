@@ -1,0 +1,4 @@
+﻿/*WHO Condition*/
+SELECT person_id,	concept_id,	location_id,	value_coded,	obs_datetime
+FROM obs o
+where concept_id = 6048;

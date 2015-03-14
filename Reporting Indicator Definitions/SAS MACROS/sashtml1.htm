@@ -1,0 +1,1624 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta name="Generator" content="SAS Software Version 9.2, see www.sas.com">
+<meta http-equiv="Content-type" content="text/html; charset=windows-1252">
+<title>SAS Output</title>
+<style type="text/css">
+<!--
+.AfterCaption
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #000000;
+  background-color: #E0E0E0;
+  padding: 0px;
+  border-spacing: 0px;
+}
+.Batch
+{
+  font-family: 'SAS Monospace', 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #000000;
+  background-color: #D3D3D3;
+  padding: 7px;
+  border-collapse: separate;
+  border-spacing: 1px;
+  border: 1px solid #000000;
+}
+.BeforeCaption
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #000000;
+  background-color: #E0E0E0;
+  padding: 0px;
+  border-spacing: 0px;
+}
+.Body
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+.BodyDate
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 0px;
+  border-spacing: 0px;
+  width: 100%;
+  text-align: right;
+  vertical-align: top;
+}
+.ByContentFolder
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  margin-left: 6pt;
+  list-style-type: none;
+}
+.Byline
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+  padding: 0px;
+  border-spacing: 0px;
+}
+.BylineContainer
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 1px;
+  border-spacing: 1px;
+  border: 0px solid #000000;
+  width: 100%;
+}
+.Caption
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #000000;
+  background-color: #E0E0E0;
+  padding: 0px;
+  border-spacing: 0px;
+}
+.Cell
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.Container
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ContentFolder
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  margin-left: 6pt;
+  list-style-type: none;
+}
+.ContentItem
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  margin-left: 6pt;
+  list-style-type: none;
+}
+.ContentProcLabel
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  list-style-type: decimal;
+}
+.ContentProcName
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  list-style-type: decimal;
+}
+.Contents
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+  margin-left: 8px;
+  margin-right: 8px;
+  list-style-type: decimal;
+}
+.ContentsDate
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+  width: 100%;
+}
+.ContentTitle
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #002288;
+}
+.Continued
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 0px;
+  border-spacing: 0px;
+  width: 100%;
+  text-align: left;
+}
+.Data
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #000000;
+  background-color: #D3D3D3;
+}
+.DataEmphasis
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #000000;
+  background-color: #D3D3D3;
+}
+.DataEmphasisFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: italic;
+  color: #000000;
+  background-color: #D3D3D3;
+}
+.DataEmpty
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #000000;
+  background-color: #D3D3D3;
+}
+.DataFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #000000;
+  background-color: #D3D3D3;
+}
+.DataStrong
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #000000;
+  background-color: #D3D3D3;
+}
+.DataStrongFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: bold;
+  font-style: normal;
+  color: #000000;
+  background-color: #D3D3D3;
+}
+.Date
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+  width: 100%;
+}
+.Document
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+a:link {
+color:#0066AA
+}
+a:visited {
+color:#004488
+}
+a:active {
+color:#004488
+}
+.ErrorBanner
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: bold;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ErrorContent
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ErrorContentFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ExtendedPage
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 2pt;
+  border: 1pt solid #000000;
+  text-align: center;
+}
+.FatalBanner
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: bold;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.FatalContent
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.FatalContentFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.FolderAction
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  margin-left: 6pt;
+  list-style-type: none;
+}
+.Footer
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.FooterEmphasis
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.FooterEmphasisFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.FooterEmpty
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.FooterFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.FooterStrong
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.FooterStrongFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.Frame
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.Graph
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 0px;
+  border-collapse: separate;
+  border-spacing: 1px;
+  border: 1px solid #000000;
+}
+.Header
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.HeaderEmphasis
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.HeaderEmphasisFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.HeaderEmpty
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.HeaderFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.HeadersAndFooters
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.HeaderStrong
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.HeaderStrongFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.Index
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.IndexAction
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  margin-left: 6pt;
+  list-style-type: none;
+}
+.IndexItem
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  margin-left: 6pt;
+  list-style-type: none;
+}
+.IndexProcName
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  list-style-type: decimal;
+}
+.IndexTitle
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #002288;
+}
+.LayoutContainer
+{
+  padding: 0px;
+  border-spacing: 30px;
+  border: 0px solid #000000;
+}
+.LayoutRegion
+{
+  padding: 0px;
+  border-spacing: 30px;
+  border: 0px solid #000000;
+}
+.List
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: disc;
+  width: 100%;
+  text-align: left;
+}
+.List10
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.List2
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: circle;
+  width: 100%;
+  text-align: left;
+}
+.List3
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.List4
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.List5
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.List6
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.List7
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.List8
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.List9
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  list-style-type: square;
+  width: 100%;
+  text-align: left;
+}
+.ListItem
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem10
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem2
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem3
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem4
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem5
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem6
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem7
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem8
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ListItem9
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.Note
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.NoteBanner
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: bold;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.NoteContent
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.NoteContentFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.Output
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #F0F0F0;
+  padding: 7px;
+  border-collapse: separate;
+  border-spacing: 1px;
+  border: 1px solid #000000;
+}
+.PageNo
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 0px;
+  border-spacing: 0px;
+  text-align: right;
+  vertical-align: top;
+}
+.Pages
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+  margin-left: 8px;
+  margin-right: 8px;
+  list-style-type: decimal;
+}
+.PagesDate
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+  width: 100%;
+}
+.PagesItem
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  margin-left: 6pt;
+  list-style-type: none;
+}
+.PagesProcLabel
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  list-style-type: decimal;
+}
+.PagesProcName
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  list-style-type: decimal;
+}
+.PagesTitle
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #002288;
+}
+.Paragraph
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  width: 100%;
+  text-align: left;
+}
+.Parskip
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  padding: 0px;
+  border-spacing: 0px;
+  border: 0px solid #000000;
+}
+.PrePage
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  text-align: left;
+}
+.ProcTitle
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.ProcTitleFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: bold;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.RowFooter
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowFooterEmphasis
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowFooterEmphasisFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowFooterEmpty
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowFooterFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowFooterStrong
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowFooterStrongFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowHeader
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowHeaderEmphasis
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowHeaderEmphasisFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: italic;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowHeaderEmpty
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowHeaderFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowHeaderStrong
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.RowHeaderStrongFixed
+{
+  font-family: 'Courier New', Courier, monospace;
+  font-size: x-small;
+  font-weight: bold;
+  font-style: normal;
+  color: #0033AA;
+  background-color: #B0B0B0;
+}
+.SystemFooter
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter10
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter2
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter3
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter4
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter5
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter6
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter7
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter8
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemFooter9
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle10
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle2
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle3
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle4
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle5
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle6
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle7
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle8
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SystemTitle9
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: large;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.SysTitleAndFooterContainer
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 1px;
+  border-spacing: 1px;
+  border: 0px solid #000000;
+  width: 100%;
+}
+.Table
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #F0F0F0;
+  border-collapse: separate;
+  border-spacing: 1px;
+  border: 1px solid #000000;
+}
+.top_stacked_value
+{
+  padding-bottom: 1px;
+}
+.middle_stacked_value
+{
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.bottom_stacked_value
+{
+  padding-top: 1px;
+}
+.TitleAndNoteContainer
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  padding: 1px;
+  border-spacing: 1px;
+  border: 0px solid #000000;
+  width: 100%;
+}
+.TitlesAndFooters
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: medium;
+  font-weight: bold;
+  font-style: italic;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.UserText
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+  text-align: left;
+}
+.WarnBanner
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: bold;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.WarnContent
+{
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.WarnContentFixed
+{
+  font-family: 'Courier New', Courier;
+  font-size: x-small;
+  font-weight: normal;
+  font-style: normal;
+  color: #002288;
+  background-color: #E0E0E0;
+}
+.l {text-align: left }
+.c {text-align: center }
+.r {text-align: right }
+.d {text-align: right }
+.j {text-align: justify }
+.t {vertical-align: top }
+.m {vertical-align: middle }
+.b {vertical-align: bottom }
+TD, TH {vertical-align: top }
+.stacked_cell{padding: 0 }
+-->
+</style>
+<script language="javascript" type="text/javascript">
+<!-- 
+function startup(){
+
+}
+function shutdown(){
+
+}
+
+//-->
+</script>
+
+</head>
+<body onload="startup()" onunload="shutdown()" class="Body">
+
+<script language="javascript" type="text/javascript">
+<!-- 
+var _info = navigator.userAgent
+var _ie = (_info.indexOf("MSIE") > 0
+          && _info.indexOf("Win") > 0
+          && _info.indexOf("Windows 3.1") < 0);
+
+//-->
+</script>
+
+<div class="branch">
+<a name="IDX5"></a>
+<table class="SysTitleAndFooterContainer" width="100%" cellspacing="1" cellpadding="1" rules="none" frame="void" border="0" summary="Page Layout">
+<tr>
+<td class="c SystemTitle">arvuse</td>
+</tr>
+</table><br>
+<div class="c ProcTitle">The FREQ Procedure</div>
+<p>
+<div>
+<div align="center">
+<table class="Table" cellspacing="1" cellpadding="7" rules="groups" frame="box" border="1" bordercolor="#000000" summary="Procedure Freq: One-Way Frequencies">
+<colgroup>
+<col>
+</colgroup>
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<thead>
+<tr>
+<th class="r b Header" scope="col">onarv</th>
+<th class="r b Header" scope="col">Frequency</th>
+<th class="r b Header" scope="col"> Percent</th>
+<th class="r b Header" scope="col">Cumulative<br> Frequency</th>
+<th class="r b Header" scope="col">Cumulative<br>  Percent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th class="r RowHeader" scope="row">1</th>
+<td class="r Data">1212375</td>
+<td class="r Data">100.00</td>
+<td class="r Data">1212375</td>
+<td class="r Data">100.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<br>
+<a name="IDX6"></a>
+<div>
+<div align="center">
+<table class="Table" cellspacing="1" cellpadding="7" rules="groups" frame="box" border="1" bordercolor="#000000" summary="Procedure Freq: One-Way Frequencies">
+<colgroup>
+<col>
+</colgroup>
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<thead>
+<tr>
+<th class="c b Header" colspan="5" scope="colgroup">ARV stop all</th>
+</tr>
+<tr>
+<th class="r b Header" scope="col">arvstopall</th>
+<th class="r b Header" scope="col">Frequency</th>
+<th class="r b Header" scope="col"> Percent</th>
+<th class="r b Header" scope="col">Cumulative<br> Frequency</th>
+<th class="r b Header" scope="col">Cumulative<br>  Percent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th class="r RowHeader" scope="row">1</th>
+<td class="r Data">8948</td>
+<td class="r Data">100.00</td>
+<td class="r Data">8948</td>
+<td class="r Data">100.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<br>
+<p>
+<div class="c ProcTitle">Frequency Missing = 1203427</div>
+<p>
+</div>
+<br>
+<a name="IDX7"></a>
+<div>
+<div align="center">
+<table class="Table" cellspacing="1" cellpadding="7" rules="groups" frame="box" border="1" bordercolor="#000000" summary="Procedure Freq: One-Way Frequencies">
+<colgroup>
+<col>
+</colgroup>
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<thead>
+<tr>
+<th class="c b Header" colspan="5" scope="colgroup">ARV change regimen</th>
+</tr>
+<tr>
+<th class="r b Header" scope="col">arvchangeregimen</th>
+<th class="r b Header" scope="col">Frequency</th>
+<th class="r b Header" scope="col"> Percent</th>
+<th class="r b Header" scope="col">Cumulative<br> Frequency</th>
+<th class="r b Header" scope="col">Cumulative<br>  Percent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th class="r RowHeader" scope="row">1</th>
+<td class="r Data">6444</td>
+<td class="r Data">100.00</td>
+<td class="r Data">6444</td>
+<td class="r Data">100.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<br>
+<p>
+<div class="c ProcTitle">Frequency Missing = 1205931</div>
+<p>
+</div>
+<br>
+<a name="IDX8"></a>
+<div>
+<div align="center">
+<table class="Table" cellspacing="1" cellpadding="7" rules="groups" frame="box" border="1" bordercolor="#000000" summary="Procedure Freq: One-Way Frequencies">
+<colgroup>
+<col>
+</colgroup>
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<thead>
+<tr>
+<th class="c b Header" colspan="5" scope="colgroup">ARV change formulation</th>
+</tr>
+<tr>
+<th class="r b Header" scope="col">arvchangeformulation</th>
+<th class="r b Header" scope="col">Frequency</th>
+<th class="r b Header" scope="col"> Percent</th>
+<th class="r b Header" scope="col">Cumulative<br> Frequency</th>
+<th class="r b Header" scope="col">Cumulative<br>  Percent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th class="r RowHeader" scope="row">1</th>
+<td class="r Data">25036</td>
+<td class="r Data">100.00</td>
+<td class="r Data">25036</td>
+<td class="r Data">100.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<br>
+<p>
+<div class="c ProcTitle">Frequency Missing = 1187339</div>
+<p>
+</div>
+<br>
+<a name="IDX9"></a>
+<div>
+<div align="center">
+<table class="Table" cellspacing="1" cellpadding="7" rules="groups" frame="box" border="1" bordercolor="#000000" summary="Procedure Freq: One-Way Frequencies">
+<colgroup>
+<col>
+</colgroup>
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<thead>
+<tr>
+<th class="r b Header" scope="col">arvstart</th>
+<th class="r b Header" scope="col">Frequency</th>
+<th class="r b Header" scope="col"> Percent</th>
+<th class="r b Header" scope="col">Cumulative<br> Frequency</th>
+<th class="r b Header" scope="col">Cumulative<br>  Percent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th class="r RowHeader" scope="row">1</th>
+<td class="r Data">101133</td>
+<td class="r Data">100.00</td>
+<td class="r Data">101133</td>
+<td class="r Data">100.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<br>
+<p>
+<div class="c ProcTitle">Frequency Missing = 1111242</div>
+<p>
+</div>
+<br>
+</div>
+</body>
+</html>

@@ -1,0 +1,2 @@
+﻿SELECT * FROM obs o where (concept_id in (1252 ) and value_coded in(102)) or (concept_id in(1668) and value_coded in(1664)) or
+(concept_id in(2031));

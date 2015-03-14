@@ -1,0 +1,6 @@
+﻿/*Patient Status from Outreach Encounters*/
+SELECT person_id,concept_id,value_coded,encounter_id,obs_datetime
+
+FROM obs o
+where concept_id = 9082
+;

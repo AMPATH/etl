@@ -1,0 +1,6 @@
+﻿SELECT e.patient_id as person_id,obs_datetime
+FROM obs o
+left join encounter e
+on e.encounter_id=o.encounter_id
+where (concept_id in(1992) and value_coded in(1065,1776))  or (concept_id in(1251) and value_coded in(1148,1776)) or
+(concept_id in(2155) and value_coded in(1776))and o.voided=0 and e.voided;

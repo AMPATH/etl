@@ -1,0 +1,7 @@
+﻿SELECT e.patient_id as person_id,concept_id,value_coded, obs_datetime
+FROM obs o
+left join encounter e
+on e.encounter_id=o.encounter_id
+where concept_id in(1225,1208) and value_coded
+not in(2212,5027,5050,5327,823) and
+obs_datetime>='2008-03-01' and o.voided=0 and e.voided=0;

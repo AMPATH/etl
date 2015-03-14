@@ -1,0 +1,6 @@
+﻿/*No show care*/
+SELECT o.person_id,o.concept_id,o.obs_datetime,n.name
+FROM obs o
+join concept_name n
+on o.value_coded=n.concept_id
+where o.concept_id in(1596,1733) and o.voided=0 and n.voided=0;

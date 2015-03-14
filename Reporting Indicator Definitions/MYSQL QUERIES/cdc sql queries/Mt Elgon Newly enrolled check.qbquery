@@ -1,0 +1,6 @@
+﻿SELECT e.encounter_id, e.encounter_type, e.patient_id , e.encounter_datetime, e.location_id, e.provider_id
+FROM encounter e
+where (encounter_type  in(1, 2, 3, 4) or form_id in (248,249)) and  e.location_id=9 and e.voided=0
+AND ('2012-01-16'<=date(e.encounter_datetime) and date(e.encounter_datetime)<='2012-02-15')
+
+;

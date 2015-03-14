@@ -1,0 +1,10 @@
+﻿
+/*change encounter_ids to capture in bits coz data too large to fit 1000000, */
+
+SELECT e.encounter_id, e.encounter_type, e.patient_id , e.encounter_datetime, e.location_id, e.provider_id
+FROM encounter e
+where e.encounter_type in(1,2,3,4,13,14,15,17,18,19,20,21,22,23,26) and e.voided=0 and e.encounter_id>1000000
+order by e.encounter_datetime;
+
+/*
+;

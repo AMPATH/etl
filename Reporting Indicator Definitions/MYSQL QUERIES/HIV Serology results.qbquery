@@ -1,0 +1,5 @@
+﻿/*HIV serology*/
+SELECT ifnull(e.patient_id,o.person_id) as person_id, o.concept_id, o.obs_datetime, o.value_coded FROM obs o
+left join encounter e
+on o.encounter_id=e.encounter_id and e.voided=0
+where concept_id in(1040,1042,1047) and o.voided=0;

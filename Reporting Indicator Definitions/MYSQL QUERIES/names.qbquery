@@ -1,0 +1,4 @@
+﻿/*NAMEs*/
+SELECT person_id,given_name,middle_name,family_name,voided,date_created
+FROM person_name p
+where voided=0;

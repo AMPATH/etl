@@ -1,0 +1,4 @@
+﻿SELECT year(obs_datetime) as years,count(year(obs_datetime)) as count_tests
+FROM obs o
+where o.concept_id in(1030,1042)and o.voided=0 group by year(obs_datetime)
+ ;

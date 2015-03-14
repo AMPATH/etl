@@ -1,0 +1,4 @@
+﻿/*cotrimoxazole*/
+SELECT person_id,concept_id,obs_datetime,value_numeric,value_coded,location_id FROM obs o where ((concept_id in(2250) and value_coded=1065)
+or (value_coded=916))
+order by concept_id;

@@ -1,0 +1,20 @@
+﻿SELECT
+person_attribute.person_id,
+date(person_attribute.date_created) as DateCreated,
+date(person_attribute.date_changed) as DateChanged,
+person_attribute.value as "PointOfContactCode",
+concept_name.name as "PointOfContactName",
+location.name as "Site",patient_identifier.identifier
+FROM
+person_attribute
+Inner Join concept_name ON concept_name.concept_id = person_attribute.value
+join
+patient_identifier on
+person_attribute.person_id=patient_identifier.patient_id
+join
+location
+on
+location.location_id=patient_identifier.location_id
+WHERE
+person_attribute.person_attribute_type_id = 16 AND
+person_attribute.voided =  0 ;

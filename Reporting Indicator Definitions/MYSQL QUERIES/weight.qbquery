@@ -1,0 +1,2 @@
+﻿SELECT o.person_id, o.concept_id, o.obs_datetime, o.value_numeric FROM obs o
+where (o.concept_id in(5089)) and voided=0;

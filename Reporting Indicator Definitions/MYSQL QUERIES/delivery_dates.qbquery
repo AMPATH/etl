@@ -1,0 +1,4 @@
+﻿/*Delivery dates*/
+
+SELECT o.person_id, o.concept_id, o.obs_datetime, o.value_datetime FROM obs o
+where (o.concept_id in(5599)) and voided=0;

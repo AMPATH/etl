@@ -1,0 +1,3 @@
+﻿/*Feeding*/
+SELECT person_id, concept_id, obs_datetime, location_id, value_coded
+FROM obs o where (concept_id in(1151,2188) and obs_datetime >= '2008-03-01' and  voided=0);

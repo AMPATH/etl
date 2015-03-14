@@ -1,0 +1,1 @@
+﻿SELECT * FROM obs o where obs_group_id in(SELECT obs_id FROM obs o where concept_id=2054 and o.voided=0) and o.voided=0;

@@ -1,0 +1,1 @@
+﻿SELECT * FROM person p WHERE DEAD=1 OR DEATH_DATE <>NULL OR CAUSE_OF_DEATH <>NULL and voided=0;

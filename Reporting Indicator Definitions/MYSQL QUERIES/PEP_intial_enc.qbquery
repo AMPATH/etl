@@ -1,0 +1,21 @@
+﻿
+/*PEP INITIAL ENCOUNTER ONLY*/
+
+SELECT e.encounter_id, e.encounter_type, e.patient_id ,  e.location_id,
+ o.person_id, o.concept_id, date(o.obs_datetime)as pepdate, o.value_coded, o.encounter_id ,p.gender,p.birthdate
+ ,(year(obs_datetime)-year(birthdate))as Age,l.name as site
+
+FROM encounter e
+JOIN
+obs o
+ON
+ e.encounter_id=o.encounter_id
+join person p
+on
+o.person_id=p.person_id
+join
+location l
+on
+e.location_id=l.location_id
+where encounter_type  in(56) and concept_id =1061 and e.voided=0
+;

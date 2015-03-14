@@ -1,0 +1,2 @@
+﻿SELECT o.person_id, o.concept_id, o.obs_datetime, o.value_coded FROM obs o where concept_id in(1264,1110)
+and value_coded in(656,745,767,1107) and voided=0;

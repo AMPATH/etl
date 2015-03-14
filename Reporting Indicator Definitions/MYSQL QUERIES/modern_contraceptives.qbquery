@@ -1,0 +1,5 @@
+﻿/*Modern Contraceptives*/
+SELECT obs_id,person_id,concept_id,date(obs_datetime) as obs_datetime,value_coded FROM obs o
+where voided=0 and (concept_id in (374,5271) and value_coded not in (6219,5622,5277,1107,5841,1066) )
+
+;

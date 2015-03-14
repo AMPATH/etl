@@ -1,0 +1,1 @@
+﻿SELECT e.patient_id, e.encounter_datetime FROM encounter e where encounter_type=21 and voided=0;

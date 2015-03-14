@@ -1,0 +1,1 @@
+﻿SELECT person_id,concept_id,obs_datetime,value_numeric FROM obs o where concept_id in(1678,5608,5609) and value_numeric=1 and voided=0;

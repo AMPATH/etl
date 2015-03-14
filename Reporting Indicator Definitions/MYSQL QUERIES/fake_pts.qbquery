@@ -1,0 +1,5 @@
+﻿/* fake pts test*/
+select  person_id,person_attribute_type_id
+from person_attribute
+where person_attribute_type_id = 28
+and voided=0;

@@ -1,0 +1,7 @@
+﻿/*Fluconazole*/
+SELECT e.patient_id as person_id, o.concept_id, o.obs_datetime, o.value_coded FROM obs o
+left join encounter e
+on o.encounter_id=e.encounter_id
+where (concept_id in(1277,1278)) or (concept_id in(1193,1112) and value_coded in(747))
+ and e.voided=0 and o.voided=0
+ order by value_coded;

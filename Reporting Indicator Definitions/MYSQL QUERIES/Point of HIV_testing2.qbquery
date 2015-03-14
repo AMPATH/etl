@@ -1,0 +1,1 @@
+﻿SELECT p.person_id, p.value FROM person_attribute p where person_attribute_type_id in(16) and voided=0;

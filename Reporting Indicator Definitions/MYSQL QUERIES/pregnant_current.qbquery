@@ -1,0 +1,13 @@
+﻿SELECT o.person_id, o.concept_id, o.obs_datetime, o.value_datetime
+FROM obs o where concept_id in(1279,5992,1855) and value_numeric>0 or
+concept_id in(45,5272) and value_coded in(703,1065)
+or concept_id in(1790,6042) and value_coded in(44,47,46)  or
+(concept_id in(1856) and value_coded not in(1175)) or
+(concept_id in(1834,1835) and value_coded in(1831)) or
+(concept_id in(1854) and value_datetime <> 'null' )
+or concept_id in(1181,1251) and value_coded in(1148,1776) or
+concept_id in (1992) and value_coded not in (1066,1067) or
+concept_id in(2055) and value_coded in(1065) or
+(concept_id in(5596) and value_datetime is not null and value_datetime>=obs_datetime)
+
+and voided=0;

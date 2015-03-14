@@ -1,0 +1,21 @@
+﻿
+SELECT DISTINCT
+Count(encounter.patient_id) AS sample
+FROM
+encounter
+WHERE
+encounter.encounter_type In( 25,28,29,37,49)AND
+encounter.location_id =  '3' AND ('2008-09-01'<=date(encounter.encounter_datetime) and date(encounter.encounter_datetime)<='2008-11-30')and
+encounter.voided =  '0'
+union
+(
+SELECT DISTINCT
+Count(encounter.patient_id) AS sample
+FROM
+encounter
+WHERE
+encounter.encounter_type In( 25,28,29,37,49)AND
+encounter.location_id =  '4' AND ('2008-09-01'<=date(encounter.encounter_datetime) and date(encounter.encounter_datetime)<='2008-11-30') and
+
+encounter.voided =  '0'
+)

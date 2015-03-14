@@ -1,0 +1,4 @@
+﻿SELECT patient_id, e.encounter_type, e.location_id, e.encounter_datetime,e.date_created, e.form_id,
+(DATEDIFF(e.date_created,e.encounter_datetime)) as days
+FROM encounter e where date(encounter_datetime)>='2014-10-01' and date(encounter_datetime)<='2014-10-31' and date(date_created)>='2014-11-06'
+and encounter_type in(1,2,3,4,10,13,14,15,17,18,19,20,21,22,23,26,44,47)  and voided=0;

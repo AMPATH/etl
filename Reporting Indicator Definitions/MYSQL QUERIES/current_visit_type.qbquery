@@ -1,0 +1,4 @@
+﻿/*Current Visit Type*/
+SELECT person_id,concept_id,obs_datetime,value_coded FROM obs o
+ where concept_id in (1839,1246) and
+o.voided=0;

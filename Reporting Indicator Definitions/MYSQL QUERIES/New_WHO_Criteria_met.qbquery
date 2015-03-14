@@ -1,0 +1,1 @@
+﻿SELECT person_id,concept_id,encounter_id,obs_datetime,value_numeric FROM obs o where concept_id=1943 and voided=0;

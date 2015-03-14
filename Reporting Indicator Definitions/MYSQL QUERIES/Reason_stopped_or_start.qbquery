@@ -1,0 +1,6 @@
+﻿
+/*reason to start or to stop*/
+SELECT person_id,obs_datetime, value_coded, concept_id
+FROM obs o
+where  concept_id in(1251,1252)
+and voided=0;

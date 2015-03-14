@@ -1,0 +1,1 @@
+﻿SELECT * FROM obs where concept_id in(2198,1176,1181) and voided=0;

@@ -1,0 +1,1 @@
+﻿SELECT u.user_id, u.username, u.retired, u.system_id  FROM users u where retired=0;

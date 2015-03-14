@@ -1,0 +1,12 @@
+﻿
+/*change encounter_ids to capture in bits coz data too large to fit 1000000, */
+
+SELECT *
+FROM encounter e
+where e.encounter_type In( 25,28,29,37,49)AND
+e.location_id = '4' AND ('2008-09-01'<date(e.encounter_datetime) and date(e.encounter_datetime)<'2008-11-30')and
+e.voided = '0'
+
+
+
+;

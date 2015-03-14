@@ -1,0 +1,2 @@
+﻿/* change obs_id depending on how much comp can extract b4 extracting*/
+SELECT obs_id,person_id,obs_datetime,concept_id, value_coded FROM obs o where concept_id in(1088) and voided=0 and obs_id<=25313000;

@@ -1,0 +1,4 @@
+﻿/*WHO stage Adults & Peds only*/
+SELECT o.person_id, o.concept_id, o.encounter_id, o.obs_datetime, o.location_id, o.value_coded, o.value_numeric FROM obs o
+where concept_id in (1224,5356)
+and voided=0;

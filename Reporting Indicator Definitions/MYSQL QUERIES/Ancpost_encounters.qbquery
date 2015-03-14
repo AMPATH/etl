@@ -1,0 +1,6 @@
+﻿
+/*Encounter for Antenatal and Postnatal on HIV */
+
+SELECT e.encounter_id, e.encounter_type, e.patient_id , e.encounter_datetime, e.location_id, e.provider_id
+FROM encounter e
+where (encounter_type  in(10,47) and form_id in (248,249))  and  e.voided=0;

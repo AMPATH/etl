@@ -1,0 +1,2 @@
+﻿SELECT obs_id,person_id,concept_id,obs_datetime,value_datetime,value_numeric,obs_group_id,encounter_id FROM obs o
+where concept_id in(5096,1502,1892,1893,1894,1922) and voided=0 ;

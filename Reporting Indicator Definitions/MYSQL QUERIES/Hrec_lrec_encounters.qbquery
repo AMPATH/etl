@@ -1,0 +1,2 @@
+﻿SELECT e.patient_id, e.encounter_type, e.encounter_datetime FROM encounter e where encounter_type in(17,19) and voided=0
+order by e.encounter_type;

@@ -1,0 +1,6 @@
+﻿/*Death_persons.qbquery*/
+SELECT person_id, death_date, date_created
+FROM person p
+WHERE p.DEAD=1 OR p.DEATH_DATE <>NULL OR p.CAUSE_OF_DEATH <>NULL and p.voided=0
+
+;

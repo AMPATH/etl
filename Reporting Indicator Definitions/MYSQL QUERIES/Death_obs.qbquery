@@ -1,0 +1,7 @@
+﻿/*Death_obs.qbquery*/
+
+SELECT o.person_id, o.obs_datetime,o.date_created,value_datetime,encounter_id
+FROM obs o
+where (o.concept_id in(1734,1573,1570)) or (o.concept_id in(1596) and o.value_coded in(1593)) or (o.concept_id in(6042,1733,6206)
+and o.value_coded in(159)) and o.voided=0
+;

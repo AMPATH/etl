@@ -1,0 +1,2 @@
+﻿/*provider*/
+SELECT u.user_id, u.username, u.voided FROM users u;

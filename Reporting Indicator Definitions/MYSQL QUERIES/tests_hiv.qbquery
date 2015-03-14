@@ -1,0 +1,5 @@
+﻿SELECT obs_id,ifnull(e.patient_id,o.person_id) as person_id,concept_id,obs_datetime,value_coded,o.encounter_id
+FROM obs o
+left join encounter e
+on o.encounter_id=e.encounter_id and e.voided=0
+where concept_id in(1030,1040,1042,1357,1361) and o.voided=0;

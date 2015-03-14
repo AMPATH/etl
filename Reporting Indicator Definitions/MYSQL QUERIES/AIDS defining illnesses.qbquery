@@ -1,0 +1,7 @@
+﻿SELECT e.patient_id as person_id, o.obs_datetime, o.concept_id, o.value_coded, c.name, o.value_numeric
+FROM obs o
+left join concept_name c
+on o.value_coded=c.concept_id
+left join encounter e
+on e.encounter_id=o.encounter_id
+where o.concept_id in (1224,1225,1943,1209,1208,5356,1248,6048,1942,1943,1248) and o.voided=0 and e.voided=0 ;

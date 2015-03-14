@@ -1,0 +1,4 @@
+﻿/*TB INH*/
+SELECT person_id,	concept_id,	location_id,	value_coded,	obs_datetime
+FROM obs o
+where value_coded = 656;

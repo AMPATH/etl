@@ -1,0 +1,2 @@
+﻿SELECT * FROM obs o where concept_id in(6042) and value_coded in(298,1447,893,684) or
+concept_id in(1080) and value_coded in(55) or concept_id in(1039) and value_coded in(703) and voided=0;

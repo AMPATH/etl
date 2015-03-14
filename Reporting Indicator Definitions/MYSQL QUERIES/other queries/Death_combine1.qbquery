@@ -1,0 +1,12 @@
+﻿SELECT person_id, death_date, date_created
+FROM person p
+WHERE p.DEAD=1 OR p.DEATH_DATE <>NULL OR p.CAUSE_OF_DEATH <>NULL and p.voided=0
+
+union
+
+SELECT o.person_id, o.voided,o.date_created
+FROM obs o
+where (o.concept_id in(1734,1573,1570)) or (o.concept_id in(1596) and o.value_coded in(1593)) or (o.concept_id in(6042,1733,6206)
+and o.value_coded in(159)) and o.voided=0
+
+;

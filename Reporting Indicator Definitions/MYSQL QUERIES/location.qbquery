@@ -1,0 +1,1 @@
+﻿SELECT l.location_id, l.name FROM location l ;

@@ -1,0 +1,5 @@
+﻿/*Hamoglobin Tests and Biochemical Tests*/
+
+SELECT o.person_id, o.concept_id, o.encounter_id, date(o.obs_datetime) as test_date,  o.value_datetime, value_numeric FROM obs o
+where concept_id in (21,654,790,653) and voided=0
+;

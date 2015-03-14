@@ -1,0 +1,5 @@
+﻿/*REASON EXITED CARE*/
+SELECT person_id,concept_id,obs_datetime,value_numeric,value_coded,location_id
+FROM obs o
+where voided=0 and (concept_id in(1596,1946) and value_coded in(1946,1065))
+;

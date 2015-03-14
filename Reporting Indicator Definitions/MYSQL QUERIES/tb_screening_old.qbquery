@@ -1,0 +1,5 @@
+﻿/*Screening for TB*/
+SELECT person_id,concept_id,obs_datetime,value_coded, value_numeric FROM obs o
+ where concept_id in (307,12) or (concept_id in(1271,1866,2310,5958) and value_coded in (12,1077,307)) or
+ (concept_id in(2020,2021,2022,2028,5959,5971) and value_coded in (1073,1074,1065)) or (concept_id in (1492)
+ and value_coded in (107)) and o.voided=0;

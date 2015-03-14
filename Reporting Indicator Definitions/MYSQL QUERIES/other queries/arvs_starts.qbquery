@@ -1,0 +1,1 @@
+﻿SELECT person_id, encounter_id, obs_datetime, value_datetime FROM obs o where concept_id in(1499) and voided=0;

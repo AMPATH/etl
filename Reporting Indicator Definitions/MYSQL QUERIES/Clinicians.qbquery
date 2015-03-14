@@ -1,0 +1,6 @@
+﻿SELECT ur.person_id,ur.system_id,pn.given_name,pn.middle_name,pn.family_name FROM user_role u
+join users ur
+on ur.user_id=u.user_id
+join person_name pn
+on pn.person_id=ur.person_id
+where u.role in('Clinician','Consultant Physician');

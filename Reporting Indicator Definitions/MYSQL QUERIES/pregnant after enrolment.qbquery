@@ -1,0 +1,4 @@
+﻿SELECT person_id,concept_id,obs_datetime,value_datetime FROM obs o where (concept_id in(5272,5992,1279) and value_numeric>0)
+or (concept_id in(1363) and value_coded not in(1107)) or (concept_id in(5599,5596,1854))
+ or (concept_id in(1790) and value_coded in(44)) or (concept_id in(45) and value_coded in(703)) or
+ (concept_id in(6042) and value_coded in(1484))  and voided=0 order by person_id;

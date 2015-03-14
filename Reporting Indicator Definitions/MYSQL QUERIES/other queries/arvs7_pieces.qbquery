@@ -1,0 +1,8 @@
+﻿/*ARVs vs 7-convert the out put into SAS data set*/
+SELECT o.obs_id,e.patient_id as person_id,concept_id,date(obs_datetime)as obs_datetime,o.value_coded,value_numeric
+FROM obs o
+left join encounter e
+on e.encounter_id=o.encounter_id
+where o.voided=0 and e.voided=0 and (concept_id in (966,1085,1086,1087,1088,1147,1176,1187,1192,1250,1251,1252,1255,1499,1999,2154,2157,2155,1992) )
+ or (concept_id =1193 and value_coded in (630,792,6180,628,797,625,633,814,794,796,802,749,6156) ) or
+ (concept_id=1895 and value_coded in (select concept_id from concept_set where concept_set=1085))and o.obs_id <=1000000;

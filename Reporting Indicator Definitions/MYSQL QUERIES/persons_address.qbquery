@@ -1,0 +1,1 @@
+﻿SELECT person_id,  city_village, address4, address5, address6 FROM person_address p;

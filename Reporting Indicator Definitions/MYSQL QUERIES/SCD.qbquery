@@ -1,0 +1,1 @@
+﻿SELECT * FROM obs o where concept_id in(6802,6796) and value_coded=6781;

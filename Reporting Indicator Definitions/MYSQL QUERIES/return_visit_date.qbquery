@@ -1,0 +1,5 @@
+﻿SELECT o.obs_id,e.patient_id as person_id,o.concept_id,o.obs_datetime,o.value_datetime,o.value_numeric,o.obs_group_id,o.encounter_id
+FROM obs o
+left join encounter e
+on e.encounter_id=o.encounter_id
+where o.concept_id in(5096,1502,1892,1893,1894,1922) and e.voided=0 and o.voided=0 ;

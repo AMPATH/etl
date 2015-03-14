@@ -1,0 +1,5 @@
+﻿/*PEP arvs*/
+SELECT o.person_id, o.concept_id, o.encounter_id, date(o.obs_datetime)as pep_date,  o.value_coded FROM obs o
+where concept_id = 1705 and value_coded=1149 and person_id not in (145991)
+and voided=0
+;
