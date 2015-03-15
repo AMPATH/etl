@@ -7,53 +7,59 @@
 # It seems that if you don't create the temporary table first, the sort is applied 
 # to the final result. Any references to the previous row will not an ordered row. 
 
-drop table if exists flat_moh_731_indicators_1;
-create temporary table flat_moh_731_indicators_1(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+
+drop table if exists flat_moh_731_indicators_0;
+create temporary table flat_moh_731_indicators_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
 (select *
 	from amrs.encounter e
 		join flat_new_person_data t0 on e.patient_id = t0.person_id
 	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21)
+		and voided=0
 	order by t0.person_id, e.encounter_datetime
+	limit 100000
 );
+
+#select person_id,encounter_datetime, cast(next_appt_date as datetime), cast(next_encounter_type as signed) from flat_moh_731_indicators_1;
+#select * from flat_moh_731_indicators_1;
 
 select @prev_id := null;
 select @cur_id := null;
-select @prev_encounter_type := null;
-select @cur_encounter_type := null;
-
 select @arv_start_date := null;
+select @first_arv_regimen := null;
 select @cur_arv_line := null;
-
 select @first_evidence_pt_pregnant := null;
 select @edd := null;
 select @preg_1 := null;
 select @preg_2 := null;
 select @preg_3 := null;
 select @cur_arv_meds := null;
+select @tb_treatment_start_date := null;
 
 #TO DO
 # on pcp prophy
 # eligible for pcp prophy
 # way of calculating enrolled in care
-# on tb tx
 # way of calculating cumumlative ever
-# starting regimen
 # screened for tb
 # screened for cervical ca
 # scheduled/unscheduled
 # provided with condoms
 # modern contraceptive methods
 
-
-
-drop temporary table if exists flat_moh_731_indicators_2;
-create temporary table flat_moh_731_indicators_2 (arv_start_date datetime, first_evidence_patient_pregnant datetime, edd datetime, preg_1 datetime, preg_2 datetime, preg_3 datetime, cur_arv_meds varchar(500), index person_enc (person_id, encounter_datetime desc))
+drop temporary table if exists flat_moh_731_indicators_1;
+create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_id))
 (select 
-	t1.person_id,
-	t1.encounter_id,
-	t1.encounter_datetime,	
 	@prev_id := @cur_id as prev_id, 
 	@cur_id := t1.patient_id as cur_id,
+	t1.person_id,
+	t1.encounter_id,
+	t1.encounter_datetime,			
+	case
+        when @prev_id=@cur_id then @prev_rtc_date := @cur_rtc_date
+        else @prev_rtc_date := null
+	end as prev_rtc_date,
+	@cur_rtc_date := rtc_date as cur_rtc_date,
+
 	case
 		when arv_plan = 1256 then @arv_start_date := t1.encounter_datetime
 		when arv_plan in (1107,1260) then @arv_start_date := null
@@ -63,6 +69,7 @@ create temporary table flat_moh_731_indicators_2 (arv_start_date datetime, first
 		else @arv_start_date
 	end as arv_start_date,
 
+
 	case
 		when arv_plan in (1107,1260) then @cur_arv_meds := null
 		when arv_started then @cur_arv_meds := arv_started
@@ -70,6 +77,12 @@ create temporary table flat_moh_731_indicators_2 (arv_start_date datetime, first
 		when @prev_id=@cur_id then @cur_arv_meds
 		else @cur_arv_meds:= null
 	end as cur_arv_meds,
+
+	case
+		when @first_arv_regimen is null and @cur_arv_meds is not null then @first_arv_regimen := @cur_arv_meds
+		when @prev_id = @cur_id then @first_arv_regimen
+		else @first_arv_regimen := null
+	end as first_arv_regimen,
 
 	case
 		when arv_plan in (1107,1260) then @cur_arv_line := null
@@ -82,12 +95,6 @@ create temporary table flat_moh_731_indicators_2 (arv_start_date datetime, first
 		when @prev_id = @cur_id then @cur_arv_line
 		else @cur_arv_line := null
 	end as cur_arv_line,
-
-	case
-		when @first_arv_regimen is null and @cur_arv_meds is not null then @first_arv_regimen := @cur_arv_meds_code
-		when @prev_id = @cur_id then @first_arv_regimen
-		else @first_arv_regimen := null
-	end as first_arv_regimen,
 
 	case
 		when @prev_id != @cur_id then
@@ -105,7 +112,7 @@ create temporary table flat_moh_731_indicators_2 (arv_start_date datetime, first
 			case
 				when @first_evidence_patient_pregnant and lmp then @edd := date_add(lmp,interval 280 day)
 				when num_weeks_preg then @edd := date_add(encounter_datetime,interval (40-num_weeks_preg) week)
-				when expected_due_date then @edd := expected_due_date
+				when expected_delivery_date then @edd := expected_delivery_date
 				when @first_evidence_pt_pregnant then @edd := date_add(@first_evidence_pt_pregnant,interval 6 month)
 				else @edd := null
 			end
@@ -113,7 +120,7 @@ create temporary table flat_moh_731_indicators_2 (arv_start_date datetime, first
 			case
 				when @first_evidence_pt_pregnant and lmp then @edd := date_add(lmp,interval 280 day)
 				when num_weeks_preg then @edd := date_add(encounter_datetime,interval (40-num_weeks_preg) week)
-				when expected_due_date then @edd := expected_due_date
+				when expected_delivery_date then @edd := expected_delivery_date
 				when @first_evidence_pt_pregnant then @edd := date_add(@first_evidence_pt_pregnant,interval 6 month)
 				else @edd
 			end
@@ -147,26 +154,30 @@ create temporary table flat_moh_731_indicators_2 (arv_start_date datetime, first
 				when @prev_id!=@cur_id or @tb_treatment_start_date is null then @tb_treatment_start_date := encounter_datetime
 				else @tb_treatment_start_date
 			end
-		when (tb_tx_current_plan !=1267 or tb_tx_started !=1267) and @tb_treatment_start_date is null then @tb_treatment_start_date := encounter_datetime
+		when (tb_tx_current_plan !=1267 or tb_tx_plan !=1267) and @tb_treatment_start_date is null then @tb_treatment_start_date := encounter_datetime
 		when @prev_id=@cur_id then @tb_treatment_start_date
 		else @tb_treatment_start_date := null
-	end as tb_treatment_start_date
+	end as tb_tx_start_date
+
+from flat_moh_731_indicators_0 t1
+	left outer join flat_arvs t2 using (encounter_id, person_id)
+	left outer join flat_drug t3 using (encounter_id, person_id)
+	left outer join flat_maternity t4 using (encounter_id, person_id)
+	left outer join flat_tb t6 using (encounter_id, person_id)
+	left outer join flat_encounter t7 using (encounter_id,person_id)
+);
 
 
-	from flat_moh_731_indicators_1 t1
-		left outer join flat_arvs t2 using (encounter_id, person_id)
-		left outer join flat_drug t3 using (encounter_id, person_id)
-		left outer join flat_maternity t4 using (encounter_id, person_id)
-		left outer join flat_tb t6 using (encounter_id, person_id)
-);		
-	
 
 #drop table if exists flat_moh_731_indicators;
 create table if not exists flat_moh_731_indicators (
 	person_id int,
     encounter_id int,
 	encounter_datetime datetime,
+	prev_rtc_date datetime,
+	rtc_date datetime,
 	arv_start_date datetime,
+	first_arv_regimen varchar(500),
 	cur_arv_meds varchar(500),
 	cur_arv_line int,
     first_evidence_patient_pregnant datetime,
@@ -174,6 +185,7 @@ create table if not exists flat_moh_731_indicators (
     preg_1 datetime,
     preg_2 datetime,
     preg_3 datetime,
+	tb_tx_start_date datetime,
     primary key encounter_id (encounter_id),
     index person_id (person_id)
 );
@@ -187,16 +199,18 @@ insert into flat_moh_731_indicators
 	person_id,
     encounter_id,
 	encounter_datetime,
+	prev_rtc_date,
+	cur_rtc_date,
 	arv_start_date,
+	first_arv_regimen,
 	cur_arv_meds,
 	cur_arv_line,
     first_evidence_patient_pregnant,
     edd,
     preg_1,
     preg_2,
-    preg_3
-from flat_moh_731_indicators_2);
+    preg_3,
+	tb_tx_start_date
+from flat_moh_731_indicators_1);
 
-
-
-
+select * from flat_moh_731_indicators order by person_id, encounter_datetime

@@ -5,8 +5,10 @@
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
+#drop table if exists flat_tb;
+
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_tb");
-select @last_update := "2015-01-01";
+select @last_update := "2015-03-01";
 select @now := now();
 
 create table if not exists flat_tb
@@ -29,9 +31,8 @@ tb_tx_adherence int,
 tb_symptom varchar(1000),
 tb_tx_outcome int,
 tb_tx_start_date datetime,
-on_tb_tx int,
-index encounter_id (encounter_id), 
-index enc_date_created (enc_date_created));
+tb_tx_current_plan int,
+index encounter_id (encounter_id));
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id))

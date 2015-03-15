@@ -6,6 +6,7 @@
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
+#drop table if exists flat_encounter;
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_encounter");
 select @last_update := "2015-03-10";
 select @now := now();
@@ -39,7 +40,7 @@ from amrs.obs where voided=1 and date_voided > @last_update and date_created <= 
 
 drop temporary table if exists enc;
 create temporary table enc (encounter_id int, person_id int, primary key encounter_id (encounter_id), index person_id (person_id))
-(select e.encounter_id, e.patient_id as person_id, e.encounter_type, e.date_created as enc_date_created
+(select e.encounter_id, e.patient_id as person_id
 from amrs.encounter e 
 where e.voided=0
 and e.date_created > @last_update
