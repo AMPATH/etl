@@ -53,8 +53,6 @@ from amrs.encounter e
 where e.voided=0
 and e.date_created > @last_update
 and encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21) 
-and patient_id in (434,542,570,584) # TESTING #########################################
-
 );
 
 
@@ -131,7 +129,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	min(if(concept_id=1499,value_datetime,null)) as arvs_start_date,
 	min(if(concept_id=1719,value_numeric,null)) as arv_past_week_days_missed
 	from obs_subset
-	where encounter_id is not null
+	where encounter_id is not null and voided=0
 	group by encounter_id 
 );
 

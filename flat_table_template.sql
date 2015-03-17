@@ -81,7 +81,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	encounter_id,
 	# flattened column definitions go here##############################################################################################3
 	from obs_subset
-	where encounter_id is not null
+	where encounter_id is not null and voided=0
 	group by encounter_id 
 );
 

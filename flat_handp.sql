@@ -132,6 +132,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	min(if(concept_id=1570,value_datetime,null)) as death_date
 	from obs_subset
 	where encounter_id is not null
+		 and voided=0
 	group by encounter_id 
 );
 

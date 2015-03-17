@@ -84,6 +84,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	min(if(concept_id=5303,value_coded,null)) as childs_hiv_status
 	from obs_subset
 	where encounter_id is not null
+		 and voided=0
 	group by encounter_id 
 );
 

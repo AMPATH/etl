@@ -106,6 +106,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	min(if(concept_id=1146,value_coded,null)) as delivered_since_last_visidelivered_since_last_vistdelivered_since_last_vistt
 	from obs_subset
 	where encounter_id is not null
+		 and voided=0
 	group by encounter_id 
 );
 

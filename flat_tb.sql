@@ -110,6 +110,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	min(if(concept_id=1111 and value_coded in (1065,1107,1267,1065,1595),value_coded,null)) as tb_tx_current_plan
 	from obs_subset
 	where encounter_id is not null
+		 and voided=0
 	group by encounter_id 
 );
 

@@ -101,6 +101,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	group_concat(if(concept_id=8346,value_coded,null) order by value_coded separator ' // ') as oi_prophy_drug
 	from obs_subset
 	where encounter_id is not null
+		 and voided=0
 	group by encounter_id 
 );
 

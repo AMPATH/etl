@@ -10,41 +10,54 @@
 
 drop table if exists flat_moh_731_indicators_0;
 create temporary table flat_moh_731_indicators_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
-(select *
-	from amrs.encounter e
-		join flat_new_person_data t0 on e.patient_id = t0.person_id
-	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21)
-		and voided=0
-	order by t0.person_id, e.encounter_datetime
-	limit 100000
+(select * from 
+	((select t0.person_id, e.encounter_id, e.encounter_datetime, e.encounter_type
+		from amrs.encounter e
+			join flat_new_person_data t0 on e.patient_id = t0.person_id
+		where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21)
+			and voided=0
+		order by t0.person_id, e.encounter_datetime
+		limit 100000
+	)
+
+	union
+
+	(select t0.person_id, t0.encounter_id, t0.obs_datetime as encounter_datetime, 99999 as encounter_type
+		from flat_data t0
+			join flat_new_person_data t1 using(person_id)
+		limit 100000
+	)) t1
+	order by person_id, encounter_datetime
 );
 
+select * from flat_moh_731_indicators_0;
 #select person_id,encounter_datetime, cast(next_appt_date as datetime), cast(next_encounter_type as signed) from flat_moh_731_indicators_1;
 #select * from flat_moh_731_indicators_1;
 
 select @prev_id := null;
 select @cur_id := null;
+select @cur_rtc_date := null;
+select @prev_rtc_date := null;
+select @hiv_start_date := null;
 select @arv_start_date := null;
-select @first_arv_regimen := null;
+select @arv_first_regimen := null;
 select @cur_arv_line := null;
 select @first_evidence_pt_pregnant := null;
 select @edd := null;
-select @preg_1 := null;
-select @preg_2 := null;
-select @preg_3 := null;
 select @cur_arv_meds := null;
 select @tb_treatment_start_date := null;
+select @pcp_prophylaxis_start_date := null;
+select @screened_for_tb := null;
 
 #TO DO
-# on pcp prophy
-# eligible for pcp prophy
-# way of calculating enrolled in care
-# way of calculating cumumlative ever
-# screened for tb
+# enrolled in care
 # screened for cervical ca
-# scheduled/unscheduled
 # provided with condoms
 # modern contraceptive methods
+# transfer_status
+# dead
+# exposed infant
+# hiv_start_date
 
 drop temporary table if exists flat_moh_731_indicators_1;
 create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_id))
@@ -54,11 +67,30 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 	t1.person_id,
 	t1.encounter_id,
 	t1.encounter_datetime,			
+	scheduled_visit,
 	case
         when @prev_id=@cur_id then @prev_rtc_date := @cur_rtc_date
         else @prev_rtc_date := null
 	end as prev_rtc_date,
 	@cur_rtc_date := rtc_date as cur_rtc_date,
+
+
+	case
+		when discontinue_is_hiv_neg=1065 then @hiv_start_date := null
+		when @prev_id != @cur_id then
+			case
+				when hiv_test=703 or hiv_dna_pcr=703 or encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47)  or arvs_current or arv_plan then @hiv_start_date := encounter_datetime
+				else @hiv_start_date := null
+			end
+		else 
+			case
+				when hiv_test=664 or hiv_dna_pcr=664 then @hiv_start_date:=null
+				when @hiv_start_date then @hiv_start_date
+				when hiv_test=703 or encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47) or arvs_current or arv_plan then @hiv_start_date := encounter_datetime
+				else @hiv_start_date := null
+			end
+	end as hiv_start_date,
+
 
 	case
 		when arv_plan = 1256 then @arv_start_date := t1.encounter_datetime
@@ -79,10 +111,10 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 	end as cur_arv_meds,
 
 	case
-		when @first_arv_regimen is null and @cur_arv_meds is not null then @first_arv_regimen := @cur_arv_meds
-		when @prev_id = @cur_id then @first_arv_regimen
-		else @first_arv_regimen := null
-	end as first_arv_regimen,
+		when @arv_first_regimen is null and @cur_arv_meds is not null then @arv_first_regimen := @cur_arv_meds
+		when @prev_id = @cur_id then @arv_first_regimen
+		else @arv_first_regimen := null
+	end as arv_first_regimen,
 
 	case
 		when arv_plan in (1107,1260) then @cur_arv_line := null
@@ -128,24 +160,12 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 		else @edd	
 	end as edd,		
 
-
-	case
-		when @prev_id=@cur_id and @preg_2 and @edd is not null and @edd != @preg_1 then @preg_3 := @preg_2
-		when @prev_id=@cur_id then @preg_3
-		else @preg_3 := null
-	end as preg_3,
-
-	case
-		when @prev_id=@cur_id and @edd is not null and @edd != @preg_1 then @preg_2 := @preg_1
-		when @prev_id=@cur_id then @preg_2
-		else @preg_2 := null
-	end as preg_2,
-
-	case
-		when @edd is not null and (@preg_1 is null or @edd != @preg_1) then @preg_1 := @edd
-		when @prev_id = @cur_id then @preg_1
-		else @preg_1 := null
-	end as preg_1,
+	case 
+		when tb_symptom is not null then @screened_for_tb := true #there is an obs for "any symptoms of tb?"
+		when tb_dx_this_visit = 1065 then @screened_for_tb := true #1065 = yes
+		when tb_tx_plan in (1256,1850) then @screened_for_tb := true #1256=start, 1850=restart
+		when tb_tx_started and tb_tx_plan != 1257 then @screened_for_tb := true #1257=continue
+	end as screened_for_tb,
 
 	case 
 		when tb_tx_plan in (1256) then @tb_treatment_start_date := encounter_datetime
@@ -157,8 +177,21 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 		when (tb_tx_current_plan !=1267 or tb_tx_plan !=1267) and @tb_treatment_start_date is null then @tb_treatment_start_date := encounter_datetime
 		when @prev_id=@cur_id then @tb_treatment_start_date
 		else @tb_treatment_start_date := null
-	end as tb_tx_start_date
+	end as tb_tx_start_date,
 
+	case 
+		when pcp_prophy_plan in (1256,1850) then @pcp_prophylaxis_start_date := encounter_datetime
+		when pcp_prophy_plan=1257 then
+			case
+				when @prev_id!=@cur_id or @pcp_prophylaxis_start_date is null then @pcp_prophylaxis_start_date := encounter_datetime
+				else @pcp_prophylaxis_start_date
+			end
+		when pcp_prophy_current in (916,92) and @pcp_prophylaxis_start_date is null then @pcp_prophylaxis_start_date := encounter_datetime
+		when current_medications regexp "[[:<:]916[[:>:]]" and @pcp_prophylaxis_start_date is null then @pcp_prophylaxis_start_date := encounter_datetime
+		when @prev_id=@cur_id then @pcp_prophylaxis_start_date
+		else @pcp_prophylaxis_start_date := null
+	end as pcp_prophylaxis_start_date
+	
 from flat_moh_731_indicators_0 t1
 	left outer join flat_arvs t2 using (encounter_id, person_id)
 	left outer join flat_drug t3 using (encounter_id, person_id)
@@ -169,15 +202,16 @@ from flat_moh_731_indicators_0 t1
 
 
 
-#drop table if exists flat_moh_731_indicators;
+drop table if exists flat_moh_731_indicators;
 create table if not exists flat_moh_731_indicators (
 	person_id int,
     encounter_id int,
 	encounter_datetime datetime,
+	scheduled_visit int,
 	prev_rtc_date datetime,
 	rtc_date datetime,
 	arv_start_date datetime,
-	first_arv_regimen varchar(500),
+	arv_first_regimen varchar(500),
 	cur_arv_meds varchar(500),
 	cur_arv_line int,
     first_evidence_patient_pregnant datetime,
@@ -185,7 +219,9 @@ create table if not exists flat_moh_731_indicators (
     preg_1 datetime,
     preg_2 datetime,
     preg_3 datetime,
+	screened_for_tb boolean,
 	tb_tx_start_date datetime,
+	pcp_prophylaxis_start_date datetime,	
     primary key encounter_id (encounter_id),
     index person_id (person_id)
 );
@@ -199,10 +235,11 @@ insert into flat_moh_731_indicators
 	person_id,
     encounter_id,
 	encounter_datetime,
+	scheduled_visit,
 	prev_rtc_date,
 	cur_rtc_date,
 	arv_start_date,
-	first_arv_regimen,
+	arv_first_regimen,
 	cur_arv_meds,
 	cur_arv_line,
     first_evidence_patient_pregnant,
@@ -210,7 +247,10 @@ insert into flat_moh_731_indicators
     preg_1,
     preg_2,
     preg_3,
-	tb_tx_start_date
+	screened_for_tb,
+	tb_tx_start_date,
+	pcp_prophylaxis_start_date
+
 from flat_moh_731_indicators_1);
 
 select * from flat_moh_731_indicators order by person_id, encounter_datetime
