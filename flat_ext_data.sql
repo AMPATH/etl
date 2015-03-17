@@ -1,4 +1,4 @@
-# This is the ETL table for flat_data
+# This is the ETL table for flat_ext_data
 # obs concept_ids: 654,653,5497,730,12,790,21,1030,1042,1040,1305,1047,307,1032,1031,1039,45,299,856
 
 
@@ -8,35 +8,35 @@
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
 
-select @last_update := (select max(date_updated) from flat_log where table_name="flat_data");
-select @last_update := "2015-01-01";
+select @last_update := (select max(date_updated) from flat_log where table_name="flat_ext_data");
+select @last_update := "2015-03-01";
 select @now := now();
 
 
-# drop table if exists flat_data;
-create table if not exists flat_data
+# drop table if exists flat_ext_data;
+create table if not exists flat_ext_data
 (person_id int,
 obs_datetime datetime,
 encounter_id int,  
-alt double,
-ast double,
-cd4_count double,
-cd4_percent double,
-chest_xray int,
-creatinine double,
-hemoglobin double,
-hiv_dna_pcr int,
-hiv_long_elisa int,
-hiv_rapid_test int,
-hiv_vl_qual int,
-hiv_western_blot int,
-sputum_afb int,
-syphylis_tpha_qual int,
-syphylis_tpha_titer int,
-tv_pcr int,
-urine_pregnancy_test int,
-vdrl int,
-viral_load double,
+ext_alt double,
+ext_ast double,
+ext_cd4_count double,
+ext_cd4_percent double,
+ext_chest_xray int,
+ext_creatinine double,
+ext_hemoglobin double,
+ext_hiv_dna_pcr int,
+ext_hiv_long_elisa int,
+ext_hiv_rapid_test int,
+ext_hiv_vl_qual int,
+ext_hiv_western_blot int,
+ext_sputum_afb int,
+ext_syphylis_tpha_qual int,
+ext_syphylis_tpha_titer int,
+ext_tv_pcr int,
+ext_urine_pregnancy_test int,
+ext_vdrl int,
+ext_viral_load double,
 index (encounter_id),
 index (obs_datetime)
 );
@@ -139,12 +139,12 @@ insert ignore into encounters_to_be_removed
 
 
 delete t1
-from flat_data t1
+from flat_ext_data t1
 join encounters_to_be_removed t2 using (obs_datetime);
 
 
 #will inner join to avoid having any encounters which have no obs. 
-insert into flat_data
+insert into flat_ext_data
 (select *
 from enc e1 
 inner join n_obs n1 using (person_id, obs_datetime)
@@ -166,4 +166,4 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
-insert into flat_log values (now(),"flat_data");
+insert into flat_log values (now(),"flat_ext_data");
