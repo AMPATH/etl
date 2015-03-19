@@ -7,6 +7,8 @@
 # 4. Add obs_set column definitions
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_handp");
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+
 select @now := now();
 
 #drop table if exists flat_handp;
@@ -182,4 +184,4 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
-insert into flat_log values (now(),"flat_handp");
+insert into flat_log values (@now,"flat_handp");

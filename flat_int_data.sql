@@ -9,7 +9,8 @@
 # drop table if exists flat_int_data;
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_int_data");
-select @last_update := "2015-03-10";
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+
 select @now := now();
 
 create table if not exists flat_int_data
@@ -242,4 +243,4 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
-insert into flat_log values (now(),"flat_int_data");
+insert into flat_log values (@now,"flat_int_data");

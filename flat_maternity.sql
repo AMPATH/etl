@@ -6,10 +6,12 @@
 # 2. Replace concept_id in () with concept_id in (1856,5272,1363,1846,1992,2055,2198,5630,1836,5596,5599,1279,1855,5992)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
- drop table if exists flat_maternity;
+#drop table if exists flat_maternity;
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_maternity");
-select @last_update := "2015-03-01";
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+
+#select @last_update := "2015-03-01";
 select @now := now();
 
 create table if not exists flat_maternity
@@ -155,4 +157,4 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
-insert into flat_log values (now(),"flat_maternity");
+insert into flat_log values (@now,"flat_maternity");

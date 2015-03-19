@@ -3,6 +3,8 @@
 # encounter types: 1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_arvs");
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+
 select @now := now();
 
 # drop table if exists flat_arvs;
@@ -43,7 +45,6 @@ drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id))
 (select person_id, encounter_id, obs_id, obs_datetime, date_voided, concept_id, date_created
 from amrs.obs where 
-person_id in (434,542,570,584) and # TESTING #########################################
 voided=1 and date_voided > @last_update and date_created <= @last_update and concept_id in (1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719));
 
 drop temporary table if exists enc;
@@ -84,8 +85,6 @@ where t2.person_attribute_type_id=28 and value='true';
 drop table if exists obs_subset;
 create temporary table obs_subset (primary key obs_id (obs_id), index encounter_id (encounter_id))
 (select * from amrs.obs o use index (date_created) where 
-person_id in (434,542,570,584) and # TESTING #########################################
-
 concept_id in (1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719) and o.voided=0 and date_created > @last_update);
 
 # add obs of encounters with voided obs
