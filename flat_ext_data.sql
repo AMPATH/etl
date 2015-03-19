@@ -9,15 +9,17 @@
 # 4. Add obs_set column definitions
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_ext_data");
-select @last_update := "2015-03-01";
 select @now := now();
 
 
 # drop table if exists flat_ext_data;
+# select @last_update := "2015-03-01";
+
 create table if not exists flat_ext_data
 (person_id int,
 obs_datetime datetime,
 encounter_id int,  
+obs_ids varchar(1000),
 ext_alt double,
 ext_ast double,
 ext_cd4_count double,
@@ -94,6 +96,7 @@ create temporary table n_obs (index obs_datetime (obs_datetime))
 (select
 	person_id, 
 	obs_datetime, 
+	group_concat(obs_id order by obs_id separator ' // ') as obs_ids,
 	min(if(concept_id=654,value_numeric,null)) as alt,
 	min(if(concept_id=653,value_numeric,null)) as ast,
 	min(if(concept_id=5497,value_numeric,null)) as cd4_count,
@@ -166,4 +169,6 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
-insert into flat_log values (now(),"flat_ext_data");
+insert into flat_log values (@now,"flat_ext_data");
+
+select * from flat_ext_data;

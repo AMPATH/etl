@@ -130,4 +130,4 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
-insert into flat_log values (now(),"flat_table");
+insert into flat_log values (@now,"flat_table");

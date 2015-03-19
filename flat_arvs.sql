@@ -1,12 +1,12 @@
 # This is the ETL table for flat_arvs
 # obs concept_ids: 1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719
 # encounter types: 1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21
-drop table if exists flat_arvs;
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_arvs");
-select @last_update := "2015-01-01";
 select @now := now();
 
+# drop table if exists flat_arvs;
+#select @last_update := "2015-01-01";
 create table if not exists flat_arvs
 (encounter_id int,  
 person_id int,
@@ -178,5 +178,5 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
-insert into flat_log values (now(),"flat_arvs");
+insert into flat_log values (@now,"flat_arvs");
 

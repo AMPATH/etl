@@ -6,10 +6,11 @@
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
-#drop table if exists flat_encounter;
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_encounter");
-select @last_update := "2015-03-10";
 select @now := now();
+
+#drop table if exists flat_encounter;
+#select @last_update := "2015-03-10";
 
 create table if not exists flat_encounter
 (encounter_id int,  

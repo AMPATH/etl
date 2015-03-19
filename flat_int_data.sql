@@ -16,26 +16,65 @@ create table if not exists flat_int_data
 (encounter_id int,  
 person_id int,
 int_alt double,
+int_alt_date datetime,
+
 int_ast double,
+int_ast_date datetime,
+
 int_cd4_count double,
+int_cd4_count_date datetime,
+
 int_cd4_percent double,
+int_cd4_percent_date datetime,
+
 int_chest_xray int,
+int_chest_xray_date datetime,
+
 int_creatinine double,
+int_creatinine_date datetime,
+
 int_hemoglobin double,
+int_hemoglobin_date datetime,
+
 int_hiv_dna_pcr int,
+int_hiv_dna_pcr_date datetime,
+
 int_hiv_long_elisa int,
+int_hiv_long_elisa_date datetime,
+
 int_hiv_rapid_test int,
+int_hiv_rapid_test_date datetime,
+
 int_hiv_vl_qual int,
+int_hiv_vl_qual_date datetime,
+
 int_hiv_western_blot int,
+int_hiv_western_blot_date datetime,
+
 int_sputum_afb int,
+int_sputum_afb_date datetime,
+
 int_syphylis_tpha_qual int,
+int_syphylis_tpha_qual_date datetime,
+
 int_syphylis_tpha_titer int,
+int_syphylis_tpha_titer_date datetime,
+
 int_tv_pcr int,
+int_tv_pcr_date datetime,
+
 int_urine_pregnancy_test int,
+int_urine_pregnancy_test_date datetime,
+
 int_vdrl int,
+int_vdrl_date datetime,
+
 int_viral_load double,
+int_viral_load_date datetime,
+
 index encounter_id (encounter_id)
 );
+
 
 
 
@@ -97,24 +136,62 @@ create temporary table n_obs (index encounter_id (encounter_id))
 (select
 	encounter_id,
 	min(if(concept_id=654,value_numeric,null)) as alt,
+	min(if(concept_id=654,obs_datetime,null)) as alt_date,
+
 	min(if(concept_id=653,value_numeric,null)) as ast,
+	min(if(concept_id=653,obs_datetime,null)) as ast_date,
+
 	min(if(concept_id=5497,value_numeric,null)) as cd4_count,
+	min(if(concept_id=5497,obs_datetime,null)) as cd4_count_date,
+
 	min(if(concept_id=730,value_numeric,null)) as cd4_percent,
+	min(if(concept_id=730,obs_datetime,null)) as cd4_percent_date,
+
 	min(if(concept_id=12,value_coded,null)) as chest_xray,
+	min(if(concept_id=12,obs_datetime,null)) as chest_xray_date,
+
 	min(if(concept_id=790,value_numeric,null)) as creatinine,
+	min(if(concept_id=790,obs_datetime,null)) as creatinine_date,
+
 	min(if(concept_id=21,value_numeric,null)) as hemoglobin,
+	min(if(concept_id=21,obs_datetime,null)) as hemoglobin_date,
+
 	min(if(concept_id=1030,value_coded,null)) as hiv_dna_pcr,
+	min(if(concept_id=1030,obs_datetime,null)) as hiv_dna_pcr_date,
+
 	min(if(concept_id=1042,value_coded,null)) as hiv_long_elisa,
+	min(if(concept_id=1042,obs_datetime,null)) as hiv_long_elisa_date,
+
 	min(if(concept_id=1040,value_coded,null)) as hiv_rapid_test,
+	min(if(concept_id=1040,obs_datetime,null)) as hiv_rapid_test_date,
+
 	min(if(concept_id=1305,value_coded,null)) as hiv_vl_qual,
+	min(if(concept_id=1305,obs_datetime,null)) as hiv_vl_qual_date,
+
 	min(if(concept_id=1047,value_coded,null)) as hiv_western_blot,
+	min(if(concept_id=1047,obs_datetime,null)) as hiv_western_blot_date,
+
 	min(if(concept_id=307,value_coded,null)) as sputum_afb,
+	min(if(concept_id=307,obs_datetime,null)) as sputum_afb_date,
+
 	min(if(concept_id=1032,value_coded,null)) as syphylis_tpha_qual,
+	min(if(concept_id=1032,obs_datetime,null)) as syphylis_tpha_qual_date,
+
 	min(if(concept_id=1031,value_coded,null)) as syphylis_tpha_titer,
+	min(if(concept_id=1031,obs_datetime,null)) as syphylis_tpha_titer_date,
+
 	min(if(concept_id=1039,value_coded,null)) as tv_pcr,
+	min(if(concept_id=1039,obs_datetime,null)) as tv_pcr_date,
+
 	min(if(concept_id=45,value_coded,null)) as urine_pregnancy_test,
+	min(if(concept_id=45,obs_datetime,null)) as urine_pregnancy_test_date,
+
 	min(if(concept_id=299,value_coded,null)) as vdrl,
-	min(if(concept_id=856,value_numeric,null)) as viral_load
+	min(if(concept_id=299,obs_datetime,null)) as vdrl_date,
+
+	min(if(concept_id=856,value_numeric,null)) as viral_load,
+	min(if(concept_id=856,obs_datetime,null)) as viral_load_date
+
 	from obs_subset
 	where encounter_id is not null and voided=0
 	group by encounter_id 

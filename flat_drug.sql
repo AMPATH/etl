@@ -5,18 +5,18 @@
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
-#drop table if exists flat_drug;
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_drug");
-select @last_update := "2015-01-01";
 select @now := now();
 insert into flat_log values (now(),"flat_drug");
 
+#drop table if exists flat_drug;
+#select @last_update := "2015-03-01";
 create table if not exists flat_drug
 (encounter_id int,  
 person_id int,
 pcp_prophy_current int,
 crypto_tx_current int,
-current_med varchar(1000),
+current_meds varchar(1000),
 pcp_prophy_plan int,
 pcp_prophy_started int,
 crypto_tx_plan int,
@@ -88,7 +88,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	# flattened column definitions go here
 	min(if(concept_id=1109,value_coded,null)) as pcp_prophy_current,
 	min(if(concept_id=1112,value_coded,null)) as crypto_tx_current,
-	group_concat(if(concept_id=1193,value_coded,null) order by value_coded separator ' // ') as current_med,
+	group_concat(if(concept_id=1193,value_coded,null) order by value_coded separator ' // ') as current_meds,
 	min(if(concept_id=1261,value_coded,null)) as pcp_prophy_plan,
 	min(if(concept_id=1263,value_coded,null)) as pcp_prophy_started,
 	min(if(concept_id=1277,value_coded,null)) as crypto_tx_plan,

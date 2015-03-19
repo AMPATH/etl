@@ -5,9 +5,12 @@
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
+
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_handp");
-select @last_update := "2015-03-10";
 select @now := now();
+
+#drop table if exists flat_handp;
+#select @last_update := "2015-03-10";
 
 create table if not exists flat_handp
 (encounter_id int,  
@@ -41,8 +44,7 @@ height double,
 death_cause int,
 death_reported_by int,
 death_date datetime,
-index encounter_id (encounter_id), 
-index enc_date_created (enc_date_created));
+index encounter_id (encounter_id));
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id))
@@ -51,7 +53,7 @@ from amrs.obs where voided=1 and date_voided > @last_update and date_created <= 
 
 drop temporary table if exists enc;
 create temporary table enc (encounter_id int, person_id int, primary key encounter_id (encounter_id), index person_id (person_id))
-(select e.encounter_id, e.patient_id as person_id, e.encounter_type, e.date_created as enc_date_created
+(select e.encounter_id, e.patient_id as person_id
 from amrs.encounter e 
 where e.voided=0
 and e.date_created > @last_update
@@ -100,7 +102,6 @@ drop temporary table if exists n_obs;
 create temporary table n_obs (index encounter_id (encounter_id))
 (select
 	encounter_id,
-	# flattened column definitions go here #########################################################################
 	min(if(concept_id=1942,value_boolean,null)) as new_cdc_stage_met,
 	min(if(concept_id=1943,value_boolean,null)) as new_who_stage_met,
 	min(if(concept_id=2020,value_boolean,null)) as tb_in_household_member,

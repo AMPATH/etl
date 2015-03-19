@@ -7,6 +7,19 @@
 # It seems that if you don't create the temporary table first, the sort is applied 
 # to the final result. Any references to the previous row will not an ordered row. 
 
+#drop table if exists derived_encounter;
+
+create table if not exists derived_encounter(
+	person_id int,
+    encounter_id int,
+	prev_encounter_datetime datetime,
+	next_encounter_datetime datetime,
+	prev_encounter_type int,
+	next_encounter_type int,
+    primary key encounter_id (encounter_id),
+    index person_id (person_id)
+);
+
 
 drop table if exists derived_encounter_0;
 create temporary table derived_encounter_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
@@ -17,6 +30,29 @@ create temporary table derived_encounter_0(index encounter_id (encounter_id), in
 		and voided=0
 	order by t0.person_id, e.encounter_datetime
 );
+
+drop table if exists derived_encounter_0;
+create temporary table derived_encounter_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+(select * from 
+	((select t0.person_id, e.encounter_id, e.encounter_datetime, e.encounter_type
+		from amrs.encounter e
+			join flat_new_person_data t0 on e.patient_id = t0.person_id
+		where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21)
+			and voided=0
+		order by t0.person_id, e.encounter_datetime
+	)
+
+	union
+
+	(select t0.person_id, t0.encounter_id, t0.obs_datetime as encounter_datetime, 99999 as encounter_type
+		from flat_ext_data t0
+			join flat_new_person_data t1 using(person_id)
+		limit 100000
+	)) t1
+	order by person_id, encounter_datetime
+);
+
+
 
 select @prev_id := null;
 select @cur_id := null;
@@ -66,7 +102,7 @@ create temporary table derived_encounter_2 (prev_encounter_datetime datetime, pr
 (select 
 	*,
 	@prev_id := @cur_id as prev_id, 
-	@cur_id := t1.patient_id as cur_id,
+	@cur_id := t1.person_id as cur_id,
 
 	case
         when @prev_id=@cur_id then @prev_encounter_type := @cur_encounter_type
@@ -86,17 +122,6 @@ create temporary table derived_encounter_2 (prev_encounter_datetime datetime, pr
 );		
 	
 
-#drop table if exists derived_encounter;
-create table if not exists derived_encounter(
-	person_id int,
-    encounter_id int,
-	prev_encounter_datetime datetime,
-	next_encounter_datetime datetime,
-	prev_encounter_type int,
-	next_encounter_type int,
-    primary key encounter_id (encounter_id),
-    index person_id (person_id)
-);
 
 delete t1
 from derived_encounter t1
