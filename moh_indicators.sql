@@ -8,8 +8,8 @@
 # to the final result. Any references to the previous row will not an ordered row. 
 
 
-drop table if exists flat_moh_731_indicators_0;
-create temporary table flat_moh_731_indicators_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+drop table if exists flat_moh_indicators_0;
+create temporary table flat_moh_indicators_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
 (select * from 
 	((select t0.person_id, e.encounter_id, e.encounter_datetime, e.encounter_type
 		from amrs.encounter e
@@ -68,8 +68,8 @@ select @cd4_percent_2_date:=null;
 # dead
 # exposed infant
 
-drop temporary table if exists flat_moh_731_indicators_1;
-create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_id))
+drop temporary table if exists flat_moh_indicators_1;
+create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 (select 
 	@prev_id := @cur_id as prev_id, 
 	@cur_id := t1.person_id as cur_id,
@@ -339,7 +339,7 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 	end as vl_1_date
 
 	
-from flat_moh_731_indicators_0 t1
+from flat_moh_indicators_0 t1
 	left outer join flat_arvs t2 using (encounter_id, person_id)
 	left outer join flat_drug t3 using (encounter_id, person_id)
 	left outer join flat_maternity t4 using (encounter_id, person_id)
@@ -353,8 +353,8 @@ from flat_moh_731_indicators_0 t1
 
 
 
-drop table if exists flat_moh_731_indicators;
-create table if not exists flat_moh_731_indicators (
+drop table if exists flat_moh_indicators;
+create table if not exists flat_moh_indicators (
 	person_id int,
     encounter_id int,
 	encounter_datetime datetime,
@@ -392,10 +392,10 @@ create table if not exists flat_moh_731_indicators (
 );
 
 delete t1
-from flat_moh_731_indicators t1
+from flat_moh_indicators t1
 join flat_new_person_data t2 using (person_id);
 
-insert into flat_moh_731_indicators
+insert into flat_moh_indicators
 (select 
 	person_id,
     encounter_id,
@@ -429,4 +429,4 @@ insert into flat_moh_731_indicators
     vl_1_date,
     vl_2,
     vl_2_date
-from flat_moh_731_indicators_1);
+from flat_moh_indicators_1);
