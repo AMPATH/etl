@@ -62,7 +62,7 @@ where o.voided=0
 and o.date_created > @last_update
 and concept_id in (654,653,5497,730,12,790,21,1030,1042,1040,1305,1047,307,1032,1031,1039,45,299,856)
 and encounter_id is null
-group by obs_datetime
+group by person_id, obs_datetime
 );
 
 # remove test patients
