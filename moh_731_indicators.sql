@@ -230,8 +230,19 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 	end as cd4_2_date,
 
 	case 
-		when ext_cd4_count >= 0 then @cd4_1:=cd4_count
-		when int_cd4_count >= 0 and (@cd4_1_date is null or datediff(int_cd4_count_date,@cd4_1_date) > 30) then @cd4_1 := cd4_count
+		when ext_cd4_count >= 0 then ext_cd4_count
+		when int_cd4_count >= 0 and (@cd4_1_date is null or datediff(int_cd4_count_date,@cd4_1_date) > 30) then int_cd4_count
+	end as cd4_resulted,
+
+	case 
+		when ext_cd4_count >= 0 then encounter_datetime
+		when int_cd4_count >= 0 and (@cd4_1_date is null or datediff(int_cd4_count_date,@cd4_1_date) > 30) then int_cd4_count_date
+	end as cd4_resulted_date,
+
+
+	case 
+		when ext_cd4_count >= 0 then @cd4_1:= ext_cd4_count
+		when int_cd4_count >= 0 and (@cd4_1_date is null or datediff(int_cd4_count_date,@cd4_1_date) > 30) then @cd4_1 := int_cd4_count
 		when @prev_id=@cur_id then @cd4_1
 		else @cd4_1:=null
 	end as cd4_1,
@@ -266,8 +277,8 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 
 
 	case
-		when ext_cd4_percent >= 0 then @cd4_percent_1:=cd4_percent
-		when int_cd4_percent >= 0 and (@cd4_percent_1_date is null or datediff(int_cd4_percent_date,@cd4_1_date) > 30) then @cd4_percent_1 := cd4_percent
+		when ext_cd4_percent >= 0 then @cd4_percent_1:= ext_cd4_percent
+		when int_cd4_percent >= 0 and (@cd4_percent_1_date is null or datediff(int_cd4_percent_date,@cd4_1_date) > 30) then @cd4_percent_1 := int_cd4_percent
 		when @prev_id=@cur_id then @cd4_percent_1
 		else @cd4_percent_1:=null
 	end as cd4_percent_1,
@@ -303,6 +314,17 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 
 
 	case 
+		when ext_hiv_vl_quant >= 0 then ext_hiv_vl_quant
+		when int_hiv_vl_quant >= 0 and (@vl_1_date is null or datediff(int_hiv_vl_quant_date,@vl_1_date) > 30) then @vl_1 := int_hiv_vl_quant
+	end as vl_resulted,
+
+	case 
+		when ext_hiv_vl_quant >= 0 then encounter_datetime
+		when int_hiv_vl_quant >= 0 and (@vl_1_date is null or datediff(int_hiv_vl_quant_date,@vl_1_date) > 30) then int_hiv_vl_quant_date
+	end as vl_resulted_date,
+
+
+	case 
 		when ext_hiv_vl_quant >= 0 then @vl_1:=ext_hiv_vl_quant
 		when int_hiv_vl_quant >= 0 and (@vl_1_date is null or datediff(int_hiv_vl_quant_date,@vl_1_date) > 30) then @vl_1 := int_hiv_vl_quant
 		when @prev_id=@cur_id then @vl_1
@@ -312,8 +334,8 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 	case
 		when ext_hiv_vl_quant >= 0 then @vl_1_date:= encounter_datetime
 		when int_hiv_vl_quant >= 0 and (@vl_1_date is null or datediff(int_hiv_vl_quant_date,@vl_1_date) > 30) then @vl_1_date := int_hiv_vl_quant_date
-		when @prev_id=@cur_id then @vl1_date
-		else @vl1_date:=null
+		when @prev_id=@cur_id then @vl_1_date
+		else @vl_1_date:=null
 	end as vl_1_date
 
 	
@@ -349,6 +371,8 @@ create table if not exists flat_moh_731_indicators (
 	screened_for_tb boolean,
 	tb_tx_start_date datetime,
 	pcp_prophylaxis_start_date datetime,
+	cd4_resulted double,
+	cd4_resulted_date datetime,
     cd4_1 double,
     cd4_1_date datetime,
     cd4_2 double,
@@ -357,10 +381,12 @@ create table if not exists flat_moh_731_indicators (
 	cd4_percent_1_date datetime,
     cd4_percent_2 double,
 	cd4_percent_2_date datetime,
-    vl1 int,
-    vl1_date datetime,
-    vl2 int,
-    vl2_date datetime,
+	vl_resulted int,
+	vl_resulted_date datetime,
+    vl_1 int,
+    vl_1_date datetime,
+    vl_2 int,
+    vl_2_date datetime,
     primary key encounter_id (encounter_id),
     index person_id (person_id)
 );
@@ -387,6 +413,8 @@ insert into flat_moh_731_indicators
 	screened_for_tb,
 	tb_tx_start_date,
 	pcp_prophylaxis_start_date,
+	cd4_resulted,
+	cd4_resulted_date,
     cd4_1,
     cd4_1_date,
     cd4_2,
@@ -395,8 +423,10 @@ insert into flat_moh_731_indicators
 	cd4_percent_1_date,
     cd4_percent_2,
 	cd4_percent_2_date,
-    vl1,
-    vl1_date,
-    vl2,
-    vl2_date
+	vl_resulted,
+	vl_resulted_date,
+    vl_1,
+    vl_1_date,
+    vl_2,
+    vl_2_date
 from flat_moh_731_indicators_1);

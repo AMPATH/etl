@@ -14,8 +14,8 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 select @now := now();
 
 
-# drop table if exists flat_ext_data;
-# select @last_update := "2015-03-01";
+#drop table if exists flat_ext_data;
+#select @last_update := "2015-03-01";
 
 create table if not exists flat_ext_data
 (person_id int,
