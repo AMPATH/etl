@@ -45,6 +45,19 @@ select @tb_treatment_start_date := null;
 select @pcp_prophylaxis_start_date := null;
 select @screened_for_tb := null;
 select @death_date := null;
+select @vl_1:=null;
+select @vl_2:=null;
+select @vl_1_date:=null;
+select @vl_2_date:=null;
+select @cd4_1:=null;
+select @cd4_1_date:=null;
+select @cd4_2:=null;
+select @cd4_2_date:=null;
+select @cd4_percent_1:=null;
+select @cd4_percent_1_date:=null;
+select @cd4_percent_2:=null;
+select @cd4_percent_2_date:=null;
+
 
 #TO DO
 # enrolled in care
@@ -194,7 +207,115 @@ create temporary table flat_moh_731_indicators_1 (index encounter_id (encounter_
 				else @death_date := null
 			end
 		else @death_date
-	end as death_date
+	end as death_date,
+
+	case
+		when @prev_id=@cur_id then
+			case 
+				when ext_cd4_count >= 0 and @cd4_1 >= 0 and date(encounter_datetime)<>@cd4_1_date then @cd4_2:= @cd4_1
+				when int_cd4_count >= 0 and @cd4_1 >= 0 and datediff(int_cd4_count_date,@cd4_1_date) > 30 then @cd4_2 := @cd4_1
+				else @cd4_2
+			end
+		else @cd4_2:=null
+	end as cd4_2,
+
+	case 
+		when @prev_id=@cur_id then
+			case
+				when ext_cd4_count >= 0 and @cd4_1 >= 0 and date(encounter_datetime)<>@cd4_1_date then @cd4_2_date:= @cd4_1_date
+				when int_cd4_count >= 0 and @cd4_1 >= 0 and datediff(int_cd4_count_date,@cd4_1_date) > 30 then @cd4_2_date:= @cd4_1_date
+				else @cd4_2_date
+			end
+		else @cd4_2_date:=null
+	end as cd4_2_date,
+
+	case 
+		when ext_cd4_count >= 0 then @cd4_1:=cd4_count
+		when int_cd4_count >= 0 and (@cd4_1_date is null or datediff(int_cd4_count_date,@cd4_1_date) > 30) then @cd4_1 := cd4_count
+		when @prev_id=@cur_id then @cd4_1
+		else @cd4_1:=null
+	end as cd4_1,
+
+	case 
+		when ext_cd4_count >= 0 then @cd4_1_date:=date(encounter_datetime)
+		when int_cd4_count >= 0 and (@cd4_1_date is null or datediff(int_cd4_count_date,@cd4_1_date) > 30) then @cd4_1_date := date(int_cd4_count_date)
+		when @prev_id=@cur_id then @cd4_1_date
+		else @cd4_1_date:=null
+	end as cd4_1_date,
+
+
+	case
+		when @prev_id=@cur_id then
+			case 
+				when ext_cd4_percent >= 0 and @cd4_percent_1 >= 0 and date(encounter_datetime)<>@cd4_percent_1_date then @cd4_percent_2:= @cd4_percent_1
+				when int_cd4_percent >= 0 and @cd4_percent_1 >= 0 and datediff(int_cd4_percent_date,@cd4_percent_1_date) > 30 then @cd4_percent_2 := @cd4_percent_1
+				else @cd4_percent_2
+			end
+		else @cd4_percent_2:=null
+	end as cd4_percent_2,
+
+	case 
+		when @prev_id=@cur_id then
+			case
+				when ext_cd4_percent >= 0 and @cd4_percent_1 >= 0 and date(encounter_datetime)<>@cd4_percent_1_date then @cd4_percent_2_date:= @cd4_percent_1_date
+				when int_cd4_percent >= 0 and @cd4_percent_1 >= 0 and datediff(int_cd4_percent_date,@cd4_percent_1_date) > 30 then @cd4_percent_2_date:= @cd4_percent_1_date
+				else @cd4_percent_2_date
+			end
+		else @cd4_percent_2_date:=null
+	end as cd4_percent_2_date,
+
+
+	case
+		when ext_cd4_percent >= 0 then @cd4_percent_1:=cd4_percent
+		when int_cd4_percent >= 0 and (@cd4_percent_1_date is null or datediff(int_cd4_percent_date,@cd4_1_date) > 30) then @cd4_percent_1 := cd4_percent
+		when @prev_id=@cur_id then @cd4_percent_1
+		else @cd4_percent_1:=null
+	end as cd4_percent_1,
+
+	case 
+		when ext_cd4_percent >= 0 then @cd4_percent_1_date:=date(encounter_datetime)
+		when int_cd4_percent >= 0 and (@cd4_percent_1_date is null or datediff(int_cd4_percent_date,@cd4_percent_1_date) > 30) then @cd4_percent_1_date := date(int_cd4_percent_date)
+		when @prev_id=@cur_id then @cd4_percent_1_date
+		else @cd4_percent_1_date:=null
+	end as cd4_percent_1_date,
+
+
+	case
+		when @prev_id=@cur_id then
+			case
+				when ext_hiv_vl_quant >= 0 and @vl_1 >= 0 and date(encounter_datetime)<>@vl_1_date then @vl_2:= @vl_1
+				when int_hiv_vl_quant >= 0 and @vl_1 >= 0 and datediff(int_hiv_vl_quant_date,@vl_1_date) > 30 then @vl_2 := @vl_1
+				else @vl_2
+			end
+		else @vl2:=null
+	end as vl_2,
+
+
+	case 
+		when @prev_id=@cur_id then
+			case 
+				when ext_hiv_vl_quant >= 0 and @vl_1 and date(encounter_datetime)<>date(@vl_1_date) then @vl_2_date:= @vl_1_date
+				when int_hiv_vl_quant >= 0 and @vl_1 >= 0 and datediff(int_hiv_vl_quant_date,@vl_1_date) > 30 then @vl_2_date := @vl_1_date
+				else @vl2_date
+			end
+		else @vl2_date:=null
+	end as vl_2_date,
+
+
+	case 
+		when ext_hiv_vl_quant >= 0 then @vl_1:=ext_hiv_vl_quant
+		when int_hiv_vl_quant >= 0 and (@vl_1_date is null or datediff(int_hiv_vl_quant_date,@vl_1_date) > 30) then @vl_1 := int_hiv_vl_quant
+		when @prev_id=@cur_id then @vl_1
+		else @vl_1:=null
+	end as vl_1,
+
+	case
+		when ext_hiv_vl_quant >= 0 then @vl_1_date:= encounter_datetime
+		when int_hiv_vl_quant >= 0 and (@vl_1_date is null or datediff(int_hiv_vl_quant_date,@vl_1_date) > 30) then @vl_1_date := int_hiv_vl_quant_date
+		when @prev_id=@cur_id then @vl1_date
+		else @vl1_date:=null
+	end as vl_1_date
+
 	
 from flat_moh_731_indicators_0 t1
 	left outer join flat_arvs t2 using (encounter_id, person_id)
@@ -227,7 +348,19 @@ create table if not exists flat_moh_731_indicators (
     edd datetime,
 	screened_for_tb boolean,
 	tb_tx_start_date datetime,
-	pcp_prophylaxis_start_date datetime,	
+	pcp_prophylaxis_start_date datetime,
+    cd4_1 double,
+    cd4_1_date datetime,
+    cd4_2 double,
+    cd4_2_date datetime,
+    cd4_percent_1 double,
+	cd4_percent_1_date datetime,
+    cd4_percent_2 double,
+	cd4_percent_2_date datetime,
+    vl1 int,
+    vl1_date datetime,
+    vl2 int,
+    vl2_date datetime,
     primary key encounter_id (encounter_id),
     index person_id (person_id)
 );
@@ -253,5 +386,17 @@ insert into flat_moh_731_indicators
     edd,
 	screened_for_tb,
 	tb_tx_start_date,
-	pcp_prophylaxis_start_date
+	pcp_prophylaxis_start_date,
+    cd4_1,
+    cd4_1_date,
+    cd4_2,
+    cd4_2_date,
+    cd4_percent_1,
+	cd4_percent_1_date,
+    cd4_percent_2,
+	cd4_percent_2_date,
+    vl1,
+    vl1_date,
+    vl2,
+    vl2_date
 from flat_moh_731_indicators_1);

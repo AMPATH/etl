@@ -40,7 +40,7 @@ ext_syphylis_tpha_titer int,
 ext_tv_pcr int,
 ext_urine_pregnancy_test int,
 ext_vdrl int,
-ext_viral_load double,
+ext_hiv_vl_quant double,
 index (encounter_id),
 index (obs_datetime)
 );
@@ -117,7 +117,7 @@ create temporary table n_obs (index obs_datetime (obs_datetime))
 	min(if(concept_id=1039,value_coded,null)) as tv_pcr,
 	min(if(concept_id=45,value_coded,null)) as urine_pregnancy_test,
 	min(if(concept_id=299,value_coded,null)) as vdrl,
-	min(if(concept_id=856,value_numeric,null)) as viral_load
+	min(if(concept_id=856,value_numeric,null)) as hiv_vl_quant
 	from obs_subset
 	group by person_id,obs_datetime 
 );

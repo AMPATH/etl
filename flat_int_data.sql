@@ -70,8 +70,8 @@ int_urine_pregnancy_test_date datetime,
 int_vdrl int,
 int_vdrl_date datetime,
 
-int_viral_load double,
-int_viral_load_date datetime,
+int_hiv_vl_quant double,
+int_hiv_vl_quant_date datetime,
 
 index encounter_id (encounter_id)
 );
@@ -190,8 +190,8 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	min(if(concept_id=299,value_coded,null)) as vdrl,
 	min(if(concept_id=299,obs_datetime,null)) as vdrl_date,
 
-	min(if(concept_id=856,value_numeric,null)) as viral_load,
-	min(if(concept_id=856,obs_datetime,null)) as viral_load_date
+	min(if(concept_id=856,value_numeric,null)) as hiv_vl_quant,
+	min(if(concept_id=856,obs_datetime,null)) as hiv_vl_quant_date
 
 	from obs_subset
 	where encounter_id is not null and voided=0
