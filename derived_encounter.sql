@@ -137,11 +137,3 @@ insert into derived_encounter
 	next_encounter_type
 from derived_encounter_2
 order by person_id, encounter_datetime);
-
-/*
-select t1.person_id, t1.prev_encounter_datetime, t2.encounter_datetime,t1.next_encounter_datetime, t1.prev_encounter_type, t2.encounter_type, t1.next_encounter_type#
-	from derived_encounter t1
-	join amrs.encounter t2 using (encounter_id)
-	order by person_id, prev_encounter_datetime;
-*/
-

@@ -2,8 +2,18 @@
 # obs concept_ids: 1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719
 # encounter types: 1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21
 
+# first check if in flat_log
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_arvs");
+
+# then use the max_date_created from amrs.encounter
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_arvs using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
+
 
 select @now := now();
 

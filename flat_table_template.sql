@@ -6,12 +6,23 @@
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
-# drop table if exists flat_table;
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_table");
-select @last_update := "2015-03-10";
+
+# then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_table using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+
+
 select @now := now();
 
+#select @last_update := "2015-03-10";
+# drop table if exists flat_table;
 create table if not exists flat_table
 (encounter_id int,  
 person_id int,
