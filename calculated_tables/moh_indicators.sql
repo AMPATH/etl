@@ -297,7 +297,7 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 				when int_hiv_vl_quant >= 0 and @vl_1 >= 0 and datediff(int_hiv_vl_quant_date,@vl_1_date) > 30 then @vl_2 := @vl_1
 				else @vl_2
 			end
-		else @vl2:=null
+		else @vl_2:=null
 	end as vl_2,
 
 
@@ -306,9 +306,9 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 			case 
 				when ext_hiv_vl_quant >= 0 and @vl_1 and date(encounter_datetime)<>date(@vl_1_date) then @vl_2_date:= @vl_1_date
 				when int_hiv_vl_quant >= 0 and @vl_1 >= 0 and datediff(int_hiv_vl_quant_date,@vl_1_date) > 30 then @vl_2_date := @vl_1_date
-				else @vl2_date
+				else @vl_2_date
 			end
-		else @vl2_date:=null
+		else @vl_2_date:=null
 	end as vl_2_date,
 
 
