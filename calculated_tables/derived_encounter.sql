@@ -47,7 +47,6 @@ create temporary table derived_encounter_0(index encounter_id (encounter_id), in
 	(select t0.person_id, t0.encounter_id, t0.obs_datetime as encounter_datetime, 99999 as encounter_type
 		from flat_ext_data t0
 			join flat_new_person_data t1 using(person_id)
-		limit 100000
 	)) t1
 	order by person_id, encounter_datetime
 );
