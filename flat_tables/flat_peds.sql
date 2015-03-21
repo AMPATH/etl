@@ -5,11 +5,24 @@
 # 2. Replace concept_id in () with concept_id in (1208,1209,1224,1225,2019,5303)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
+# first check if in flat_log
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_peds");
+
+# then use the max_date_created from amrs.encounter
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_peds using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2015-01-01";
 select @now := now();
+
+#drop table if exists flat_peds;
+#delete from flat_log where table_name="flat_peds";
+#delete from flat_peds;
+#select @last_update := "2015-03-01";
 
 create table if not exists flat_peds
 (encounter_id int,  

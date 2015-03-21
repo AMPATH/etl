@@ -22,7 +22,8 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 select @now := now();
 
 #select @last_update := "2015-03-10";
-# drop table if exists flat_table;
+#delete from flat_log where table_name="flat_table";
+#drop table if exists flat_table;
 create table if not exists flat_table
 (encounter_id int,  
 person_id int,

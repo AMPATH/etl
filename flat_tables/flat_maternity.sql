@@ -6,13 +6,24 @@
 # 2. Replace concept_id in () with concept_id in (1856,5272,1363,1846,1992,2055,2198,5630,1836,5596,5599,1279,1855,5992)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
-#drop table if exists flat_maternity;
 
+# first check if in flat_log
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_maternity");
+
+# then use the max_date_created from amrs.encounter
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_maternity using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2015-03-01";
 select @now := now();
+
+# drop table if exists flat_maternity;
+#delete from flat_log where table_name="flat_maternity";
+#select @last_update := "2015-01-01";
 
 create table if not exists flat_maternity
 (encounter_id int,  
@@ -105,7 +116,7 @@ create temporary table n_obs (index encounter_id (encounter_id))
 	min(if(concept_id=1279,value_numeric,null)) as num_weeks_preg,
 	min(if(concept_id=1855,value_numeric,null)) as fundal_height,
 	min(if(concept_id=5992,value_numeric,null)) as preg_current_month,
-	min(if(concept_id=1146,value_coded,null)) as delivered_since_last_visidelivered_since_last_vistdelivered_since_last_vistt
+	min(if(concept_id=1146,value_coded,null)) as delivered_since_last_visit
 	from obs_subset
 	where encounter_id is not null
 		 and voided=0

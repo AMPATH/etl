@@ -1,17 +1,28 @@
-# This is the ETL table for 
+# This is the ETL table for drugs
 # obs concept_ids: 1109,1112,1193,1261,1263,1277,1278,1637,1668,1879,1895,2250,8346
 # encounter types: 1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21
 # 1. Replace flat_drug with flat_drug_name
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
+# first check if in flat_log
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_drug");
+
+# then use the max_date_created from amrs.encounter
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_drug using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
 select @now := now();
 
-#drop table if exists flat_drug;
-#select @last_update := "2015-03-01";
+# drop table if exists flat_drug;
+#delete from flat_log where table_name="flat_drug";
+#select @last_update := "2015-01-01";
+
 create table if not exists flat_drug
 (encounter_id int,  
 person_id int,
