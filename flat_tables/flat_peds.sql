@@ -62,7 +62,7 @@ insert ignore into enc
 (select e.encounter_id, e.patient_id as person_id
 from amrs.encounter e
 join amrs.obs o 
-force index for join (date_created)
+force index for join (encounter_date_created)
 using (encounter_id)
 where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and concept_id in (1208,1209,1224,1225,2019,5303)  and encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21) 
 );
@@ -76,7 +76,7 @@ where t2.person_attribute_type_id=28 and value='true';
 # create a dataset of the new obs. 
 drop table if exists obs_subset;
 create temporary table obs_subset (primary key obs_id (obs_id), index encounter_id (encounter_id))
-(select * from amrs.obs o use index (date_created) where concept_id in (1208,1209,1224,1225,2019,5303) and o.voided=0 and date_created > @last_update);
+(select * from amrs.obs o use index (encounter_date_created) where concept_id in (1208,1209,1224,1225,2019,5303) and o.voided=0 and date_created > @last_update);
 
 # add obs of encounters with voided obs
 insert ignore into obs_subset
@@ -84,7 +84,7 @@ insert ignore into obs_subset
 
 # add obs for encounters which have new obs
 insert ignore into obs_subset
-(select o.* from amrs.encounter e join amrs.obs o use index (date_created) using (encounter_id) where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and o.concept_id in (1208,1209,1224,1225,2019,5303));
+(select o.* from amrs.encounter e join amrs.obs o use index (encounter_date_created) using (encounter_id) where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and o.concept_id in (1208,1209,1224,1225,2019,5303));
 
 
 drop temporary table if exists n_obs;

@@ -17,7 +17,6 @@ create temporary table flat_moh_indicators_0(index encounter_id (encounter_id), 
 		where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21)
 			and voided=0
 		order by t0.person_id, e.encounter_datetime
-		limit 100000
 	)
 
 	union
