@@ -352,7 +352,7 @@ from flat_moh_indicators_0 t1
 
 
 
-drop table if exists flat_moh_indicators;
+#drop table if exists flat_moh_indicators;
 create table if not exists flat_moh_indicators (
 	person_id int,
     encounter_id int,
