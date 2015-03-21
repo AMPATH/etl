@@ -24,7 +24,6 @@ create temporary table flat_moh_indicators_0(index encounter_id (encounter_id), 
 	(select t0.person_id, t0.encounter_id, t0.obs_datetime as encounter_datetime, 99999 as encounter_type
 		from flat_ext_data t0
 			join flat_new_person_data t1 using(person_id)
-		limit 100000
 	)) t1
 	order by person_id, encounter_datetime
 );
@@ -80,9 +79,13 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
         when @prev_id=@cur_id then @prev_rtc_date := @cur_rtc_date
         else @prev_rtc_date := null
 	end as prev_rtc_date,
-	@cur_rtc_date := rtc_date as cur_rtc_date,
+	
+	case
+		when rtc_date then @cur_rtc_date := rtc_date 
+		when @prev_id = @cur_id then @cur_rtc_date
+		else @cur_rtc_date := null
+	end as cur_rtc_date,
 
-	#not working
 	case
 		when discontinue_is_hiv_neg=1065 then @hiv_start_date := null
 		when ext_hiv_rapid_test=664 or ext_hiv_dna_pcr=664 then @hiv_start_date:=null
