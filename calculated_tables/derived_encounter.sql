@@ -1,7 +1,7 @@
 #********************************************************************************************************
 #* CREATION OF MOH 731 INDICATORS TABLE ****************************************************************************
 #********************************************************************************************************
-
+#
 # Need to first create this temporary table to sort the data by person,encounterdateime. 
 # This allows us to use the previous row's data when making calculations.
 # It seems that if you don't create the temporary table first, the sort is applied 

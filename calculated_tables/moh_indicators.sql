@@ -101,6 +101,7 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 		when arv_plan in (1107,1260) then @arv_start_date := null
 		when @prev_id = @cur_id and arv_started is not null and @arv_start_date is null then @arv_start_date := t1.encounter_datetime
 		when @prev_id = @cur_id and arvs_current is not null and @arv_start_date is null then @arv_start_date := t1.encounter_datetime
+		when @prev_id = @cur_id and arvs_per_patient is not null and @arv_start_date is null then @arv_start_date := t1.encounter_datetime
 		when @prev_id != @cur_id then @arv_start_date := null
 		else @arv_start_date
 	end as arv_start_date,
@@ -110,6 +111,7 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 		when arv_plan in (1107,1260) then @cur_arv_meds := null
 		when arv_started then @cur_arv_meds := arv_started
 		when arvs_current then @cur_arv_meds := arvs_current
+		when arvs_per_patient then @cur_arv_meds := arvs_per_patient
 		when @prev_id=@cur_id then @cur_arv_meds
 		else @cur_arv_meds:= null
 	end as cur_arv_meds,
@@ -128,6 +130,9 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 		when arvs_current regexp '[[:<:]]6467|6964|792|633|631[[:>:]]' then @cur_arv_line := 1
 		when arvs_current regexp '[[:<:]]794[[:>:]]' then @cur_arv_line := 2
 		when arvs_current regexp '[[:<:]]6156[[:>:]]' then @cur_arv_line := 3
+		when arvs_per_patient regexp '[[:<:]]6467|6964|792|633|631[[:>:]]' then @cur_arv_line := 1
+		when arvs_per_patient regexp '[[:<:]]794[[:>:]]' then @cur_arv_line := 2
+		when arvs_per_patient regexp '[[:<:]]6156[[:>:]]' then @cur_arv_line := 3
 		when @prev_id = @cur_id then @cur_arv_line
 		else @cur_arv_line := null
 	end as cur_arv_line,
