@@ -85,6 +85,14 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 		when @prev_id = @cur_id then @cur_rtc_date
 		else @cur_rtc_date := null
 	end as cur_rtc_date,
+	
+	case
+		when transfer_care in (1287,9068) then 1
+		when outreach_reason_exited_care=1594 then 1
+		when patient_care_status in (1287,9068) then 1
+		else null
+	end as transfer_out,
+		
 
 	case
 		when discontinue_is_hiv_neg=1065 then @hiv_start_date := null

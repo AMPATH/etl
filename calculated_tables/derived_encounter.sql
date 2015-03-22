@@ -14,6 +14,8 @@ create table if not exists derived_encounter(
     encounter_id int,
 	prev_encounter_datetime datetime,
 	next_encounter_datetime datetime,
+	prev_clinic_datetime datetime,
+	next_clinic_datetime datetime,
 	prev_encounter_type int,
 	next_encounter_type int,
     primary key encounter_id (encounter_id),
@@ -57,6 +59,9 @@ select @prev_id := null;
 select @cur_id := null;
 select @prev_encounter_datetime := null;
 select @cur_encounter_datetime := null;
+select @prev_clinic_datetime := null;
+select @cur_clinic_datetime := null;
+
 select @next_encounter_type := null;
 select @cur_encounter_type := null;
 
@@ -79,6 +84,16 @@ create temporary table derived_encounter_1(
 	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 	case
+		when @prev_id = @cur_id then @prev_clinic_datetime := @cur_clinic_datetime
+		else @prev_clinic_datetime := null
+	end as next_clinic_datetime,
+
+	case
+		when encounter_type != 21 then @cur_clinic_datetime := encounter_datetime 
+		else @cur_clinic_datetime := null
+	end as cur_clinic_datetime,
+
+	case
 		when @prev_id=@cur_id then @next_encounter_type := @cur_encounter_type
 		else @next_encounter_type := null
 	end as next_encounter_type,
@@ -89,12 +104,16 @@ create temporary table derived_encounter_1(
 	order by person_id, encounter_datetime desc
 );
 
-alter table derived_encounter_1 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime;
+alter table derived_encounter_1 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime, drop cur_clinic_datetime;
 
 select @prev_id := null;
 select @cur_id := null;
 select @prev_encounter_type := null;
 select @cur_encounter_type := null;
+select @prev_encounter_datetime := null;
+select @cur_encounter_datetime := null;
+select @prev_clinic_datetime := null;
+select @cur_clinic_datetime := null;
 
 drop temporary table if exists derived_encounter_2;
 create temporary table derived_encounter_2 (prev_encounter_datetime datetime, prev_encounter_type int, index person_enc (person_id, encounter_datetime desc))
@@ -114,7 +133,18 @@ create temporary table derived_encounter_2 (prev_encounter_datetime datetime, pr
         when @prev_id=@cur_id then @prev_encounter_datetime := @cur_encounter_datetime
         else @prev_encounter_datetime := null
 	end as prev_encounter_datetime,
-	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime
+	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
+
+	case
+		when @prev_id = @cur_id then @prev_clinic_datetime := @cur_clinic_datetime
+		else @prev_clinic_datetime := null
+	end as prev_clinic_datetime,
+
+	case
+		when encounter_type != 21 then @cur_clinic_datetime := encounter_datetime 
+		else @cur_clinic_datetime := null
+	end as cur_clinic_datetime
+
 
 	from derived_encounter_1 t1
 	order by person_id, encounter_datetime
@@ -132,6 +162,8 @@ insert into derived_encounter
     encounter_id,
 	prev_encounter_datetime,
 	next_encounter_datetime,
+	prev_clinic_datetime,
+	next_clinic_datetime,
 	prev_encounter_type,
 	next_encounter_type
 from derived_encounter_2
