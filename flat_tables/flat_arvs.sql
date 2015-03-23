@@ -80,7 +80,7 @@ insert ignore into enc
 (select e.patient_id as person_id, e.encounter_id
 from amrs.encounter e
 join amrs.obs o 
-force index for join (encounter_date_created)
+force index for join (date_created)
 using (encounter_id) 
 where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21) 
 and concept_id in (1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719)
@@ -95,7 +95,7 @@ where t2.person_attribute_type_id=28 and value='true';
 # create a dataset of the new obs. 
 drop table if exists obs_subset;
 create temporary table obs_subset (primary key obs_id (obs_id), index encounter_id (encounter_id))
-(select * from amrs.obs o use index (encounter_date_created) where 
+(select * from amrs.obs o use index (date_created) where 
 concept_id in (1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719) and o.voided=0 and date_created > @last_update);
 
 # add obs of encounters with voided obs
@@ -104,7 +104,7 @@ insert ignore into obs_subset
 
 # add obs for encounters which have new obs
 insert ignore into obs_subset
-(select o.* from amrs.encounter e join amrs.obs o use index (encounter_date_created) using (encounter_id) where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and o.concept_id in (1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719));
+(select o.* from amrs.encounter e join amrs.obs o use index (date_created) using (encounter_id) where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and o.concept_id in (1192,1087,1088,1156,1164,1250,1251,1252,1255,1490,1505,1717,1999,2031,2033,2154,2155,2157,1187,1387,966,1086,147,1176,1181,1499,1719));
 
 
 drop temporary table if exists n_obs;

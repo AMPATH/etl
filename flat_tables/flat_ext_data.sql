@@ -58,7 +58,7 @@ where voided=1 and date_voided > @last_update and date_created <= @last_update
 drop temporary table if exists enc;
 create temporary table enc (encounter_id int, person_id int, primary key encounter_id (encounter_id), index person_id (person_id), index obs_datetime(obs_datetime))
 (select o.obs_id as encounter_id, o.person_id, obs_datetime
-from amrs.obs o use index (encounter_date_created)
+from amrs.obs o use index (date_created)
 where o.voided=0
 and o.date_created > @last_update
 and concept_id in (654,653,5497,730,12,790,21,1030,1042,1040,1305,1047,307,1032,1031,1039,45,299,856)
@@ -77,7 +77,7 @@ where t2.person_attribute_type_id=28 and value='true';
 drop table if exists obs_subset;
 create temporary table obs_subset (primary key obs_id (obs_id), index person_date (person_id,obs_datetime))
 (select * 
-	from amrs.obs o use index (encounter_date_created) 
+	from amrs.obs o use index (date_created) 
 	where concept_id in (654,653,5497,730,12,790,21,1030,1042,1040,1305,1047,307,1032,1031,1039,45,299,856) 
 		and o.voided=0 and date_created > @last_update
 );
