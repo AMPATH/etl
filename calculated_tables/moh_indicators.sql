@@ -76,6 +76,11 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 	t1.encounter_datetime,			
 	scheduled_visit,
 	case
+        when @prev_id=@cur_id and encounter_type!=21 then @visit_num:= @visit_num + 1
+        else @visit_num := 1
+	end as visit_num,
+		
+	case
         when @prev_id=@cur_id then @prev_rtc_date := @cur_rtc_date
         else @prev_rtc_date := null
 	end as prev_rtc_date,
@@ -373,8 +378,10 @@ create table if not exists flat_moh_indicators (
 	person_id int,
     encounter_id int,
 	encounter_datetime datetime,
+	visit_num int,
 	death_date datetime,
 	scheduled_visit int,
+	transfer_out int,
 	prev_rtc_date datetime,
 	rtc_date datetime,
 	arv_start_date datetime,
@@ -403,7 +410,7 @@ create table if not exists flat_moh_indicators (
     vl_2 int,
     vl_2_date datetime,
     primary key encounter_id (encounter_id),
-    index person_id (person_id)
+    index person_date (person_id, encounter_datetime)
 );
 
 delete t1
@@ -415,8 +422,10 @@ insert into flat_moh_indicators
 	person_id,
     encounter_id,
 	encounter_datetime,
+	visit_num,
 	death_date,
 	scheduled_visit,
+	transfer_out,
 	prev_rtc_date,
 	cur_rtc_date,
 	arv_start_date,
