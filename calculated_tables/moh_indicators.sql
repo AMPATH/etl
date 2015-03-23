@@ -55,6 +55,8 @@ select @cd4_percent_1:=null;
 select @cd4_percent_1_date:=null;
 select @cd4_percent_2:=null;
 select @cd4_percent_2_date:=null;
+select @vl_order_date := null
+select @cd4_order_date := null
 
 
 #TO DO
@@ -62,8 +64,6 @@ select @cd4_percent_2_date:=null;
 # screened for cervical ca
 # provided with condoms
 # modern contraceptive methods
-# transfer_status
-# dead
 # exposed infant
 
 drop temporary table if exists flat_moh_indicators_1;
@@ -356,7 +356,19 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 		when int_hiv_vl_quant >= 0 and (@vl_1_date is null or datediff(int_hiv_vl_quant_date,@vl_1_date) > 30) then @vl_1_date := int_hiv_vl_quant_date
 		when @prev_id=@cur_id then @vl_1_date
 		else @vl_1_date:=null
-	end as vl_1_date
+	end as vl_1_date,
+	
+	case
+		when tests_ordered = 856 then @vl_order_date := date(encounter_datetime)
+		when @prev_id=@cur_id then @vl_order_date
+		else @vl_order_date := null
+	end as vl_order_date,
+	
+	case
+		when tests_ordered = 657 then @cd4_order_date := date(encounter_datetime)
+		when @prev_id=@cur_id then @cd4_order_date
+		else @cd4_order_date := null
+	end as cd4_order_date,
 
 	
 from flat_moh_indicators_0 t1
@@ -409,6 +421,8 @@ create table if not exists flat_moh_indicators (
     vl_1_date datetime,
     vl_2 int,
     vl_2_date datetime,
+    vl_order_date datetime,
+    cd4_order_date datetime,
     primary key encounter_id (encounter_id),
     index person_date (person_id, encounter_datetime)
 );
@@ -452,5 +466,8 @@ insert into flat_moh_indicators
     vl_1,
     vl_1_date,
     vl_2,
-    vl_2_date
+   vl_2_date,
+   vl_order_date,
+    cd4_order_date,
+
 from flat_moh_indicators_1);
