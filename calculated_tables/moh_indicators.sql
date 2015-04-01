@@ -14,7 +14,7 @@ create temporary table flat_moh_indicators_0(index encounter_id (encounter_id), 
 	((select t0.person_id, e.encounter_id, e.encounter_datetime, e.encounter_type
 		from amrs.encounter e
 			join flat_new_person_data t0 on e.patient_id = t0.person_id
-		where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21)
+		where encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21)
 			and voided=0
 		order by t0.person_id, e.encounter_datetime
 	)
@@ -55,8 +55,8 @@ select @cd4_percent_1:=null;
 select @cd4_percent_1_date:=null;
 select @cd4_percent_2:=null;
 select @cd4_percent_2_date:=null;
-select @vl_order_date := null
-select @cd4_order_date := null
+select @vl_order_date := null;
+select @cd4_order_date := null;
 
 
 #TO DO

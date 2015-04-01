@@ -1,7 +1,7 @@
 # This is the ETL table for flat_int_data
 # obs concept_ids: 654,653,5497,730,12,790,21,1030,1042,1040,1305,1047,307,1032,1031,1039,45,299,856
 
-# encounter types: 1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21
+# encounter types: 1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21
 # 1. Replace flat_int_data with flat_int_data_name
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
 # 3. Add column definitions 
@@ -102,7 +102,7 @@ create temporary table enc (encounter_id int, person_id int, primary key encount
 from amrs.encounter e 
 where e.voided=0
 and e.date_created > @last_update
-and encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21) 
+and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21) 
 );
 
 
@@ -110,7 +110,7 @@ insert ignore into enc
 (select e.encounter_id, e.patient_id as person_id
 from amrs.encounter e
 join voided_obs v using (encounter_id)
-where e.date_created <= @last_update and e.voided=0 and v.encounter_id is not null and e.encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21) 
+where e.date_created <= @last_update and e.voided=0 and v.encounter_id is not null and e.encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21) 
 );
 
 # add in encounters which have new relevant obs attached to them
@@ -120,7 +120,7 @@ from amrs.encounter e
 join amrs.obs o 
 force index for join (date_created)
 using (encounter_id)
-where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and concept_id in (654,653,5497,730,12,790,21,1030,1042,1040,1305,1047,307,1032,1031,1039,45,299,856)  and encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21) 
+where o.date_created > @last_update and o.voided=0 and e.date_created <= @last_update and e.voided=0 and concept_id in (654,653,5497,730,12,790,21,1030,1042,1040,1305,1047,307,1032,1031,1039,45,299,856)  and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21) 
 );
 
 # remove test patients
@@ -217,7 +217,7 @@ create temporary table encounters_to_be_removed (primary key encounter_id (encou
 
 #remove any encounters that have been voided.
 insert ignore into encounters_to_be_removed
-(select encounter_id from amrs.encounter where voided=1 and date_created <= @last_update and date_voided > @last_update and encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21));
+(select encounter_id from amrs.encounter where voided=1 and date_created <= @last_update and date_voided > @last_update and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21));
 
 # remove any encounters that will be (re)inserted
 insert ignore into encounters_to_be_removed
