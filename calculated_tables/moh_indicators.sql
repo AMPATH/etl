@@ -368,7 +368,7 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 		when tests_ordered = 657 then @cd4_order_date := date(encounter_datetime)
 		when @prev_id=@cur_id then @cd4_order_date
 		else @cd4_order_date := null
-	end as cd4_order_date,
+	end as cd4_order_date
 
 	
 from flat_moh_indicators_0 t1
@@ -468,6 +468,6 @@ insert into flat_moh_indicators
     vl_2,
    vl_2_date,
    vl_order_date,
-    cd4_order_date,
+    cd4_order_date
 
 from flat_moh_indicators_1);

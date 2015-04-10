@@ -81,8 +81,9 @@ select @last_update := (select max(date_updated) from flat_log where table_name=
 # then use the max_date_created from amrs.encounter
 select @last_update :=
 	if(@last_update is null, 
-		(select max(date_created) from amrs.encounter e join flat_int_data using (encounter_id)),
+		(select max(date_created) from amrs.encounter e inner join flat_int_data using (encounter_id)),
 		@last_update);
+
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
