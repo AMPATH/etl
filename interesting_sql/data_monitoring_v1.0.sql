@@ -59,3 +59,27 @@ where e.date_created >= (DATE_FORMAT(NOW() ,'%Y-%m-01') - interval 1 year) #Bett
 	and day(e.encounter_datetime) < day(curdate())
 group by year,month,name
 order by name,year desc,month desc);
+
+
+
+(select 
+	year(encounter_datetime) as year,
+	month(encounter_datetime) as month,
+	location_id,
+	name,
+	count(*) as total,
+	count(if(last_day(encounter_datetime) = last_day(t1.date_created),1,null)) as total_by_end_of_month,
+	count(if(last_day(encounter_datetime) = last_day(t1.date_created),1,null))/count(*) as perc_by_end_of_month,
+	count(if(t1.date_created < date_add(last_day(encounter_datetime), interval 3 day),1,null)) as total_by_third,
+	count(if(t1.date_created < date_add(last_day(encounter_datetime), interval 3 day),1,null))/count(*) as perc_by_third,
+	count(if(t1.date_created < date_add(last_day(encounter_datetime), interval 3 day),1,null))/count(*) >= 0.95 as perc_by_third_gte_95,
+	count(if(t1.date_created < date_add(last_day(encounter_datetime), interval 10 day),1,null)) as total_by_tenth,
+	count(if(t1.date_created < date_add(last_day(encounter_datetime), interval 10 day),1,null))/count(*) as perc_by_tenth,
+	count(if(t1.date_created < date_add(last_day(encounter_datetime), interval 10 day),1,null))/count(*) >= 0.95 as perc_by_tenth_gte_95
+					
+
+	from amrs.encounter t1
+		join amrs.location t2 using (location_id)
+	where encounter_datetime >= "2014-01-01" and encounter_datetime <= (date_sub(last_day(curdate()),interval 2 month))
+	group by year, month, name
+	order by name, year desc, month desc);			

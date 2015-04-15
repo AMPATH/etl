@@ -11,7 +11,7 @@
 drop table if exists flat_moh_indicators_0;
 create temporary table flat_moh_indicators_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
 (select * from 
-	((select t0.person_id, e.encounter_id, e.encounter_datetime, e.encounter_type
+	((select t0.person_id, e.encounter_id, e.encounter_datetime, e.encounter_type,e.location_id
 		from amrs.encounter e
 			join flat_new_person_data t0 on e.patient_id = t0.person_id
 		where encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21)
@@ -21,15 +21,17 @@ create temporary table flat_moh_indicators_0(index encounter_id (encounter_id), 
 
 	union
 
-	(select t0.person_id, t0.encounter_id, t0.obs_datetime as encounter_datetime, 99999 as encounter_type
+	(select t0.person_id, t0.encounter_id, t0.obs_datetime as encounter_datetime, 99999 as encounter_type, null as location_id
 		from flat_ext_data t0
 			join flat_new_person_data t1 using(person_id)
 	)) t1
 	order by person_id, encounter_datetime
+
 );
 
 select @prev_id := null;
 select @cur_id := null;
+select @cur_location := null;
 select @cur_rtc_date := null;
 select @prev_rtc_date := null;
 select @hiv_start_date := null;
@@ -74,6 +76,13 @@ create temporary table flat_moh_indicators_1 (index encounter_id (encounter_id))
 	t1.person_id,
 	t1.encounter_id,
 	t1.encounter_datetime,			
+
+	case
+		when location_id then @cur_location := location_id
+		when @prev_id = @cur_id then @cur_location
+		else null
+	end as location,
+						
 	scheduled_visit,
 	case
         when @prev_id=@cur_id and encounter_type!=21 then @visit_num:= @visit_num + 1
@@ -384,12 +393,12 @@ from flat_moh_indicators_0 t1
 );
 
 
-
 #drop table if exists flat_moh_indicators;
 create table if not exists flat_moh_indicators (
 	person_id int,
     encounter_id int,
 	encounter_datetime datetime,
+	location int,
 	visit_num int,
 	death_date datetime,
 	scheduled_visit int,
@@ -436,6 +445,7 @@ insert into flat_moh_indicators
 	person_id,
     encounter_id,
 	encounter_datetime,
+	location,
 	visit_num,
 	death_date,
 	scheduled_visit,
