@@ -33,7 +33,7 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-select @last_update := "2015-03-01";
+#select @last_update := "2015-04-01";
 
 
 drop table if exists voided_obs;
@@ -188,4 +188,8 @@ insert ignore into flat_new_person_data
 
 drop table voided_obs;
 
+select * from flat_obs;
+
 insert into flat_log values (@last_update,"flat_obs");
+
+select concat("Time to complete: ",timestampdiff(minute, @now, now())," minutes");
