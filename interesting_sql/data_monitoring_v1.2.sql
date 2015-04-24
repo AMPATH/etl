@@ -67,8 +67,6 @@ where e.date_created >= (DATE_FORMAT(NOW() ,'%Y-%m-01') - interval 1 year) #Bett
 group by year,month,name
 order by name,year desc,month desc);
 
-
-
 # This is the query by data entry assistant. It helps to estimate the number of forms we expected to be entered for the current month.
 # Paste the result into the worksheet: "data_entry_assistant_data"
 (select 

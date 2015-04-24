@@ -35,7 +35,8 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-#select @last_update := "2015-01-01";
+
+select @last_update := "2015-01-01";
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
@@ -220,7 +221,7 @@ join voided_obs t2 on t1.encounter_datetime = t2.obs_datetime and t1.person_id=t
 where t2.encounter_id is null;
 
 
-insert ignore into flat_obs
+replace into flat_obs
 (select * from new_data);
 
 ## UPDATE data for derived tables
@@ -237,4 +238,4 @@ drop table voided_obs;
 
 insert into flat_log values (@last_update,"flat_obs");
 
-select concat("Time to complete: ",timestampdiff(minute, @now, now())," minutes");
+select concat("Time to complete: ",timestampdiff(minute, @now, now())," minutes") as "Time to complete";
