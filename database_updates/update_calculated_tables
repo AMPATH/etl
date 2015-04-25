@@ -1,0 +1,7 @@
+#!/bin/bash
+parent_path=$( cd "$(dirname "${BASH_SOURCE}")" ; pwd -P )
+cd "$parent_path"
+mysql reporting_JD < ../calculated_tables/hiv_summary.sql
+mysql reporting_JD < ../calculated_tables/data_and_imaging.sql
+mysql reporting_JD < ../calculated_tables/vitals.sql
+mysql reporting_JD < ../calculated_tables/derived_encounter.sql
