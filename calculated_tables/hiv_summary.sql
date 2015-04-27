@@ -26,18 +26,79 @@ select
 
 select @sep := " ## ";
 select @lab_encounter_type := "99999";
-
 select @start := now();
-select @last_date_created := (select max(date_updated) from flat_log where table_name="flat_hiv_summary");
+
+#drop table if exists flat_hiv_summary;
+#delete from flat_log where table_name="flat_hiv_summary";
+create table if not exists flat_hiv_summary (
+	person_id int,
+	uuid varchar(100),
+    encounter_id int,
+	encounter_datetime datetime,
+	location_id int,
+	location_uuid varchar(100),
+	visit_num int,
+	death_date datetime,
+	scheduled_visit int,
+	transfer_out int,
+	prev_rtc_date datetime,
+	rtc_date datetime,
+	arv_start_date datetime,
+	arv_first_regimen varchar(500),
+	cur_arv_meds varchar(500),
+	cur_arv_line int,
+    first_evidence_patient_pregnant datetime,
+    edd datetime,
+	screened_for_tb boolean,
+	tb_tx_start_date datetime,
+	pcp_prophylaxis_start_date datetime,
+	cd4_resulted double,
+	cd4_resulted_date datetime,
+    cd4_1 double,
+    cd4_1_date datetime,
+    cd4_2 double,
+    cd4_2_date datetime,
+    cd4_percent_1 double,
+	cd4_percent_1_date datetime,
+    cd4_percent_2 double,
+	cd4_percent_2_date datetime,
+	vl_resulted int,
+	vl_resulted_date datetime,
+    vl_1 int,
+    vl_1_date datetime,
+    vl_2 int,
+    vl_2_date datetime,
+    vl_order_date datetime,
+    cd4_order_date datetime,
+    primary key encounter_id (encounter_id),
+    index person_date (person_id, encounter_datetime),
+	index location_rtc (location_uuid,rtc_date)
+);
+
+
+select @last_update := (select max(date_updated) from flat_log where table_name="flat_hiv_summary");
+
+# then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_hiv_summary using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+select @last_update := "2015-04-27";
 
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
 (select distinct person_id 
 	from flat_obs
-	where max_date_created > @last_date_created
+	where max_date_created > @last_update
 );
 
+delete t1
+from flat_hiv_summary t1
+join new_data_person_ids t2 using (person_id);
 
 drop table if exists flat_hiv_summary_0;
 create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
@@ -515,63 +576,15 @@ from flat_hiv_summary_0 t1
 );
 
 
-#drop table if exists flat_hiv_summary;
-create table if not exists flat_hiv_summary (
-	person_id int,
-	uuid varchar(100),
-    encounter_id int,
-	encounter_datetime datetime,
-	location_id int,
-	visit_num int,
-	death_date datetime,
-	scheduled_visit int,
-	transfer_out int,
-	prev_rtc_date datetime,
-	rtc_date datetime,
-	arv_start_date datetime,
-	arv_first_regimen varchar(500),
-	cur_arv_meds varchar(500),
-	cur_arv_line int,
-    first_evidence_patient_pregnant datetime,
-    edd datetime,
-	screened_for_tb boolean,
-	tb_tx_start_date datetime,
-	pcp_prophylaxis_start_date datetime,
-	cd4_resulted double,
-	cd4_resulted_date datetime,
-    cd4_1 double,
-    cd4_1_date datetime,
-    cd4_2 double,
-    cd4_2_date datetime,
-    cd4_percent_1 double,
-	cd4_percent_1_date datetime,
-    cd4_percent_2 double,
-	cd4_percent_2_date datetime,
-	vl_resulted int,
-	vl_resulted_date datetime,
-    vl_1 int,
-    vl_1_date datetime,
-    vl_2 int,
-    vl_2_date datetime,
-    vl_order_date datetime,
-    cd4_order_date datetime,
-    primary key encounter_id (encounter_id),
-    index person_date (person_id, encounter_datetime),
-	index location_rtc (location_id,rtc_date)
-);
-
-
-delete t1
-from flat_hiv_summary t1
-join new_data_person_ids t2 using (person_id);
 
 insert into flat_hiv_summary
 (select 
 	person_id,
-	uuid,
+	t1.uuid,	
     encounter_id,
 	encounter_datetime,
 	location_id,
+	t2.uuid as location_uuid,
 	visit_num,
 	death_date,
 	scheduled_visit,
@@ -606,7 +619,8 @@ insert into flat_hiv_summary
    vl_order_date,
     cd4_order_date
 
-from flat_hiv_summary_1);
+from flat_hiv_summary_1 t1
+	join amrs.location t2 using (location_id));
 
 insert into flat_log values (@start,"flat_hiv_summary");
 

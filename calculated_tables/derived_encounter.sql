@@ -8,6 +8,7 @@
 # to the final result. Any references to the previous row will not an ordered row. 
 
 #drop table if exists derived_encounter;
+#delete from flat_log where table_name="derived_encounter";
 create table if not exists derived_encounter(
 	person_id int,
     encounter_id int,
@@ -23,6 +24,7 @@ create table if not exists derived_encounter(
 
 
 select @start := now();
+
 select @last_update := (select max(date_updated) from flat_log where table_name="derived_encounter");
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
