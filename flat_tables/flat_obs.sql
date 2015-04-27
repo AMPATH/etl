@@ -19,13 +19,16 @@ encounter_id int,
 encounter_datetime datetime,
 obs text,
 obs_datetimes text,
+max_date_created datetime,
 index encounter_id (encounter_id),
 index person_date (person_id, encounter_datetime),
+index date_created (max_date_created),
 primary key (encounter_id)
 );
 
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_obs");
+#select @last_update := (select max(max_date_created) from flat_obs);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
@@ -36,7 +39,7 @@ select @last_update :=
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2015-01-01";
+#select @last_update := "2015-04-01";
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
@@ -50,6 +53,19 @@ from voided_obs t1
 join amrs.person_attribute t2 using (person_id) 
 where t2.person_attribute_type_id=28 and value='true';
 
+
+# delete any rows that have voided obs with encounter_id
+delete t1
+from flat_obs t1
+join voided_obs t2 using (encounter_id);
+
+# delete any rows that have a voided obs with no encounter_id
+delete t1
+from flat_obs t1
+join voided_obs t2 on t1.encounter_datetime = t2.obs_datetime and t1.person_id=t2.person_id
+where t2.encounter_id is null;
+
+/*
 drop table if exists new_data;
 create temporary table if not exists new_data
 (person_id int,
@@ -57,13 +73,14 @@ encounter_id int,
 encounter_datetime datetime,
 obs text,
 obs_datetimes text,
+max_date_created datetime,
 index encounter_id (encounter_id),
 index person_date (person_id, encounter_datetime),
 primary key (encounter_id)
 );
-
+*/
 # add back encounters with voided obs removed
-insert ignore into new_data
+replace into flat_obs
 (select
 	o.person_id,
 	o.encounter_id, 
@@ -89,7 +106,8 @@ insert ignore into new_data
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
-	) as obs_datetimes
+	) as obs_datetimes,
+	max(o.date_created) as max_date_created
 
 	from voided_obs v
 		join amrs.obs o using (encounter_id)
@@ -101,7 +119,7 @@ insert ignore into new_data
 
 
 # Add back obs sets without encounter_ids with voided obs removed
-insert ignore into new_data
+replace into flat_obs
 (select
 	o.person_id,
 	min(o.obs_id) + 100000000 as encounter_id, 
@@ -127,7 +145,8 @@ insert ignore into new_data
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
-	) as obs_datetimes
+	) as obs_datetimes,
+	max(o.date_created) as max_date_created
 
 	from voided_obs v
 		join amrs.obs o using (person_id, obs_datetime)
@@ -137,7 +156,7 @@ insert ignore into new_data
 );
 
 # Insert newly creatred obs with encounter_ids
-insert ignore into new_data
+replace into flat_obs
 (select 
 	o.person_id,
 	o.encounter_id, 
@@ -163,7 +182,8 @@ insert ignore into new_data
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
-	) as obs_datetimes
+	) as obs_datetimes,
+	max(o.date_created) as max_date_created
 
 	from amrs.obs o
 		join amrs.encounter e using (encounter_id)
@@ -173,7 +193,7 @@ insert ignore into new_data
 );
 
 # Insert newly creatred obs without encounter_ids
-insert ignore into new_data
+replace into flat_obs
 (select 
 	o.person_id,	
 	min(o.obs_id) + 100000000 as encounter_id, 		
@@ -199,7 +219,8 @@ insert ignore into new_data
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
-	) as obs_datetimes
+	) as obs_datetimes,
+	max(o.date_created) as max_date_created
 
 	from amrs.obs o use index (date_created)
 	where 
@@ -208,34 +229,6 @@ insert ignore into new_data
 	group by person_id, o.obs_datetime
 );
 
-
-# delete any rows that have voided obs with encounter_id
-delete t1
-from flat_obs t1
-join voided_obs t2 using (encounter_id);
-
-# delete any rows that have a voided obs with no encounter_id
-delete t1
-from flat_obs t1
-join voided_obs t2 on t1.encounter_datetime = t2.obs_datetime and t1.person_id=t2.person_id
-where t2.encounter_id is null;
-
-
-replace into flat_obs
-(select * from new_data);
-
-## UPDATE data for derived tables
-
-#remove any encounters that have been voided.
-# delete from flat_new_person_data;
-insert ignore into flat_new_person_data
-(select distinct person_id from new_data);
-
-insert ignore into flat_new_person_data
-(select patient_id as person_id from amrs.encounter where voided=1 and date_created <= @last_update and date_voided > @last_update);
-
 drop table voided_obs;
-
 insert into flat_log values (@last_update,"flat_obs");
-
 select concat("Time to complete: ",timestampdiff(minute, @now, now())," minutes") as "Time to complete";

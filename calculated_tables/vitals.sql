@@ -11,6 +11,15 @@ select @sep := " ## ";
 select @unknown_encounter_type := "99999";
 
 select @start := now();
+select @last_vitals_date_created := (select max(date_updated) from flat_log where table_name="flat_vitals");
+insert into flat_log values (@start,"flat_vitals");
+
+drop table if exists new_data_person_ids;
+create temporary table new_data_person_ids(person_id int, primary key (person_id))
+(select distinct person_id 
+	from flat_obs
+	where max_date_created > @last_vitals_date_created
+);
 
 drop table if exists flat_vitals_0;
 create temporary table flat_vitals_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
@@ -23,9 +32,11 @@ create temporary table flat_vitals_0(index encounter_id (encounter_id), index pe
 	t1.obs,
 	t1.obs_datetimes
 	from flat_obs t1
-		join foo using (person_id)
+#		join flat_new_person_data t0 using (person_id)
+		join new_data_person_ids t0 using (person_id)
 		left outer join amrs.encounter e using (encounter_id)		
 	where encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21)
+		and t1.max_date_created >= @last_vitals_date_created
 	order by t1.person_id, encounter_datetime
 );
 
