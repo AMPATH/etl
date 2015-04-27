@@ -11,6 +11,15 @@ select @sep := " ## ";
 select @unknown_encounter_type := "99999";
 
 select @start := now();
+select @last_date_created := (select max(date_updated) from flat_log where table_name="flat_labs_and_imaging");
+
+drop table if exists new_data_person_ids;
+create temporary table new_data_person_ids(person_id int, primary key (person_id))
+(select distinct person_id 
+	from flat_obs
+	where max_date_created > @last_date_created
+);
+
 
 drop table if exists flat_labs_and_imaging_0;
 create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
@@ -23,7 +32,7 @@ create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id)
 	t1.obs,
 	t1.obs_datetimes
 	from flat_obs t1
-		join flat_new_person_data t0 using (person_id)
+		join new_data_person_ids t0 using (person_id)
 		left outer join amrs.encounter e using (encounter_id)
 	where voided = 0
 		and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47)
@@ -106,7 +115,7 @@ create table if not exists flat_labs_and_imaging (
 
 delete t1
 from flat_labs_and_imaging t1
-join flat_new_person_data t2 using (person_id);
+join new_data_person_ids t2 using (person_id);
 
 insert into flat_labs_and_imaging
 (select 
@@ -125,5 +134,7 @@ insert into flat_labs_and_imaging
 	chest_xray,
 	tests_ordered
 from flat_labs_and_imaging_1);
-select * from flat_labs_and_imaging;
+
+insert into flat_log values (@start,"flat_labs_and_imaging");
+
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");

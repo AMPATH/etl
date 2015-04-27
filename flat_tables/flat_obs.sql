@@ -65,21 +65,6 @@ from flat_obs t1
 join voided_obs t2 on t1.encounter_datetime = t2.obs_datetime and t1.person_id=t2.person_id
 where t2.encounter_id is null;
 
-/*
-drop table if exists new_data;
-create temporary table if not exists new_data
-(person_id int,
-encounter_id int,
-encounter_datetime datetime,
-obs text,
-obs_datetimes text,
-max_date_created datetime,
-index encounter_id (encounter_id),
-index person_date (person_id, encounter_datetime),
-primary key (encounter_id)
-);
-*/
-# add back encounters with voided obs removed
 replace into flat_obs
 (select
 	o.person_id,

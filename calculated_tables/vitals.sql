@@ -11,14 +11,13 @@ select @sep := " ## ";
 select @unknown_encounter_type := "99999";
 
 select @start := now();
-select @last_vitals_date_created := (select max(date_updated) from flat_log where table_name="flat_vitals");
-insert into flat_log values (@start,"flat_vitals");
+select @last_date_created := (select max(date_updated) from flat_log where table_name="flat_vitals");
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
 (select distinct person_id 
 	from flat_obs
-	where max_date_created > @last_vitals_date_created
+	where max_date_created > @last_date_created
 );
 
 drop table if exists flat_vitals_0;
@@ -32,11 +31,9 @@ create temporary table flat_vitals_0(index encounter_id (encounter_id), index pe
 	t1.obs,
 	t1.obs_datetimes
 	from flat_obs t1
-#		join flat_new_person_data t0 using (person_id)
 		join new_data_person_ids t0 using (person_id)
 		left outer join amrs.encounter e using (encounter_id)		
 	where encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21)
-		and t1.max_date_created >= @last_vitals_date_created
 	order by t1.person_id, encounter_datetime
 );
 
@@ -108,7 +105,7 @@ create table if not exists flat_vitals (
 
 delete t1
 from flat_vitals t1
-join flat_new_person_data t2 using (person_id);
+join new_data_person_ids t2 using (person_id);
 
 insert into flat_vitals
 (select 
@@ -126,5 +123,6 @@ insert into flat_vitals
 	pulse
 from flat_vitals_1);
 
+insert into flat_log values (@start,"flat_vitals");
 
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");

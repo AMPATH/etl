@@ -28,10 +28,16 @@ select @sep := " ## ";
 select @lab_encounter_type := "99999";
 
 select @start := now();
+select @last_date_created := (select max(date_updated) from flat_log where table_name="flat_hiv_summary");
 
-drop table if exists foo;
-create temporary table foo(person_id int, primary key (person_id))
-(select person_id from flat_new_person_data limit 1000);
+
+drop table if exists new_data_person_ids;
+create temporary table new_data_person_ids(person_id int, primary key (person_id))
+(select distinct person_id 
+	from flat_obs
+	where max_date_created > @last_date_created
+);
+
 
 drop table if exists flat_hiv_summary_0;
 create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
@@ -44,7 +50,7 @@ create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), ind
 	t1.obs,
 	t1.obs_datetimes
 	from flat_obs t1
-		join flat_new_person_data t0 using (person_id)
+		join new_data_person_ids t0 using (person_id)
 		left outer join amrs.encounter e using (encounter_id)
 	where voided = 0
 		and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21)
@@ -550,13 +556,14 @@ create table if not exists flat_hiv_summary (
     vl_order_date datetime,
     cd4_order_date datetime,
     primary key encounter_id (encounter_id),
-    index person_date (person_id, encounter_datetime)
+    index person_date (person_id, encounter_datetime),
+	index location_rtc (location_id,rtc_date)
 );
 
 
 delete t1
 from flat_hiv_summary t1
-join flat_new_person_data t2 using (person_id);
+join new_data_person_ids t2 using (person_id);
 
 insert into flat_hiv_summary
 (select 
@@ -600,5 +607,7 @@ insert into flat_hiv_summary
     cd4_order_date
 
 from flat_hiv_summary_1);
+
+insert into flat_log values (@start,"flat_hiv_summary");
 
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
