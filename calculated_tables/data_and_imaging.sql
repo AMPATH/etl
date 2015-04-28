@@ -10,15 +10,55 @@
 select @sep := " ## ";
 select @unknown_encounter_type := "99999";
 
+#delete from flat_log where table_name="flat_labs_and_imaging";
+#drop table if exists flat_labs_and_imaging;
+create table if not exists flat_labs_and_imaging (
+	person_id int,
+	uuid varchar(100),
+    encounter_id int,
+	encounter_datetime datetime,
+	encounter_type int,
+	location_id int,
+	location_uuid varchar(100),
+	hiv_viral_load int,
+	cd4_count int,
+	cd4_percent decimal,
+	hemoglobin decimal,
+	ast int,
+	creatinine decimal,
+	chest_xray int,
+	tests_ordered varchar(1000),
+    primary key encounter_id (encounter_id),
+    index person_date (person_id, encounter_datetime),
+	index location_uuid (location_uuid)
+);
+
 select @start := now();
-select @last_date_created := (select max(date_updated) from flat_log where table_name="flat_labs_and_imaging");
+
+select @last_update := (select max(date_updated) from flat_log where table_name="flat_labs_and_imaging");
+
+# then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_labs_and_imaging using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+#select @last_update := "2015-04-27";
+
+
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
 (select distinct person_id 
 	from flat_obs
-	where max_date_created > @last_date_created
+	where max_date_created > @last_update
 );
+
+delete t1
+from flat_labs_and_imaging t1
+join new_data_person_ids t2 using (person_id);
 
 
 drop table if exists flat_labs_and_imaging_0;
@@ -38,6 +78,8 @@ create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id)
 		and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47)
 	order by t1.person_id, encounter_datetime
 );
+
+
 
 select @prev_id := null;
 select @cur_id := null;
@@ -93,38 +135,16 @@ from flat_labs_and_imaging_0 t1
 );
 
 
-#drop table if exists flat_labs_and_imaging;
-create table if not exists flat_labs_and_imaging (
-	person_id int,
-	uuid varchar(100),
-    encounter_id int,
-	encounter_datetime datetime,
-	encounter_type int,
-	location_id int,
-	hiv_viral_load int,
-	cd4_count int,
-	cd4_percent decimal,
-	hemoglobin decimal,
-	ast int,
-	creatinine decimal,
-	chest_xray int,
-	tests_ordered varchar(1000),
-    primary key encounter_id (encounter_id),
-    index person_date (person_id, encounter_datetime)
-);
-
-delete t1
-from flat_labs_and_imaging t1
-join new_data_person_ids t2 using (person_id);
 
 insert into flat_labs_and_imaging
 (select 
 	person_id,
-	uuid,
+	t1.uuid,
     encounter_id,
 	encounter_datetime,
 	encounter_type,
 	location_id,
+	t2.uuid as location_uuid,
 	hiv_viral_load,
 	cd4_count,
 	cd4_percent,
@@ -133,7 +153,9 @@ insert into flat_labs_and_imaging
 	creatinine,
 	chest_xray,
 	tests_ordered
-from flat_labs_and_imaging_1);
+from flat_labs_and_imaging_1 t1
+	join amrs.location t2 using (location_id)
+);
 
 insert into flat_log values (@start,"flat_labs_and_imaging");
 
