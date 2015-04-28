@@ -10,8 +10,41 @@
 select @sep := " ## ";
 select @unknown_encounter_type := "99999";
 
+#delete from flat_log where table_name="flat_vitals";
+#drop table if exists flat_vitals;
+create table if not exists flat_vitals (
+	person_id int,
+	uuid varchar(100),
+    encounter_id int,
+	encounter_datetime datetime,
+	location_id int,
+	weight decimal,
+	height decimal,
+	temp decimal,
+	oxygen_sat int,
+	systolic_bp int,
+	diastolic_bp int,
+	pulse int,
+    primary key encounter_id (encounter_id),
+    index person_date (person_id, encounter_datetime)
+);
+
+
 select @start := now();
-select @last_date_created := (select max(date_updated) from flat_log where table_name="flat_vitals");
+
+select @last_update := (select max(date_updated) from flat_log where table_name="flat_vitals");
+
+# then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
+select @last_update :=
+	if(@last_update is null, 
+		(select max(date_created) from amrs.encounter e join flat_vitals using (encounter_id)),
+		@last_update);
+
+#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
+select @last_update := if(@last_update,@last_update,'1900-01-01');
+#select @last_update := "2015-04-27";
+
+
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
@@ -84,23 +117,6 @@ from flat_vitals_0 t1
 	join amrs.person p using (person_id)
 );
 
-#drop table if exists flat_vitals;
-create table if not exists flat_vitals (
-	person_id int,
-	uuid varchar(100),
-    encounter_id int,
-	encounter_datetime datetime,
-	location_id int,
-	weight decimal,
-	height decimal,
-	temp decimal,
-	oxygen_sat int,
-	systolic_bp int,
-	diastolic_bp int,
-	pulse int,
-    primary key encounter_id (encounter_id),
-    index person_date (person_id, encounter_datetime)
-);
 
 
 delete t1
