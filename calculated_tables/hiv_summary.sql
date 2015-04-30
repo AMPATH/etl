@@ -100,24 +100,25 @@ delete t1
 from flat_hiv_summary t1
 join new_data_person_ids t2 using (person_id);
 
+create index person_enc_id on flat_obs (person_id,encounter_id);
+
 drop table if exists flat_hiv_summary_0;
 create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
 (select 
 	t1.person_id, 
 	t1.encounter_id, 
 	t1.encounter_datetime,
-	if(e.encounter_type,e.encounter_type,@lab_encounter_type) as encounter_type,
+	t1.encounter_type,
 	if(e.location_id,e.location_id,null) as location_id,
 	t1.obs,
 	t1.obs_datetimes
-	from flat_obs t1
+	from flat_obs t1 #use index (person_enc_id)
 		join new_data_person_ids t0 using (person_id)
 		left outer join amrs.encounter e using (encounter_id)
-	where voided = 0
-		and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21)
-	order by t1.person_id, encounter_datetime
+	where t1.encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21)
+		and voided = 0
+	order by t1.person_id,t1.encounter_datetime
 );
-
 
 select @prev_id := null;
 select @cur_id := null;

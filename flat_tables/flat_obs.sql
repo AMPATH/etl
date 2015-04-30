@@ -8,7 +8,7 @@
 # 4. Add obs_set column definitions
 
 set session group_concat_max_len=100000;
-select @now := now();
+select @start := now();
 
 
 #delete from flat_log where table_name="flat_obs";
@@ -18,11 +18,13 @@ create table if not exists flat_obs
 encounter_id int,
 encounter_datetime datetime,
 encounter_type int,
+location_id int,
 obs text,
 obs_datetimes text,
 max_date_created datetime,
 index encounter_id (encounter_id),
 index person_date (person_id, encounter_datetime),
+index person_enc_id (person_id,encounter_id),
 index date_created (max_date_created),
 primary key (encounter_id)
 );
@@ -72,6 +74,7 @@ replace into flat_obs
 	o.encounter_id, 
 	e.encounter_datetime,
 	e.encounter_type,
+	e.location_id,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -112,6 +115,7 @@ replace into flat_obs
 	min(o.obs_id) + 100000000 as encounter_id, 
 	o.obs_datetime,
 	99999 as encounter_type,
+	null as location_id,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -150,6 +154,7 @@ replace into flat_obs
 	o.encounter_id, 
 	encounter_datetime,
 	encounter_type,
+	e.location_id,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -188,6 +193,7 @@ replace into flat_obs
 	min(o.obs_id) + 100000000 as encounter_id, 		
 	o.obs_datetime,
 	99999 as encounter_type,
+	null as location_id,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -221,4 +227,4 @@ replace into flat_obs
 
 drop table voided_obs;
 insert into flat_log values (@start,"flat_obs");
-select concat("Time to complete: ",timestampdiff(minute, @now, now())," minutes") as "Time to complete";
+select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes") as "Time to complete";
