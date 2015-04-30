@@ -17,6 +17,7 @@ create table if not exists flat_obs
 (person_id int,
 encounter_id int,
 encounter_datetime datetime,
+encounter_type int,
 obs text,
 obs_datetimes text,
 max_date_created datetime,
@@ -70,6 +71,7 @@ replace into flat_obs
 	o.person_id,
 	o.encounter_id, 
 	e.encounter_datetime,
+	e.encounter_type,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -109,6 +111,7 @@ replace into flat_obs
 	o.person_id,
 	min(o.obs_id) + 100000000 as encounter_id, 
 	o.obs_datetime,
+	99999 as encounter_type,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -146,6 +149,7 @@ replace into flat_obs
 	o.person_id,
 	o.encounter_id, 
 	encounter_datetime,
+	encounter_type,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -183,6 +187,7 @@ replace into flat_obs
 	o.person_id,	
 	min(o.obs_id) + 100000000 as encounter_id, 		
 	o.obs_datetime,
+	99999 as encounter_type,
 	group_concat(
 		case 
 			when value_coded then concat(o.concept_id,'=',value_coded)
@@ -215,5 +220,5 @@ replace into flat_obs
 );
 
 drop table voided_obs;
-insert into flat_log values (@last_update,"flat_obs");
+insert into flat_log values (@start,"flat_obs");
 select concat("Time to complete: ",timestampdiff(minute, @now, now())," minutes") as "Time to complete";
