@@ -86,7 +86,7 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-#select @last_update := "2015-04-27";
+select @last_update := "2015-04-27";
 
 
 drop table if exists new_data_person_ids;
@@ -100,7 +100,6 @@ delete t1
 from flat_hiv_summary t1
 join new_data_person_ids t2 using (person_id);
 
-create index person_enc_id on flat_obs (person_id,encounter_id);
 
 drop table if exists flat_hiv_summary_0;
 create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
@@ -399,7 +398,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when @prev_id=@cur_id then
 			case 
-				when encounter_type = "@lab_encounter_type9" and obs regexp "5497=[0-9]" and @cd4_1 >= 0 and date(encounter_datetime)<>@cd4_1_date then @cd4_2:= @cd4_1
+				when encounter_type = @lab_encounter_type and obs regexp "5497=[0-9]" and @cd4_1 >= 0 and date(encounter_datetime)<>@cd4_1_date then @cd4_2:= @cd4_1
 				when obs regexp "5497=[0-9]" and @cd4_1 >= 0 
 					and abs(datediff(replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=",""),@cd4_1_date)) > 30 then @cd4_2 := @cd4_1
 				else @cd4_2
@@ -410,7 +409,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case 
 		when @prev_id=@cur_id then
 			case
-				when encounter_type="@lab_encounter_type9" and obs regexp "5497=[0-9]" and @cd4_1 >= 0 and date(encounter_datetime)<>@cd4_1_date then @cd4_2_date:= @cd4_1_date
+				when encounter_type=@lab_encounter_type and obs regexp "5497=[0-9]" and @cd4_1 >= 0 and date(encounter_datetime)<>@cd4_1_date then @cd4_2_date:= @cd4_1_date
 				when obs regexp "5497=[0-9]" and @cd4_1 >= 0 
 					and abs(datediff(replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=",""),@cd4_1_date)) > 30 then @cd4_2_date:= @cd4_1_date
 				else @cd4_2_date
@@ -418,21 +417,21 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		else @cd4_2_date:=null
 	end as cd4_2_date,
 	case 
-		when encounter_type = "@lab_encounter_type9" and obs regexp "5497=[0-9]" then cast(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=","") as unsigned) 
+		when encounter_type = @lab_encounter_type and obs regexp "5497=[0-9]" then cast(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=","") as unsigned) 
 		when obs regexp "5497=[0-9]" 
 			and (@cd4_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=",""),@cd4_1_date)) > 30) 
 			then cast(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=","") as unsigned) 
 	end as cd4_resulted,
 
 	case 
-		when encounter_type = "@lab_encounter_type9" and obs regexp "5497=[0-9]" then encounter_datetime
+		when encounter_type = @lab_encounter_type and obs regexp "5497=[0-9]" then encounter_datetime
 		when obs regexp "5497=[0-9]" 
 				and (@cd4_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=",""),@cd4_1_date)) > 30) 
 			then replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=","")
 	end as cd4_resulted_date,
 
 	case 
-		when encounter_type = "@lab_encounter_type9" and obs regexp "5497=[0-9]" then @cd4_1:= cast(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=","") as unsigned) 
+		when encounter_type = @lab_encounter_type and obs regexp "5497=[0-9]" then @cd4_1:= cast(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=","") as unsigned) 
 		when obs regexp "5497=[0-9]" 
 				and (@cd4_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=","") ,@cd4_1_date)) > 30) 
 			then @cd4_1 := cast(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=","") as unsigned) 
@@ -442,7 +441,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 
 	case 
-		when encounter_type = "@lab_encounter_type9" and obs regexp "5497=[0-9]" then @cd4_1_date:=date(encounter_datetime)
+		when encounter_type = @lab_encounter_type and obs regexp "5497=[0-9]" then @cd4_1_date:=date(encounter_datetime)
 		when obs regexp "5497=[0-9]" 
 				and (@cd4_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=","") ,@cd4_1_date)) > 30) 
 			then @cd4_1_date := replace((substring_index(substring(obs_datetimes,locate("5497=",obs_datetimes)),@sep,1)),"5497=","")
@@ -454,7 +453,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when @prev_id=@cur_id then
 			case 
-				when encounter_type="@lab_encounter_type9" and obs regexp "730=[0-9]" and @cd4_percent_1 >= 0 and date(encounter_datetime)<>@cd4_percent_1_date 
+				when encounter_type=@lab_encounter_type and obs regexp "730=[0-9]" and @cd4_percent_1 >= 0 and date(encounter_datetime)<>@cd4_percent_1_date 
 					then @cd4_percent_2:= @cd4_percent_1
 				when obs regexp "730=[0-9]" and @cd4_percent_1 >= 0 
 						and abs(datediff(replace((substring_index(substring(obs_datetimes,locate("730=",obs_datetimes)),@sep,1)),"730=",""),@cd4_percent_1_date)) > 30 
@@ -467,7 +466,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case 
 		when @prev_id=@cur_id then
 			case
-				when obs regexp "730=[0-9]" and encounter_type = "@lab_encounter_type9" and @cd4_percent_1 >= 0 and date(encounter_datetime)<>@cd4_percent_1_date then @cd4_percent_2_date:= @cd4_percent_1_date
+				when obs regexp "730=[0-9]" and encounter_type = @lab_encounter_type and @cd4_percent_1 >= 0 and date(encounter_datetime)<>@cd4_percent_1_date then @cd4_percent_2_date:= @cd4_percent_1_date
 				when obs regexp "730=[0-9]" and @cd4_percent_1 >= 0 
 						and abs(datediff(replace((substring_index(substring(obs_datetimes,locate("730=",obs_datetimes)),@sep,1)),"730=",""),@cd4_percent_1_date)) > 30 
 					then @cd4_percent_2_date:= @cd4_percent_1_date
@@ -478,7 +477,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 
 	case
-		when encounter_type = "@lab_encounter_type9" and obs regexp "730=[0-9]" then @cd4_percent_1:= cast(replace((substring_index(substring(obs,locate("730=",obs)),@sep,1)),"730=","") as unsigned)
+		when encounter_type = @lab_encounter_type and obs regexp "730=[0-9]" then @cd4_percent_1:= cast(replace((substring_index(substring(obs,locate("730=",obs)),@sep,1)),"730=","") as unsigned)
 		when obs regexp "730=[0-9]"
 				and (@cd4_percent_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("730=",obs_datetimes)),@sep,1)),"730=",""),@cd4_1_date)) > 30) 
 			then @cd4_percent_1 := cast(replace((substring_index(substring(obs,locate("730=",obs)),@sep,1)),"730=","") as unsigned)
@@ -487,7 +486,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	end as cd4_percent_1,
 
 	case 
-		when obs regexp "730=[0-9]" and encounter_type = "@lab_encounter_type9"then @cd4_percent_1_date:=date(encounter_datetime)
+		when obs regexp "730=[0-9]" and encounter_type = @lab_encounter_type then @cd4_percent_1_date:=date(encounter_datetime)
 		when obs regexp "730=[0-9]" 
 				and (@cd4_percent_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("730=",obs_datetimes)),@sep,1)),"730=",""),@cd4_percent_1_date)) > 30) 
 			then @cd4_percent_1_date := date(replace((substring_index(substring(obs_datetimes,locate("730=",obs_datetimes)),@sep,1)),"730=",""))
@@ -500,7 +499,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when @prev_id=@cur_id then
 			case
-				when encounter_type = "@lab_encounter_type9" and obs regexp "856=[0-9]" and @vl_1 >= 0 and date(encounter_datetime)<>@vl_1_date then @vl_2:= @vl_1
+				when encounter_type = @lab_encounter_type and obs regexp "856=[0-9]" and @vl_1 >= 0 and date(encounter_datetime)<>@vl_1_date then @vl_2:= @vl_1
 				when obs regexp "856=[0-9]" 
 						and abs(datediff(replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=",""),@vl_1_date)) > 30 
 				then @vl_2 := @vl_1
@@ -513,7 +512,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case 
 		when @prev_id=@cur_id then
 			case 
-				when obs regexp "856=[0-9]" and encounter_type = "@lab_encounter_type9" and @vl_1 and date(encounter_datetime)<>date(@vl_1_date) then @vl_2_date:= @vl_1_date
+				when obs regexp "856=[0-9]" and encounter_type = @lab_encounter_type and @vl_1 and date(encounter_datetime)<>date(@vl_1_date) then @vl_2_date:= @vl_1_date
 				when obs regexp "856=[0-9]" and @vl_1 >= 0 
 						and abs(datediff(replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=",""),@vl_1_date)) > 30 
 					then @vl_2_date := @vl_1_date
@@ -524,14 +523,14 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 
 	case 
-		when obs regexp "856=[0-9]" and encounter_type = "@lab_encounter_type9" then cast(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=","") as unsigned)
+		when obs regexp "856=[0-9]" and encounter_type = @lab_encounter_type then cast(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=","") as unsigned)
 		when obs regexp "856=[0-9]" 
 				and (@vl_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=",""),@vl_1_date)) > 30) 
 			then @vl_1 := cast(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=","") as unsigned)
 	end as vl_resulted,
 
 	case 
-		when obs regexp "856=[0-9]" and encounter_type = "@lab_encounter_type9" then encounter_datetime
+		when obs regexp "856=[0-9]" and encounter_type = @lab_encounter_type then encounter_datetime
 		when obs regexp "856=[0-9]" 
 				and (@vl_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=",""),@vl_1_date)) > 30) 
 			then replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=","")
@@ -539,7 +538,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 
 	case 
-		when obs regexp "856=[0-9]" and encounter_type = "@lab_encounter_type9" then @vl_1:=cast(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=","") as unsigned)
+		when obs regexp "856=[0-9]" and encounter_type = @lab_encounter_type then @vl_1:=cast(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=","") as unsigned)
 		when obs regexp "856=[0-9]" 
 				and (@vl_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=",""),@vl_1_date)) > 30) 
 			then @vl_1 := cast(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=","") as unsigned)
@@ -548,7 +547,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	end as vl_1,
 
 	case
-		when obs regexp "856=[0-9]" and encounter_type = "@lab_encounter_type9" then @vl_1_date:= encounter_datetime
+		when obs regexp "856=[0-9]" and encounter_type = @lab_encounter_type then @vl_1_date:= encounter_datetime
 		when obs regexp "856=[0-9]" 
 				and (@vl_1_date is null or abs(datediff(replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=",""),@vl_1_date)) > 30) 
 			then @vl_1_date := replace((substring_index(substring(obs_datetimes,locate("856=",obs_datetimes)),@sep,1)),"856=","")

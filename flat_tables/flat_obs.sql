@@ -42,7 +42,7 @@ select @last_update :=
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2015-04-01";
+select @last_update := "2015-04-27";
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
