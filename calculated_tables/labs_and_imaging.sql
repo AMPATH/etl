@@ -7,8 +7,10 @@
 # It seems that if you don't create the temporary table first, the sort is applied 
 # to the final result. Any references to the previous row will not an ordered row. 
 
+set session sort_buffer_size=512000000;
+
 select @sep := " ## ";
-select @unknown_encounter_type := "99999";
+select @unknown_encounter_type := 99999;
 
 #delete from flat_log where table_name="flat_labs_and_imaging";
 #drop table if exists flat_labs_and_imaging;
@@ -45,7 +47,7 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-#select @last_update := "2015-04-27";
+#select @last_update := "2015-04-30";
 
 
 
@@ -67,18 +69,15 @@ create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id)
 	t1.person_id, 
 	t1.encounter_id, 
 	t1.encounter_datetime,
-	if(e.encounter_type,e.encounter_type,@unknown_encounter_type) as encounter_type,
-	if(e.location_id,e.location_id,null) as location_id,
+	t1.encounter_type,
+	t1.location_id,
 	t1.obs,
 	t1.obs_datetimes
 	from flat_obs t1
 		join new_data_person_ids t0 using (person_id)
-		left outer join amrs.encounter e using (encounter_id)
-	where voided = 0
-		and encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47)
+	where encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,@unknown_encounter_type)
 	order by t1.person_id, encounter_datetime
 );
-
 
 
 select @prev_id := null;
