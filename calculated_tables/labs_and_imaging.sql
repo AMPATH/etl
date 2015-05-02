@@ -75,7 +75,7 @@ create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id)
 	t1.obs_datetimes
 	from flat_obs t1
 		join new_data_person_ids t0 using (person_id)
-	where encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,@unknown_encounter_type)
+	where encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,32,33,43,47,@unknown_encounter_type)
 	order by t1.person_id, encounter_datetime
 );
 

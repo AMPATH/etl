@@ -51,7 +51,7 @@ create temporary table derived_encounter_0(index encounter_id (encounter_id), in
 (select *
 	from amrs.encounter e
 		join new_data_person_ids t0 on e.patient_id = t0.person_id
-	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,43,47,21)
+	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,32,33,43,47,21)
 		and voided=0
 	order by t0.person_id, e.encounter_datetime
 );

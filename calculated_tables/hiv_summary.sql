@@ -114,7 +114,7 @@ create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), ind
 	t1.obs_datetimes
 	from flat_obs t1 
 		join new_data_person_ids t0 using (person_id)
-	where t1.encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21,@lab_encounter_type)
+	where t1.encounter_type in (1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,32,33,43,47,21,@lab_encounter_type)
 	order by t1.person_id,t1.encounter_datetime
 );
 
@@ -288,7 +288,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 				else @first_evidence_pt_pregnant := null
 			end
 		when @first_evidence_pt_pregnant is null and (t1.encounter_type in (32,33,44,10) or obs regexp "1279|5596") then @first_evidence_pt_pregnant := encounter_datetime
-		when @first_evidence_pt_pregnant and (t1.encounter_type in (11,47,34) or timestampdiff(week,@first_evidence_pt_pregnant,encounter_datetime) > 40 or timestampdiff(week,@edd,encounter_datetime) > 4 or obs regexp "5599=|1156=1065") then @first_evidence_pt_pregnant := null
+		when @first_evidence_pt_pregnant and (t1.encounter_type in (11,47,34) or timestampdiff(week,@first_evidence_pt_pregnant,encounter_datetime) > 40 or timestampdiff(week,@edd,encounter_datetime) > 40 or obs regexp "5599=|1156=1065") then @first_evidence_pt_pregnant := null
 		else @first_evidence_pt_pregnant
 	end as first_evidence_patient_pregnant,
 
