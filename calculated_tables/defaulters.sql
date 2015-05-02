@@ -1,5 +1,12 @@
 drop table if exists flat_defaulters;
-create table flat_defaulters (person_id int, location_id int, location_uuid varchar (50), primary key (person_id), index loc_person (location_uuid,person_id))
+create table flat_defaulters (
+	person_id int, 
+	location_id int, 
+	location_uuid varchar (50), 
+	days_since_rtc int, 
+	primary key (person_id), 
+	index loc_person (location_uuid,days_since_rtc)
+)
 (
 select 
 	t1.person_id, 
