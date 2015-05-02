@@ -1,10 +1,11 @@
 drop table if exists flat_defaulters;
-create table flat_defaulters (person_id int, location_id int, primary key (person_id), index loc_person (location_id,person_id))
+create table flat_defaulters (person_id int, location_id int, location_uuid varchar (50), primary key (person_id), index loc_person (location_uuid,person_id))
 (
 select 
 	t1.person_id, 
 	t1.encounter_id,
 	t1.location_id,
+	t1.location_uuid,
 	date(t1.encounter_datetime) as encounter_datetime, 
 	date(rtc_date) as rtc_date,
 	arv_start_date,
