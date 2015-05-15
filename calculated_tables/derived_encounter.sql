@@ -19,7 +19,8 @@ create table if not exists derived_encounter(
 	prev_encounter_type int,
 	next_encounter_type int,
     primary key encounter_id (encounter_id),
-    index person_next_enc (person_id,next_encounter_datetime)
+    index person_next_enc (person_id,next_encounter_datetime),
+	index person_uuid (uuid)
 );
 
 

@@ -8,6 +8,7 @@
 # to the final result. Any references to the previous row will not an ordered row. 
 
 set session sort_buffer_size=512000000;
+set session group_concat_max_len=100000;
 
 select @sep := " ## ";
 select @unknown_encounter_type := 99999;
@@ -32,7 +33,8 @@ create table if not exists flat_labs_and_imaging (
 	tests_ordered varchar(1000),
     primary key encounter_id (encounter_id),
     index person_date (person_id, encounter_datetime),
-	index location_uuid (location_uuid)
+	index location_uuid (location_uuid),
+	index person_uuid (uuid)
 );
 
 select @start := now();
@@ -117,15 +119,15 @@ create temporary table flat_labs_and_imaging_1 (index encounter_id (encounter_id
 	# 12 = X-RAY, CHEST, PRELIMINARY FINDINGS
 	# 1271 = TESTS ORDERED
 	
-	if(obs regexp "856=",cast(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=","") as unsigned),null) as hiv_viral_load,
-	if(obs regexp "5497=",cast(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=","") as unsigned),null) as cd4_count,
-	if(obs regexp "730=",cast(replace((substring_index(substring(obs,locate("730=",obs)),@sep,1)),"730=","") as decimal(3,1)),null) as cd4_percent,
-	if(obs regexp "21=",cast(replace((substring_index(substring(obs,locate("21=",obs)),@sep,1)),"21=","") as decimal(4,1)),null) as hemoglobin,
-	if(obs regexp "653=",cast(replace((substring_index(substring(obs,locate("653=",obs)),@sep,1)),"653=","") as unsigned),null) as ast,
-	if(obs regexp "790=",cast(replace((substring_index(substring(obs,locate("790=",obs)),@sep,1)),"790=","") as decimal(4,1)),null) as creatinine,
-	if(obs regexp "12=",cast(replace((substring_index(substring(obs,locate("12=",obs)),@sep,1)),"12=","") as unsigned),null) as chest_xray,
-	if(obs regexp "1271=",
-			replace((substring_index(substring(obs,locate("1271=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "1271=", "") ) ) / LENGTH("1271=") ))),"1271=",""),
+	if(obs regexp "!!856=",cast(replace(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=",""),"!!","") as unsigned),null) as hiv_viral_load,
+	if(obs regexp "!!5497=",cast(replace(replace((substring_index(substring(obs,locate("5497=",obs)),@sep,1)),"5497=",""),"!!","") as unsigned),null) as cd4_count,
+	if(obs regexp "!!730=",cast(replace(replace((substring_index(substring(obs,locate("730=",obs)),@sep,1)),"730=",""),"!!","") as decimal(3,1)),null) as cd4_percent,
+	if(obs regexp "!!21=",cast(replace(replace((substring_index(substring(obs,locate("21=",obs)),@sep,1)),"21=",""),"!!","") as decimal(4,1)),null) as hemoglobin,
+	if(obs regexp "!!653=",cast(replace(replace((substring_index(substring(obs,locate("653=",obs)),@sep,1)),"653=",""),"!!","") as unsigned),null) as ast,
+	if(obs regexp "!!790=",cast(replace(replace((substring_index(substring(obs,locate("790=",obs)),@sep,1)),"790=",""),"!!","") as decimal(4,1)),null) as creatinine,
+	if(obs regexp "!!12=" and not obs regexp "!!12=1107",cast(replace(replace((substring_index(substring(obs,locate("12=",obs)),@sep,1)),"12=",""),"!!","") as unsigned),null) as chest_xray,
+	if(obs regexp "!!1271=" and not obs regexp "!!1271=1107",
+			replace(replace((substring_index(substring(obs,locate("!!1271=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "1271=", "") ) ) / LENGTH("!!1271=") ))),"!!1271=",""),"!!",""),
 			null
 		) as tests_ordered	
 

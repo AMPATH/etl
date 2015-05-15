@@ -27,7 +27,8 @@ create table if not exists flat_vitals (
 	diastolic_bp int,
 	pulse int,
     primary key encounter_id (encounter_id),
-    index person_date (person_id, encounter_datetime)
+    index person_date (person_id, encounter_datetime),
+	index person_uuid (uuid)
 );
 
 
@@ -104,13 +105,13 @@ create temporary table flat_vitals_1 (index encounter_id (encounter_id))
 	# 5086 = DIASTOLIC BLOOD PRESSURE
 	# 5087 = PULSE
 
-	if(obs regexp "5089=",cast(replace((substring_index(substring(obs,locate("5089=",obs)),@sep,1)),"5089=","") as decimal(4,1)),null) as weight,
-	if(obs regexp "5090=",cast(replace((substring_index(substring(obs,locate("5090=",obs)),@sep,1)),"5090=","") as decimal(4,1)),null) as height,
-	if(obs regexp "5088=",cast(replace((substring_index(substring(obs,locate("5088=",obs)),@sep,1)),"5088=","") as decimal(4,1)),null) as temp,
-	if(obs regexp "5092=",cast(replace((substring_index(substring(obs,locate("5092=",obs)),@sep,1)),"5092=","") as unsigned),null) as oxygen_sat,
-	if(obs regexp "5085=",cast(replace((substring_index(substring(obs,locate("5085=",obs)),@sep,1)),"5085=","") as unsigned),null) as systolic_bp,
-	if(obs regexp "5086=",cast(replace((substring_index(substring(obs,locate("5086=",obs)),@sep,1)),"5086=","") as unsigned),null) as diastolic_bp,
-	if(obs regexp "5087=",cast(replace((substring_index(substring(obs,locate("5087=",obs)),@sep,1)),"5087=","") as unsigned),null) as pulse
+	if(obs regexp "!!5089=",cast(replace(replace((substring_index(substring(obs,locate("!!5089=",obs)),@sep,1)),"!!5089=",""),"!!","") as decimal(4,1)),null) as weight,
+	if(obs regexp "!!5090=",cast(replace(replace((substring_index(substring(obs,locate("!!5090=",obs)),@sep,1)),"!!5090=",""),"!!","") as decimal(4,1)),null) as height,
+	if(obs regexp "!!5088=",cast(replace(replace((substring_index(substring(obs,locate("!!5088=",obs)),@sep,1)),"!!5088=",""),"!!","") as decimal(4,1)),null) as temp,
+	if(obs regexp "!!5092=",cast(replace(replace((substring_index(substring(obs,locate("!!5092=",obs)),@sep,1)),"!!5092=",""),"!!","") as unsigned),null) as oxygen_sat,
+	if(obs regexp "!!5085=",cast(replace(replace((substring_index(substring(obs,locate("!!5085=",obs)),@sep,1)),"!!5085=",""),"!!","") as unsigned),null) as systolic_bp,
+	if(obs regexp "!!5086=",cast(replace(replace((substring_index(substring(obs,locate("!!5086=",obs)),@sep,1)),"!!5086=",""),"!!","") as unsigned),null) as diastolic_bp,
+	if(obs regexp "!!5087=",cast(replace(replace((substring_index(substring(obs,locate("!!5087=",obs)),@sep,1)),"!!5087=",""),"!!","") as unsigned),null) as pulse
 
 from flat_vitals_0 t1
 	join amrs.person p using (person_id)

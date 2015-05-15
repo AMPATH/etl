@@ -18,8 +18,8 @@ select
 	arv_start_date,
 	@days_since_rtc := timestampdiff(day,if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)),curdate()) as days_since_rtc,
 	case 
-		when encounter_type=21 and obs regexp "9082=9080" then 0
-		when encounter_type=21 and obs regexp "9082=6101" and @days_since_rtc >= @start_range_high_risk then 1
+		when encounter_type=21 and obs regexp "!!9082=9080!!" then 0
+		when encounter_type=21 and obs regexp "!!9082=6101!!" and @days_since_rtc >= @start_range_high_risk then 1
 		when rtc_date is null and timestampdiff(day,t1.encounter_datetime,curdate()) < 90 then 5
 		when (@days_since_rtc > 90 or (rtc_date is null and timestampdiff(day,t1.encounter_datetime,curdate()) >= 90)) then 4
 		when @days_since_rtc between @start_range_high_risk and 90 and (timestampdiff(day,t1.encounter_datetime,rtc_date) <= 14 or timestampdiff(day,arv_start_date,t1.encounter_datetime) <= 90) then 1
@@ -46,10 +46,10 @@ where
 	encounter_type != 99999
 	and next_encounter_datetime is null 
 	and death_date is null
-	and not obs regexp "1596=|1946=1065" 
+	and not obs regexp "!!1596=|!!1946=1065!!" 
 	and transfer_out is null
 	and if(rtc_date,rtc_date,date_add(t1.encounter_datetime, interval 90 day)) < curdate()
-	and (if(encounter_type=21,(not obs regexp "9802=" or obs regexp "9802=(6101|1286|9080)"),1))
+	and (if(encounter_type=21,(not obs regexp "!!9802=" or obs regexp "!!9802=(6101|1286|9080)!!"),1))
 group by t1.person_id
 );
 

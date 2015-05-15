@@ -9,7 +9,7 @@
 
 set session group_concat_max_len=100000;
 select @start := now();
-
+select @boundary := "!!";
 
 #delete from flat_log where table_name="flat_obs";
 #drop table if exists flat_obs;
@@ -31,7 +31,6 @@ primary key (encounter_id)
 
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_obs");
-#select @last_update := (select max(max_date_created) from flat_obs);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
@@ -42,7 +41,7 @@ select @last_update :=
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2015-04-27";
+#select @last_update := "2015-05-10";
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
@@ -77,13 +76,13 @@ replace into flat_obs
 	e.location_id,
 	group_concat(
 		case 
-			when value_coded then concat(o.concept_id,'=',value_coded)
-			when value_numeric then concat(o.concept_id,'=',value_numeric)
-			when value_datetime then concat(o.concept_id,'=',value_datetime)
-			when value_boolean then concat(o.concept_id,'=',value_boolean)
-			when value_text then concat(o.concept_id,'=',value_text)
-			when value_drug then concat(o.concept_id,'=',value_drug)
-			when value_modifier then concat(o.concept_id,'=',value_modifier)
+			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -92,7 +91,7 @@ replace into flat_obs
 	group_concat(
 		case 
 			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
-			then concat(o.concept_id,'=',o.obs_datetime)
+			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -118,13 +117,13 @@ replace into flat_obs
 	null as location_id,
 	group_concat(
 		case 
-			when value_coded then concat(o.concept_id,'=',value_coded)
-			when value_numeric then concat(o.concept_id,'=',value_numeric)
-			when value_datetime then concat(o.concept_id,'=',value_datetime)
-			when value_boolean then concat(o.concept_id,'=',value_boolean)
-			when value_text then concat(o.concept_id,'=',value_text)
-			when value_drug then concat(o.concept_id,'=',value_drug)
-			when value_modifier then concat(o.concept_id,'=',value_modifier)
+			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -133,7 +132,7 @@ replace into flat_obs
 	group_concat(
 		case 
 			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
-			then concat(o.concept_id,'=',o.obs_datetime)
+			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -157,13 +156,13 @@ replace into flat_obs
 	e.location_id,
 	group_concat(
 		case 
-			when value_coded then concat(o.concept_id,'=',value_coded)
-			when value_numeric then concat(o.concept_id,'=',value_numeric)
-			when value_datetime then concat(o.concept_id,'=',value_datetime)
-			when value_boolean then concat(o.concept_id,'=',value_boolean)
-			when value_text then concat(o.concept_id,'=',value_text)
-			when value_drug then concat(o.concept_id,'=',value_drug)
-			when value_modifier then concat(o.concept_id,'=',value_modifier)
+			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by concept_id,value_coded
 		separator ' ## '
@@ -172,7 +171,7 @@ replace into flat_obs
 	group_concat(
 		case 
 			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
-			then concat(o.concept_id,'=',o.obs_datetime)
+			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -196,13 +195,13 @@ replace into flat_obs
 	null as location_id,
 	group_concat(
 		case 
-			when value_coded then concat(o.concept_id,'=',value_coded)
-			when value_numeric then concat(o.concept_id,'=',value_numeric)
-			when value_datetime then concat(o.concept_id,'=',value_datetime)
-			when value_boolean then concat(o.concept_id,'=',value_boolean)
-			when value_text then concat(o.concept_id,'=',value_text)
-			when value_drug then concat(o.concept_id,'=',value_drug)
-			when value_modifier then concat(o.concept_id,'=',value_modifier)
+			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by concept_id,value_coded
 		separator ' ## '
@@ -211,7 +210,7 @@ replace into flat_obs
 	group_concat(
 		case 
 			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
-			then concat(o.concept_id,'=',o.obs_datetime)
+			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -224,6 +223,12 @@ replace into flat_obs
 		and voided=0 and o.date_created > @last_update
 	group by person_id, o.obs_datetime
 );
+
+# Remove test patients
+delete t1 
+from flat_hiv_summary t1 
+join amrs.person_attribute t2 using (person_id) 
+where t2.person_attribute_type_id=28 and value='true';
 
 drop table voided_obs;
 insert into flat_log values (@start,"flat_obs");
