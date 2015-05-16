@@ -1,3 +1,5 @@
+select @start := now();
+
 drop table if exists flat_defaulters;
 create table flat_defaulters (
 	person_id int, 
@@ -52,4 +54,6 @@ where
 	and (if(encounter_type=21,(not obs regexp "!!9802=" or obs regexp "!!9802=(6101|1286|9080)!!"),1))
 group by t1.person_id
 );
+
+select concat("Time to complete flat_defaulters table: ",timestampdiff(minute, @start, now())," minutes");
 
