@@ -12,6 +12,7 @@
 create table if not exists derived_encounter(
 	person_id int,
     encounter_id int,
+	uuid varchar(50),
 	prev_encounter_datetime datetime,
 	next_encounter_datetime datetime,
 	prev_clinic_datetime datetime,
@@ -36,7 +37,7 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-#select @last_update := "2015-04-20";
+#select @last_update := "2015-05-14";
 
 
 drop table if exists new_data_person_ids;
@@ -173,13 +174,15 @@ insert into derived_encounter
 (select 
 	person_id,
     encounter_id,
+	t1.uuid,
 	prev_encounter_datetime,
 	next_encounter_datetime,
 	prev_clinic_datetime,
 	next_clinic_datetime,
 	prev_encounter_type,
 	next_encounter_type
-from derived_encounter_2
+from derived_encounter_2 t1
+	join amrs.person t2 using (person_id)
 order by person_id, encounter_datetime);
 
 insert into flat_log values (@start,"derived_encounter");
