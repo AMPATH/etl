@@ -177,7 +177,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	
 	# 5096 = return visit date
 	case
-		when obs regexp "!!5096=" then @cur_rtc_date := replace(SUBSTRING_INDEX(SUBSTRING_INDEX(obs, '!!5096=', -1), ',', 1),"!!","")
+		when obs regexp "!!5096=" then @cur_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
 		when @prev_id = @cur_id then @cur_rtc_date
 		else @cur_rtc_date := null
 	end as cur_rtc_date,
@@ -232,9 +232,9 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		when obs regexp "!!1250=" then @cur_arv_meds :=  
 			replace(replace((substring_index(substring(obs,locate("!!1250=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!1250=", "") ) ) / LENGTH("!!1250=") ))),"!!1250=",""),"!!","")
 		when obs regexp "!!1088=" then @cur_arv_meds := 
-			replace(replace((substring_index(substring(obs,locate("!!1088=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!1088=", "") ) ) / LENGTH("!!1250=") ))),"!!1088=",""),"!!","")
+			replace(replace((substring_index(substring(obs,locate("!!1088=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!1088=", "") ) ) / LENGTH("!!1088=") ))),"!!1088=",""),"!!","")
 		when obs regexp "!!2154=" then @cur_arv_meds := 
-			replace(replace((substring_index(substring(obs,locate("!!2154=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!2154=", "") ) ) / LENGTH("!!1250=") ))),"!!2154=",""),"!!","")
+			replace(replace((substring_index(substring(obs,locate("!!2154=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!2154=", "") ) ) / LENGTH("!!2154=") ))),"!!2154=",""),"!!","")
 		when @prev_id=@cur_id then @cur_arv_meds
 		else @cur_arv_meds:= null
 	end as cur_arv_meds,
