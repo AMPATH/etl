@@ -26,6 +26,7 @@ create table if not exists flat_hiv_summary (
 	death_date datetime,
 	scheduled_visit int,
 	transfer_out int,
+	out_of_care int,
 	prev_rtc_date datetime,
 	rtc_date datetime,
 	arv_start_date datetime,
@@ -73,7 +74,7 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-#select @last_update := "2015-04-30";
+#select @last_update := "2015-05-15";
 
 
 drop table if exists new_data_person_ids;
@@ -185,12 +186,23 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	# 1285 = TRANSFER CARE TO OTHER CENTER
 	# 1596 = REASON EXITED CARE
 	# 9082 = PATIENT CARE STATUS
+
 	case
 		when obs regexp "!!1285=(1287|9068)!!" then 1
 		when obs regexp "!!1596=1594!!" then 1
 		when obs regexp "!!9082=(1287|9068)!!" then 1
 		else null
 	end as transfer_out,
+
+	# 1946 = DISCONTINUE FROM CLINIC, HIV NEGATIVE
+	case
+		when obs regexp "!!1946=1065!!" then 1
+		when obs regexp "!!1285=(1287|9068)!!" then 1
+		when obs regexp "!!1596=" then 1
+		when obs regexp "!!9082=(159|9036|9083|1287|9068)!!" then 1
+		else null
+	end as out_of_care,
+
 
 	# 1946 = DISCONTINUE FROM CLINIC, HIV NEGATIVE
 	# 1088 = CURRENT ANTIRETROVIRAL DRUGS USED FOR TREATMENT
@@ -575,6 +587,7 @@ insert into flat_hiv_summary
 	death_date,
 	scheduled_visit,
 	transfer_out,
+	out_of_care,
 	prev_rtc_date,
 	cur_rtc_date,
 	arv_start_date,
