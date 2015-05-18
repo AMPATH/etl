@@ -226,7 +226,7 @@ replace into flat_obs
 
 # Remove test patients
 delete t1 
-from flat_hiv_summary t1 
+from flat_obs t1 
 join amrs.person_attribute t2 using (person_id) 
 where t2.person_attribute_type_id=28 and value='true';
 
