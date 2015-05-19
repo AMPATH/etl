@@ -47,10 +47,8 @@ from flat_defaulters_0
 	join amrs.encounter_type t4 on t3.encounter_type = t4.encounter_type_id 
 	join amrs.person_name t5 on t1.person_id = t5.person_id and t5.voided=0
 	left outer join amrs.patient_identifier t7 on t1.person_id = t7.patient_id
-	left outer join amrs.person_attribute t6 on t1s.person_id = t6.person_id and t6.person_attribute_type_id=10 and t6.voided=0
+	left outer join amrs.person_attribute t6 on t1.person_id = t6.person_id and t6.person_attribute_type_id=10 and t6.voided=0
 group by t1.person_id
 );
 
 select concat("Time to complete flat_defaulters table: ",timestampdiff(minute, @start, now())," minutes");
-
-select * from flat_defaulters;
