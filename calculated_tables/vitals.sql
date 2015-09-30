@@ -9,7 +9,7 @@
 
 set session sort_buffer_size=512000000;
 
-select @sep := " ## ";
+set @sep := " ## ";
 
 #delete from flat_log where table_name="flat_vitals";
 #drop table if exists flat_vitals;
