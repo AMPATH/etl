@@ -62,7 +62,8 @@ create table if not exists flat_hiv_summary (
     index person_date (person_id, encounter_datetime),
 	index location_rtc (location_uuid,rtc_date),
 	index person_uuid (uuid),
-	index location_enc_date (location_uuid,encounter_datetime)
+	index location_enc_date (location_uuid,encounter_datetime),
+	index enc_date_location (encounter_datetime, location_uuid)
 );
 
 
