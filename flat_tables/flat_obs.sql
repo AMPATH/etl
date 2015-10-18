@@ -8,8 +8,13 @@
 # 4. Add obs_set column definitions
 
 set session group_concat_max_len=100000;
-set @start := now();
-set @boundary := "!!";
+select @start := now();
+select @last_date_created_enc := (select max(date_created) from amrs.encounter);
+select @last_date_created_obs := (select max(date_created) from amrs.obs);
+select @last_date_created := if(@last_date_created_enc > @last_date_created_obs,@last_date_created_enc,@last_date_created_obs);
+
+
+select @boundary := "!!";
 
 #delete from flat_log where table_name="flat_obs";
 #drop table if exists flat_obs;
@@ -30,23 +35,25 @@ primary key (encounter_id)
 );
 
 
-set @last_update := (select max(date_updated) from flat_log where table_name="flat_obs");
+select @last_date_created_enc := (select max(date_created) from amrs.encounter);
+select @last_date_created_obs := (select max(date_created) from amrs.obs);
+select @last_date_created := if(@last_date_created_enc > @last_date_created_obs,@last_date_created_enc,@last_date_created_obs);
+
+
+# this breaks when replication is down
+select @last_update := (select max(date_updated) from flat_log where table_name="flat_obs");
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
-# Note: mysql IF() is like java tenary operator
-# What is the point of the join anyway? Is it just to see whether flat_obs already has records?
-set @last_update :=
+select @last_update :=
 	if(@last_update is null, 
 		(select max(date_created) from amrs.encounter e join flat_obs using (encounter_id)),
 		@last_update);
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
-set @last_update := if(@last_update,@last_update,'1900-01-01');
+select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-# Uncomment the next line for testing purposes. That is to cut down running time.
-# set @last_update := "2015-05-10";
+#select @last_update := "2015-05-10";
 
-# We may cut down time to build this by updating the existing
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
 (select person_id, encounter_id, obs_id, obs_datetime, date_voided, concept_id, date_created
@@ -106,7 +113,7 @@ replace into flat_obs
 		join amrs.obs o using (encounter_id)
 		join amrs.encounter e using (encounter_id)
 	where 
-		o.encounter_id > 1 and o.voided=0	#Ensure obs have encounters
+		o.encounter_id > 1 and o.voided=0
 	group by encounter_id
 );
 
@@ -234,6 +241,7 @@ from flat_obs t1
 join amrs.person_attribute t2 using (person_id) 
 where t2.person_attribute_type_id=28 and value='true';
 
+
 drop table voided_obs;
-insert into flat_log values (@start,"flat_obs");
+insert into flat_log values (@last_date_created,"flat_obs");
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes") as "Time to complete";

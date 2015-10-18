@@ -38,6 +38,7 @@ create table if not exists flat_labs_and_imaging (
 );
 
 select @start := now();
+select @last_date_created := (select max(max_date_created) from flat_obs);
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_labs_and_imaging");
 
@@ -137,7 +138,7 @@ from flat_labs_and_imaging_0 t1
 
 
 
-insert into flat_labs_and_imaging
+replace into flat_labs_and_imaging
 (select 
 	person_id,
 	t1.uuid,
@@ -158,6 +159,6 @@ from flat_labs_and_imaging_1 t1
 	join amrs.location t2 using (location_id)
 );
 
-insert into flat_log values (@start,"flat_labs_and_imaging");
+insert into flat_log values (@last_date_created,"flat_labs_and_imaging");
 
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");

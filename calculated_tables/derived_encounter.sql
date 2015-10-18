@@ -26,6 +26,7 @@ create table if not exists derived_encounter(
 
 
 select @start := now();
+select @last_date_created := (select max(max_date_created) from flat_obs);
 
 select @last_update := (select max(date_updated) from flat_log where table_name="derived_encounter");
 
@@ -170,7 +171,7 @@ delete t1
 from derived_encounter t1
 join new_data_person_ids t2 using (person_id);
 
-insert into derived_encounter
+replace into derived_encounter
 (select 
 	person_id,
     encounter_id,
@@ -185,7 +186,7 @@ from derived_encounter_2 t1
 	join amrs.person t2 using (person_id)
 order by person_id, encounter_datetime);
 
-insert into flat_log values (@start,"derived_encounter");
+insert into flat_log values (@last_date_created,"derived_encounter");
 
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
 

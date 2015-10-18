@@ -12,6 +12,8 @@ set session sort_buffer_size=512000000;
 select @sep := " ## ";
 select @lab_encounter_type := 99999;
 select @start := now();
+select @last_date_created := (select max(max_date_created) from flat_obs);
+
 
 #drop table if exists flat_hiv_summary;
 #delete from flat_log where table_name="flat_hiv_summary";
@@ -575,7 +577,7 @@ from flat_hiv_summary_0 t1
 
 
 
-insert into flat_hiv_summary
+replace into flat_hiv_summary
 (select 
 	person_id,
 	t1.uuid,	
@@ -621,6 +623,6 @@ insert into flat_hiv_summary
 from flat_hiv_summary_1 t1
 	join amrs.location t2 using (location_id));
 
-insert into flat_log values (@start,"flat_hiv_summary");
+insert into flat_log values (@last_date_created,"flat_hiv_summary");
 
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");

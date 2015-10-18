@@ -1,7 +1,7 @@
 #!/bin/bash
 parent_path=$( cd "$(dirname "${BASH_SOURCE}")" ; pwd -P )
 cd "$parent_path"
-git pull
+#git pull
 mysql etl < ../flat_tables/flat_obs.sql
 mysql etl < ../calculated_tables/hiv_summary.sql
 mysql etl < ../calculated_tables/labs_and_imaging.sql

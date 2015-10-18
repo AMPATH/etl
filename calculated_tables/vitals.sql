@@ -9,7 +9,7 @@
 
 set session sort_buffer_size=512000000;
 
-set @sep := " ## ";
+select @sep := " ## ";
 
 #delete from flat_log where table_name="flat_vitals";
 #drop table if exists flat_vitals;
@@ -33,6 +33,8 @@ create table if not exists flat_vitals (
 
 
 select @start := now();
+select @last_date_created := (select max(max_date_created) from flat_obs);
+
 
 select @last_update := (select max(date_updated) from flat_log where table_name="flat_vitals");
 
@@ -123,7 +125,7 @@ delete t1
 from flat_vitals t1
 join new_data_person_ids t2 using (person_id);
 
-insert into flat_vitals
+replace into flat_vitals
 (select 
 	person_id,
 	uuid,
@@ -139,6 +141,6 @@ insert into flat_vitals
 	pulse
 from flat_vitals_1);
 
-insert into flat_log values (@start,"flat_vitals");
+insert into flat_log values (@last_date_created,"flat_vitals");
 
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
