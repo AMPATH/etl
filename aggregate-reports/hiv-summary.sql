@@ -49,13 +49,14 @@ select
 	from flat_hiv_summary t1
 		join amrs.location t2 on t1.location_uuid = t2.uuid
 	where 
-		encounter_datetime between "2015-07-01" and "2015-09-30"
+		encounter_datetime between "2015-04-01" and "2015-09-30"
 #		and location_uuid = "08feb14c-1352-11df-a1f1-0026b9348838"
 #		and death_date is null
 #		and out_of_care is null
 #		and transfer_out is null
-	group by location_uuid
+	group by location_uuid with rollup
 ;
+
 
 /*
 
