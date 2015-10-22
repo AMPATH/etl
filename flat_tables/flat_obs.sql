@@ -52,7 +52,7 @@ select @last_update :=
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2015-05-10";
+#select @last_update := "2015-10-20";
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
@@ -101,7 +101,7 @@ replace into flat_obs
 
 	group_concat(
 		case 
-			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
@@ -142,7 +142,7 @@ replace into flat_obs
 
 	group_concat(
 		case 
-			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
@@ -181,7 +181,7 @@ replace into flat_obs
 
 	group_concat(
 		case 
-			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
@@ -220,7 +220,7 @@ replace into flat_obs
 
 	group_concat(
 		case 
-			when value_coded or value_numeric or value_datetime or value_boolean or value_text or value_drug or value_modifier
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
