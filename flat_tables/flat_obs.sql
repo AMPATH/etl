@@ -87,13 +87,13 @@ replace into flat_obs
 	e.location_id,
 	group_concat(
 		case 
-			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
-			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
-			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
-			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
-			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
-			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
-			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
+			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean is not null then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text is not null then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug is not null then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier is not null then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -128,13 +128,13 @@ replace into flat_obs
 	null as location_id,
 	group_concat(
 		case 
-			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
-			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
-			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
-			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
-			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
-			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
-			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
+			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean is not null then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text is not null then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug is not null then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier is not null then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by o.concept_id,value_coded
 		separator ' ## '
@@ -167,13 +167,13 @@ replace into flat_obs
 	e.location_id,
 	group_concat(
 		case 
-			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
-			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
-			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
-			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
-			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
-			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
-			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
+			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean is not null then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text is not null then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug is not null then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier is not null then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by concept_id,value_coded
 		separator ' ## '
@@ -206,13 +206,13 @@ replace into flat_obs
 	null as location_id,
 	group_concat(
 		case 
-			when value_coded then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
-			when value_numeric then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
-			when value_datetime then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
-			when value_boolean then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
-			when value_text then concat(@boundary,o.concept_id,'=',value_text,@boundary)
-			when value_drug then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
-			when value_modifier then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
+			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
+			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
+			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
+			when value_boolean is not null then concat(@boundary,o.concept_id,'=',value_boolean,@boundary)
+			when value_text is not null then concat(@boundary,o.concept_id,'=',value_text,@boundary)
+			when value_drug is not null then concat(@boundary,o.concept_id,'=',value_drug,@boundary)
+			when value_modifier is not null then concat(@boundary,o.concept_id,'=',value_modifier,@boundary)
 		end
 		order by concept_id,value_coded
 		separator ' ## '

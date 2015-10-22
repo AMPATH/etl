@@ -22,6 +22,7 @@ create table if not exists flat_hiv_summary (
 	uuid varchar(100),
     encounter_id int,
 	encounter_datetime datetime,
+	encounter_type int,
 	location_id int,
 	location_uuid varchar(100),
 	visit_num int,
@@ -155,7 +156,8 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	t1.person_id,
 	p.uuid,
 	t1.encounter_id,
-	t1.encounter_datetime,			
+	t1.encounter_datetime,
+	t1.encounter_type,
 
 	# 1246 = SCHEDULED VISIT
 	if(obs regexp "1246=",
@@ -584,6 +586,7 @@ replace into flat_hiv_summary
 	t1.uuid,	
     encounter_id,
 	encounter_datetime,
+	encounter_type,
 	location_id,
 	t2.uuid as location_uuid,
 	visit_num,
