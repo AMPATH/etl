@@ -44,12 +44,22 @@ select
 	count(distinct if(timestampdiff(week,arv_start_date,encounter_datetime) <= 52 and timestampdiff(week,vl_1_date,encounter_datetime) <= 52 and vl_1 <= 1000,person_id,null)) as on_arvs_lte_52_weeks_and_have_vl_lte_1000,
 
 	count(distinct if(edd > encounter_datetime,person_id,null)) as num_pregnant,
-	count(distinct if(edd > encounter_datetime,person_id,null) and cur_arv_line is not null) as num_pregnant_and_on_arvs
+	count(distinct if(edd > encounter_datetime,person_id,null) and cur_arv_line is not null) as num_pregnant_and_on_arvs,
+
+	count(distinct if(timestampdiff(month,arv_start_date,encounter_datetime) between 6 and 12,person_id,null)) as arv_start_btwn_six_and_twelve_months,
+	count(distinct if(timestampdiff(month,arv_start_date,encounter_datetime) between 6 and 12 and (vl_1_date is null or timestampdiff(month,vl_1_date,encounter_datetime) < 3),person_id,null)) as arv_start_lte_six_months_and_no_vl,
+
+	count(distinct if(timestampdiff(month,arv_start_date,encounter_datetime) > 12,person_id,null)) as arv_start_gte_one_year,
+	count(distinct if(timestampdiff(month,arv_start_date,encounter_datetime) > 12 and (vl_1_date is null or timestampdiff(year,vl_1_date,encounter_datetime) > 1),person_id,null)) as arv_start_gte_one_year_and_no_vl
+
 
 	from flat_hiv_summary t1
 		join amrs.location t2 on t1.location_uuid = t2.uuid
+		join derived_encounter using (encounter_id,person_id)
 	where 
-		encounter_datetime between "2015-04-01" and "2015-09-30"
+		encounter_datetime between "2015-05-01" and "2015-05-31"
+#		and (next_encounter_datetime > "2015-05-31" or next_encounter_datetime is null)
+		and encounter_type not in (21,99999)
 #		and location_uuid = "08feb14c-1352-11df-a1f1-0026b9348838"
 #		and death_date is null
 #		and out_of_care is null

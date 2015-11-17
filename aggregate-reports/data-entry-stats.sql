@@ -56,3 +56,43 @@ select
 		encounter_datetime between "2015-09-01" and "2015-09-30"
 		and voided=0
 	group by form_id;
+
+
+select encounter_type, count(*)
+	from amrs.encounter
+	where voided=0
+		and location_id=13 #13 is MTRH Module 2
+		and encounter_type != 21
+		and date(encounter_datetime) = "2015-11-11" 
+	group by encounter_type
+	
+
+# POC Data Entry Stats
+select * from
+(select date(encounter_datetime) as date, 
+	count(if(encounter_type=108,1,null)) as triage,
+	count(distinct if(encounter_type=108,patient_id,null)) as triage_patients,
+	count(if(form_id is null and encounter_type=2,1,null)) as poc_adult,
+	count(distinct if(form_id is null and encounter_type=2,patient_id,null)) as poc_adult_patients,
+	count(*) as all_encounters,
+	count(if(form_id is not null and encounter_type=2,1,null)) as infopath_adult
+	from amrs.encounter 
+	where date_created >="2015-09-01" 
+		and location_id=13 #13 is MTRH Module 2
+		and voided=0
+		and encounter_type != 21
+	group by date
+	order by date desc
+) t1
+join 
+(select date(date_started) as date, 
+	count(*) as visits, 
+	count(distinct patient_id) as visit_patients
+	from amrs.visit 
+	where voided=0
+	group by date
+	order by date
+) t2 using (date)
+
+select * from amrs.encounter_type where encounter_type_id =110
+select * from amrs.encounter_type
