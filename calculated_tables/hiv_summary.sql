@@ -26,6 +26,7 @@ create table if not exists flat_hiv_summary (
 	location_id int,
 	location_uuid varchar(100),
 	visit_num int,
+	enrollment_date datetime,
 	death_date datetime,
 	scheduled_visit int,
 	transfer_out int,
@@ -59,6 +60,8 @@ create table if not exists flat_hiv_summary (
     vl_2_date datetime,
     vl_order_date datetime,
     cd4_order_date datetime,
+	condoms_provided int,
+	using_modern_contraceptive_method int,
     primary key encounter_id (encounter_id),
     index person_date (person_id, encounter_datetime),
 	index location_rtc (location_uuid,rtc_date),
@@ -78,7 +81,8 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-#select @last_update := "2015-05-15";
+#select @last_update := "2015-11-17"; #date(now());
+#select @last_date_created := "2015-11-17"; #date(now());
 
 
 drop table if exists new_data_person_ids;
@@ -109,8 +113,10 @@ create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), ind
 	order by t1.person_id,t1.encounter_datetime
 );
 
+
 select @prev_id := null;
 select @cur_id := null;
+select @enrollment_date := null;
 select @cur_location := null;
 select @cur_rtc_date := null;
 select @prev_rtc_date := null;
@@ -139,6 +145,8 @@ select @cd4_percent_2:=null;
 select @cd4_percent_2_date:=null;
 select @vl_order_date := null;
 select @cd4_order_date := null;
+select @condoms_provided := null;
+select @using_modern_contraceptive_method := null;
 
 
 #TO DO
@@ -158,6 +166,13 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	t1.encounter_id,
 	t1.encounter_datetime,
 	t1.encounter_type,
+
+	case
+		when @prev_id != @cur_id and encounter_type in (21,@lab_encounter_type) then @enrollment_date := null
+		when @prev_id != @cur_id then @enrollment_date := encounter_datetime
+		when encounter_type not in (21,@lab_encounter_type) and @enrollment_date is null then @enrollment_date := encounter_datetime
+		else @enrollment_date
+	end as enrollment_date,
 
 	# 1246 = SCHEDULED VISIT
 	if(obs regexp "1246=",
@@ -571,8 +586,17 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		when obs regexp "!!1271=657!!" then @cd4_order_date := date(encounter_datetime)
 		when @prev_id=@cur_id then @cd4_order_date
 		else @cd4_order_date := null
-	end as cd4_order_date
+	end as cd4_order_date,
 
+	case
+		when obs regexp "!!8302=8305!!" then @condoms_provided := 1
+		else null
+	end as condoms_provided,
+
+	case
+		when obs regexp "!!374=(5275|6220|780|5279)!!" then @using_modern_conctaceptive_method := 1
+		else null
+	end as using_modern_contraceptive_method
 
 from flat_hiv_summary_0 t1
 	join amrs.person p using (person_id)
@@ -590,6 +614,7 @@ replace into flat_hiv_summary
 	location_id,
 	t2.uuid as location_uuid,
 	visit_num,
+	enrollment_date,
 	death_date,
 	scheduled_visit,
 	transfer_out,
@@ -620,9 +645,11 @@ replace into flat_hiv_summary
     vl_1,
     vl_1_date,
     vl_2,
-   vl_2_date,
-   vl_order_date,
-    cd4_order_date
+    vl_2_date,
+    vl_order_date,
+    cd4_order_date,
+	condoms_provided,
+	using_modern_contraceptive_method
 
 from flat_hiv_summary_1 t1
 	join amrs.location t2 using (location_id));
