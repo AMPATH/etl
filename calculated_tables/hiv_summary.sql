@@ -379,7 +379,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	# 1261 = PCP PROPHYLAXIS PLAN
 	# 1193 = CURRENT MEDICATIONS
 	case 
-		when obs regexp "!!1261=(1107|1268)!!" then @pcp_prophylaxis_start_date := null
+		when obs regexp "!!1261=(1107|1260)!!" then @pcp_prophylaxis_start_date := null
 		when obs regexp "!!1261=(1256|1850)!!" then @pcp_prophylaxis_start_date := encounter_datetime
 		when obs regexp "!!1261=1257!!" then
 			case
