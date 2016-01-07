@@ -27,6 +27,7 @@ create table if not exists flat_hiv_summary (
 	location_uuid varchar(100),
 	visit_num int,
 	enrollment_date datetime,
+	hiv_start_date datetime,
 	death_date datetime,
 	scheduled_visit int,
 	transfer_out int,
@@ -117,6 +118,7 @@ create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), ind
 select @prev_id := null;
 select @cur_id := null;
 select @enrollment_date := null;
+select @hiv_start_date := null;
 select @cur_location := null;
 select @cur_rtc_date := null;
 select @prev_rtc_date := null;
@@ -615,6 +617,7 @@ replace into flat_hiv_summary
 	t2.uuid as location_uuid,
 	visit_num,
 	enrollment_date,
+	hiv_start_date,
 	death_date,
 	scheduled_visit,
 	transfer_out,
