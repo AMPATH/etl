@@ -201,7 +201,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	# 5096 = return visit date
 	case
 		when obs regexp "!!5096=" then @cur_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
-		when @prev_id = @cur_id then @cur_rtc_date
+		when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
 		else @cur_rtc_date := null
 	end as cur_rtc_date,
 
