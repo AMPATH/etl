@@ -2,10 +2,10 @@
 #* CREATION OF MOH 731 INDICATORS TABLE ****************************************************************************
 #********************************************************************************************************
 #
-# Need to first create this temporary table to sort the data by person,encounterdateime. 
+# Need to first create this temporary table to sort the data by person,encounterdateime.
 # This allows us to use the previous row's data when making calculations.
-# It seems that if you don't create the temporary table first, the sort is applied 
-# to the final result. Any references to the previous row will not an ordered row. 
+# It seems that if you don't create the temporary table first, the sort is applied
+# to the final result. Any references to the previous row will not an ordered row.
 
 #drop table if exists derived_encounter;
 #delete from flat_log where table_name="derived_encounter";
@@ -32,7 +32,7 @@ select @last_update := (select max(date_updated) from flat_log where table_name=
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
-	if(@last_update is null, 
+	if(@last_update is null,
 		(select max(date_created) from amrs.encounter e join derived_encounter using (encounter_id)),
 		@last_update);
 
@@ -43,7 +43,7 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
-(select distinct person_id 
+(select distinct person_id
 	from flat_obs
 	where max_date_created > @last_update
 );
@@ -84,7 +84,7 @@ drop table if exists derived_encounter_1;
 create temporary table derived_encounter_1(
 	next_encounter_type int,
 	next_encounter_datetime datetime,
-	index encounter_id (encounter_id), 
+	index encounter_id (encounter_id),
 	index person_enc (person_id,encounter_datetime))
 (select
 	*,
@@ -104,7 +104,7 @@ create temporary table derived_encounter_1(
 	end as next_clinic_datetime,
 
 	case
-		when encounter_type != 21 then @cur_clinic_datetime := encounter_datetime 
+		when encounter_type != 21 then @cur_clinic_datetime := encounter_datetime
 		else @cur_clinic_datetime := null
 	end as cur_clinic_datetime,
 
@@ -132,9 +132,9 @@ select @cur_clinic_datetime := null;
 
 drop temporary table if exists derived_encounter_2;
 create temporary table derived_encounter_2 (prev_encounter_datetime datetime, prev_encounter_type int, index person_enc (person_id, encounter_datetime desc))
-(select 
+(select
 	*,
-	@prev_id := @cur_id as prev_id, 
+	@prev_id := @cur_id as prev_id,
 	@cur_id := t1.person_id as cur_id,
 
 	case
@@ -156,15 +156,15 @@ create temporary table derived_encounter_2 (prev_encounter_datetime datetime, pr
 	end as prev_clinic_datetime,
 
 	case
-		when encounter_type != 21 then @cur_clinic_datetime := encounter_datetime 
+		when encounter_type != 21 then @cur_clinic_datetime := encounter_datetime
 		else @cur_clinic_datetime := null
 	end as cur_clinic_datetime
 
 
 	from derived_encounter_1 t1
 	order by person_id, encounter_datetime
-);		
-	
+);
+
 
 
 delete t1
@@ -172,7 +172,7 @@ from derived_encounter t1
 join new_data_person_ids t2 using (person_id);
 
 replace into derived_encounter
-(select 
+(select
 	person_id,
     encounter_id,
 	t1.uuid,
@@ -191,8 +191,8 @@ insert into flat_log values (@last_date_created,"derived_encounter");
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
 
 /*
-select person_id, prev_encounter_datetime, encounter_datetime, next_encounter_datetime, prev_encounter_type, encounter_type, next_encounter_type 
-	from derived_encounter 
+select person_id, prev_encounter_datetime, encounter_datetime, next_encounter_datetime, prev_encounter_type, encounter_type, next_encounter_type
+	from derived_encounter
 	join amrs.encounter using (encounter_id)
 	order by person_id, encounter_datetime;
 */

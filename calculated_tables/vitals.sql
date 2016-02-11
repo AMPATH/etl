@@ -2,10 +2,10 @@
 #* CREATION OF MOH INDICATORS TABLE ****************************************************************************
 #********************************************************************************************************
 
-# Need to first create this temporary table to sort the data by person,encounterdateime. 
+# Need to first create this temporary table to sort the data by person,encounterdateime.
 # This allows us to use the previous row's data when making calculations.
-# It seems that if you don't create the temporary table first, the sort is applied 
-# to the final result. Any references to the previous row will not an ordered row. 
+# It seems that if you don't create the temporary table first, the sort is applied
+# to the final result. Any references to the previous row will not an ordered row.
 
 set session sort_buffer_size=512000000;
 
@@ -40,7 +40,7 @@ select @last_update := (select max(date_updated) from flat_log where table_name=
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
-	if(@last_update is null, 
+	if(@last_update is null,
 		(select max(date_created) from amrs.encounter e join flat_vitals using (encounter_id)),
 		@last_update);
 
@@ -50,7 +50,7 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
-(select distinct person_id 
+(select distinct person_id
 	from flat_obs
 	where max_date_created > @last_update
 );
@@ -58,9 +58,9 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 
 drop table if exists flat_vitals_0;
 create temporary table flat_vitals_0(encounter_id int, primary key (encounter_id), index person_enc_date (person_id,encounter_datetime))
-(select 
+(select
 	t1.person_id,
-	t1.encounter_id, 
+	t1.encounter_id,
 	t1.encounter_datetime,
 	t1.encounter_type,
 	t1.location_id,
@@ -68,7 +68,7 @@ create temporary table flat_vitals_0(encounter_id int, primary key (encounter_id
 	t1.obs_datetimes
 	from flat_obs t1
 		join new_data_person_ids t0 using (person_id)
-	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,32,33,43,47,21)
+	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,32,33,43,47,110,111)
 	order by person_id, encounter_datetime
 );
 
@@ -85,13 +85,13 @@ select @height := null;
 
 drop temporary table if exists flat_vitals_1;
 create temporary table flat_vitals_1 (index encounter_id (encounter_id))
-(select 
-	@prev_id := @cur_id as prev_id, 
+(select
+	@prev_id := @cur_id as prev_id,
 	@cur_id := t1.person_id as cur_id,
 	t1.person_id,
 	p.uuid,
 	t1.encounter_id,
-	t1.encounter_datetime,			
+	t1.encounter_datetime,
 
 	case
 		when location_id then @cur_location := location_id
@@ -126,7 +126,7 @@ from flat_vitals t1
 join new_data_person_ids t2 using (person_id);
 
 replace into flat_vitals
-(select 
+(select
 	person_id,
 	uuid,
     encounter_id,
