@@ -158,6 +158,6 @@ from flat_labs_and_imaging_1 t1
 );
 #select * from flat_labs_and_imaging;
 
-insert into flat_log values (@last_date_created,@table_version);
-
-select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
+select @end := now();
+insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

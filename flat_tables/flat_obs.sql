@@ -7,8 +7,10 @@
 # 3. Add column definitions 
 # 4. Add obs_set column definitions
 
-set session group_concat_max_len=100000;
+select @table_version := "flat_obs";
 select @start := now();
+
+set session group_concat_max_len=100000;
 select @last_date_created_enc := (select max(date_created) from amrs.encounter);
 select @last_date_created_obs := (select max(date_created) from amrs.obs);
 select @last_date_created := if(@last_date_created_enc > @last_date_created_obs,@last_date_created_enc,@last_date_created_obs);
@@ -41,7 +43,7 @@ select @last_date_created := if(@last_date_created_enc > @last_date_created_obs,
 
 
 # this breaks when replication is down
-select @last_update := (select max(date_updated) from flat_log where table_name="flat_obs");
+select @last_update := (select max(date_updated) from flat_log where table_name=@table_version);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
@@ -243,5 +245,7 @@ where t2.person_attribute_type_id=28 and value='true';
 
 
 drop table voided_obs;
-insert into flat_log values (@last_date_created,"flat_obs");
-select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes") as "Time to complete";
+
+select @end := now();
+insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
