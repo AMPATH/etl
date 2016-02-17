@@ -12,8 +12,9 @@ set session group_concat_max_len=100000;
 
 select @sep := " ## ";
 select @unknown_encounter_type := 99999;
+select @table_version := "flat_labs_and_imaging_v2.0";
 
-#delete from flat_log where table_name="flat_labs_and_imaging";
+#delete from flat_log where table_name=@table_version;
 #drop table if exists flat_labs_and_imaging;
 create table if not exists flat_labs_and_imaging (
 	person_id int,
@@ -37,9 +38,9 @@ create table if not exists flat_labs_and_imaging (
 );
 
 select @start := now();
-select @last_date_created := (select max(max_date_created) from flat_obs);
+select @last_date_created := (select max(max_date_created) from flat_lab_obs);
 
-select @last_update := (select max(date_updated) from flat_log where table_name="flat_labs_and_imaging");
+select @last_update := (select max(date_updated) from flat_log where table_name=@table_version);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
@@ -157,6 +158,6 @@ from flat_labs_and_imaging_1 t1
 );
 #select * from flat_labs_and_imaging;
 
-insert into flat_log values (@last_date_created,"flat_labs_and_imaging");
+insert into flat_log values (@last_date_created,@table_version);
 
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
