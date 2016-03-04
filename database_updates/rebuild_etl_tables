@@ -3,7 +3,9 @@ parent_path=$( cd "$(dirname "${BASH_SOURCE}")" ; pwd -P )
 cd "$parent_path"
 #git pull
 mysql etl < drop_etl_tables.sql
+mysql etl < ../flat_tables/flat_log.sql
 mysql etl < ../flat_tables/flat_obs.sql
+mysql etl < ../flat_tables/flat_lab_obs.sql
 mysql etl < ../calculated_tables/hiv_summary.sql
 mysql etl < ../calculated_tables/labs_and_imaging.sql
 mysql etl < ../calculated_tables/vitals.sql

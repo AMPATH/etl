@@ -34,6 +34,7 @@ create table if not exists flat_hiv_summary (
 	death_date datetime,
 	scheduled_visit int,
 	transfer_out int,
+	transfer_in int,
 	out_of_care int,
 	prev_rtc_date datetime,
 	rtc_date datetime,
@@ -282,6 +283,12 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
 		else @cur_rtc_date := null
 	end as cur_rtc_date,
+
+	# 7015 = TRANSFER IN CARE FROM OTHER CENTER
+	case
+		when obs regexp "!!7015=" then @transfer_in := replace(replace((substring_index(substring(obs,locate("!!7015=",obs)),@sep,1)),"!!7015=",""),"!!","")
+		else @transfer_in := null
+	end as transfer_in,
 
 	# 1285 = TRANSFER CARE TO OTHER CENTER
 	# 1596 = REASON EXITED CARE
@@ -825,6 +832,7 @@ replace into flat_hiv_summary
 	hiv_start_date,
 	death_date,
 	scheduled_visit,
+	transfer_in,
 	transfer_out,
 	out_of_care,
 	prev_rtc_date,
