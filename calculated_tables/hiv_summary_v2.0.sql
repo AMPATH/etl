@@ -106,15 +106,16 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-# select @last_update := "2016-02-16"; #date(now());
+# select @last_update := "2016-02-18"; #date(now());
 #select @last_date_created := "2015-11-17"; #date(now());
 
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
-(select distinct person_id
+(select person_id, min(encounter_datetime) as start_date
 	from etl.flat_obs
 	where max_date_created > @last_update
+	group by person_id
 );
 
 replace into new_data_person_ids
@@ -124,8 +125,10 @@ replace into new_data_person_ids
 );
 
 
+
+
 drop table if exists flat_hiv_summary_0a;
-create temporary table flat_hiv_summary_0a
+create temporary table flat_hiv_summary_0b
 (select
 	t1.person_id,
 	t1.encounter_id,
@@ -147,8 +150,10 @@ create temporary table flat_hiv_summary_0a
 
 	from etl.flat_obs t1
 		join new_data_person_ids t0 using (person_id)
+#		join new_data_person_ids t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
 	where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111)
 );
+
 
 insert into flat_hiv_summary_0a
 (select
@@ -249,11 +254,11 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		else @enrollment_date
 	end as enrollment_date,
 
-	# 1246 = SCHEDULED VISIT
-	if(obs regexp "1246=",
-		replace(replace((substring_index(substring(obs,locate("!!1246=",obs)),@sep,1)),"!!1246=",""),"!!",""),
-		null
-	) as scheduled_visit,
+	#1836 = CURRENT VISIT TYPE
+	#1246 = SCHEDULED VISIT
+	if(obs regexp "!!1836="
+		,replace(replace((substring_index(substring(obs,locate("!!1836=",obs)),@sep,1)),"!!1836=",""),"!!","")
+		,null) as scheduled_visit,
 
 	case
 		when location_id then @cur_location := location_id
@@ -618,7 +623,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	# 856 = HIV VIRAL LOAD, QUANTITATIVE
 	case
 		when obs regexp "!!1271=856!!" then @vl_order_date := date(encounter_datetime)
-		when @prev_id=@cur_id then @vl_order_date
+		when @prev_id=@cur_id and (vl_1_date is null or vl_1_date < @vl_order_date) then @vl_order_date
 		else @vl_order_date := null
 	end as vl_order_date,
 
