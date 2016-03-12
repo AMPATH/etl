@@ -81,12 +81,12 @@ create table if not exists flat_hiv_summary (
 
 	condoms_provided int,
 	using_modern_contraceptive_method int,
-	prev_encounter_datetime datetime,
-	next_encounter_datetime datetime,
-	prev_encounter_type mediumint,
-	next_encounter_Type mediumint,
-	prev_clinical_datetime datetime,
-	next_clinical_datetime datetime,
+	prev_encounter_datetime_hiv datetime,
+	next_encounter_datetime_hiv datetime,
+	prev_encounter_type_hiv mediumint,
+	next_encounter_type_hiv mediumint,
+	prev_clinical_datetime_hiv_ datetime,
+	next_clinical_datetime_hiv datetime,
 
     primary key encounter_id (encounter_id),
     index person_date (person_id, encounter_datetime),
@@ -107,16 +107,17 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-# select @last_update := "2016-02-18"; #date(now());
+# select @last_update := "2016-03-11"; #date(now());
 #select @last_date_created := "2015-11-17"; #date(now());
 
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
-(select person_id, min(encounter_datetime) as start_date
+(select distinct person_id #, min(encounter_datetime) as start_date
 	from etl.flat_obs
 	where max_date_created > @last_update
-	group by person_id
+#	group by person_id
+#limit 10
 );
 
 replace into new_data_person_ids
@@ -129,7 +130,7 @@ replace into new_data_person_ids
 
 
 drop table if exists flat_hiv_summary_0a;
-create temporary table flat_hiv_summary_0b
+create temporary table flat_hiv_summary_0a
 (select
 	t1.person_id,
 	t1.encounter_id,
@@ -630,7 +631,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	# 856 = HIV VIRAL LOAD, QUANTITATIVE
 	case
 		when obs regexp "!!1271=856!!" then @vl_order_date := date(encounter_datetime)
-		when @prev_id=@cur_id and (vl_1_date is null or vl_1_date < @vl_order_date) then @vl_order_date
+		when @prev_id=@cur_id and (@vl_1_date is null or @vl_1_date < @vl_order_date) then @vl_order_date
 		else @vl_order_date := null
 	end as vl_order_date,
 
@@ -704,9 +705,6 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	end as hiv_dna_pcr_1_date,
 
 
-
-
-
 	case
 		when obs regexp "!!8302=8305!!" then @condoms_provided := 1
 		else null
@@ -745,21 +743,21 @@ create temporary table flat_hiv_summary_2
 	case
 		when @prev_id = @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
 		else @prev_encounter_datetime := null
-	end as next_encounter_datetime,
+	end as next_encounter_datetime_hiv,
 
 	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 	case
 		when @prev_id=@cur_id then @next_encounter_type := @cur_encounter_type
 		else @next_encounter_type := null
-	end as next_encounter_type,
+	end as next_encounter_type_hiv,
 
 	@cur_encounter_type := encounter_type as cur_encounter_type,
 
 	case
 		when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 		else @prev_clinical_datetime := null
-	end as next_clinical_datetime,
+	end as next_clinical_datetime_hiv,
 
 	case
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
@@ -792,20 +790,20 @@ create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, pre
 	case
         when @prev_id=@cur_id then @prev_encounter_type := @cur_encounter_type
         else @prev_encounter_type:=null
-	end as prev_encounter_type,
+	end as prev_encounter_type_hiv,
 
 	@cur_encounter_type := encounter_type as cur_encounter_type,
 
 	case
         when @prev_id=@cur_id then @prev_encounter_datetime := @cur_encounter_datetime
         else @prev_encounter_datetime := null
-	end as prev_encounter_datetime,
+	end as prev_encounter_datetime_hiv,
 	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 	case
 		when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 		else @prev_clinical_datetime := null
-	end as prev_clinical_datetime,
+	end as prev_clinical_datetime_hiv,
 
 	case
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
@@ -874,12 +872,12 @@ replace into flat_hiv_summary
 	
 	condoms_provided,
 	using_modern_contraceptive_method,
-	prev_encounter_datetime,
-	next_encounter_datetime,
-	prev_encounter_type,
-	next_encounter_type,
-	prev_clinical_datetime,
-	next_clinical_datetime
+	prev_encounter_datetime_hiv,
+	next_encounter_datetime_hiv,
+	prev_encounter_type_hiv,
+	next_encounter_type_hiv,
+	prev_clinical_datetime_hiv,
+	next_clinical_datetime_hiv
 
 from flat_hiv_summary_3 t1
 	join amrs.location t2 using (location_id));
