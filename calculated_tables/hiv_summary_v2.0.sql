@@ -167,7 +167,7 @@ insert into flat_hiv_summary_0a
 	t1.obs,
 	null, #obs_datetimes
 	# in any visit, there many be multiple encounters. for this dataset, we want to include only clinical encounters (e.g. not lab or triage visit)
-	0 as is_clinical_encounter, 
+	0 as is_clinical_encounter,
 	1 as encounter_type_sort_index
 
 	from flat_lab_obs t1
@@ -370,13 +370,13 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when obs regexp "!!1255=(1107|1260)!!" then @cur_arv_line := null
 		when obs regexp "!!1250=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!1250=794!!" then @cur_arv_line := 2
+		when obs regexp "!!1250=(794|635|6160|6139)!!" then @cur_arv_line := 2
 		when obs regexp "!!1250=6156!!" then @cur_arv_line := 3
 		when obs regexp "!!1088=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!1088=794!!" then @cur_arv_line := 2
+		when obs regexp "!!1088=(794|635|6160|6139)!!" then @cur_arv_line := 2
 		when obs regexp "!!1088=6156!!" then @cur_arv_line := 3
 		when obs regexp "!!2154=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!2154=794!!" then @cur_arv_line := 2
+		when obs regexp "!!2154=(794|635|6160|6139)!!" then @cur_arv_line := 2
 		when obs regexp "!!2154=6156!!" then @cur_arv_line := 3
 		when @prev_id = @cur_id then @cur_arv_line
 		else @cur_arv_line := null
@@ -519,7 +519,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 	case
 		when encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_date_resulted := date(encounter_datetime)
-		when @prev_id = @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_date_resulted 
+		when @prev_id = @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_date_resulted
 	end as cd4_resulted_date,
 
 	case
@@ -599,7 +599,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 	case
 		when encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_date_resulted := date(encounter_datetime)
-		when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_date_resulted 
+		when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_date_resulted
 	end as vl_resulted_date,
 
 	case
@@ -869,7 +869,7 @@ replace into flat_hiv_summary
 	hiv_dna_pcr_1_date,
 	hiv_dna_pcr_2,
 	hiv_dna_pcr_2_date,
-	
+
 	condoms_provided,
 	using_modern_contraceptive_method,
 	prev_encounter_datetime_hiv,
