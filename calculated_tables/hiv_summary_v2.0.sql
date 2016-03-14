@@ -370,13 +370,13 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when obs regexp "!!1255=(1107|1260)!!" then @cur_arv_line := null
 		when obs regexp "!!1250=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!1250=(794|635|6160|6139)!!" then @cur_arv_line := 2
+		when obs regexp "!!1250=(794|635|6160|6159)!!" then @cur_arv_line := 2
 		when obs regexp "!!1250=6156!!" then @cur_arv_line := 3
 		when obs regexp "!!1088=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!1088=(794|635|6160|6139)!!" then @cur_arv_line := 2
+		when obs regexp "!!1088=(794|635|6160|6159)!!" then @cur_arv_line := 2
 		when obs regexp "!!1088=6156!!" then @cur_arv_line := 3
 		when obs regexp "!!2154=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!2154=(794|635|6160|6139)!!" then @cur_arv_line := 2
+		when obs regexp "!!2154=(794|635|6160|6159)!!" then @cur_arv_line := 2
 		when obs regexp "!!2154=6156!!" then @cur_arv_line := 3
 		when @prev_id = @cur_id then @cur_arv_line
 		else @cur_arv_line := null
