@@ -7,6 +7,9 @@
 # It seems that if you don't create the temporary table first, the sort is applied
 # to the final result. Any references to the previous row will not an ordered row.
 
+select @start:= now();
+select @table_version := "flat_vitals";
+
 set session sort_buffer_size=512000000;
 
 select @sep := " ## ";
@@ -36,7 +39,7 @@ select @start := now();
 select @last_date_created := (select max(max_date_created) from flat_obs);
 
 
-select @last_update := (select max(date_updated) from flat_log where table_name="flat_vitals");
+select @last_update := (select max(date_updated) from flat_log where table_name=@table_version);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
@@ -141,6 +144,6 @@ replace into flat_vitals
 	pulse
 from flat_vitals_1);
 
-insert into flat_log values (@last_date_created,"flat_vitals");
-
-select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
+select @end := now();
+insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

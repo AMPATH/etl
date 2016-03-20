@@ -1,4 +1,6 @@
+select @table_version := "flat_defaulters_v1.0";
 select @start := now();
+select @last_date_created := (select max(max_date_created) from flat_obs);
 
 ####################################################
 
@@ -51,4 +53,6 @@ from flat_defaulters_0
 group by t1.person_id
 );
 
-select concat("Time to complete flat_defaulters table: ",timestampdiff(minute, @start, now())," minutes");
+select @end := now();
+insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

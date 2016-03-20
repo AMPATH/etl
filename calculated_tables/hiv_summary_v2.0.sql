@@ -7,11 +7,13 @@
 # It seems that if you don't create the temporary table first, the sort is applied
 # to the final result. Any references to the previous row will not an ordered row.
 
+select @start := now();
+select @table_version := "flat_hiv_summary_v2.0";
+
 set session sort_buffer_size=512000000;
 
 select @sep := " ## ";
 select @lab_encounter_type := 99999;
-select @start := now();
 select @last_date_created := (select max(max_date_created) from flat_obs);
 
 
@@ -32,6 +34,7 @@ create table if not exists flat_hiv_summary (
 	death_date datetime,
 	scheduled_visit int,
 	transfer_out int,
+	transfer_in int,
 	out_of_care int,
 	prev_rtc_date datetime,
 	rtc_date datetime,
@@ -78,12 +81,12 @@ create table if not exists flat_hiv_summary (
 
 	condoms_provided int,
 	using_modern_contraceptive_method int,
-	prev_encounter_datetime datetime,
-	next_encounter_datetime datetime,
-	prev_encounter_type mediumint,
-	next_encounter_Type mediumint,
-	prev_clinical_datetime datetime,
-	next_clinical_datetime datetime,
+	prev_encounter_datetime_hiv datetime,
+	next_encounter_datetime_hiv datetime,
+	prev_encounter_type_hiv mediumint,
+	next_encounter_type_hiv mediumint,
+	prev_clinical_datetime_hiv_ datetime,
+	next_clinical_datetime_hiv datetime,
 
     primary key encounter_id (encounter_id),
     index person_date (person_id, encounter_datetime),
@@ -94,7 +97,7 @@ create table if not exists flat_hiv_summary (
 );
 
 
-select @last_update := (select max(date_updated) from flat_log where table_name="flat_hiv_summary");
+select @last_update := (select max(date_updated) from flat_log where table_name=@table_version);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
@@ -104,15 +107,17 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-# select @last_update := "2016-02-16"; #date(now());
+# select @last_update := "2016-03-11"; #date(now());
 #select @last_date_created := "2015-11-17"; #date(now());
 
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
-(select distinct person_id
+(select distinct person_id #, min(encounter_datetime) as start_date
 	from etl.flat_obs
 	where max_date_created > @last_update
+#	group by person_id
+#limit 10
 );
 
 replace into new_data_person_ids
@@ -120,6 +125,8 @@ replace into new_data_person_ids
 	from flat_lab_obs
 	where max_date_created > @last_update
 );
+
+
 
 
 drop table if exists flat_hiv_summary_0a;
@@ -145,8 +152,10 @@ create temporary table flat_hiv_summary_0a
 
 	from etl.flat_obs t1
 		join new_data_person_ids t0 using (person_id)
+#		join new_data_person_ids t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
 	where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111)
 );
+
 
 insert into flat_hiv_summary_0a
 (select
@@ -158,7 +167,7 @@ insert into flat_hiv_summary_0a
 	t1.obs,
 	null, #obs_datetimes
 	# in any visit, there many be multiple encounters. for this dataset, we want to include only clinical encounters (e.g. not lab or triage visit)
-	0 as is_clinical_encounter, 
+	0 as is_clinical_encounter,
 	1 as encounter_type_sort_index
 
 	from flat_lab_obs t1
@@ -247,11 +256,11 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		else @enrollment_date
 	end as enrollment_date,
 
-	# 1246 = SCHEDULED VISIT
-	if(obs regexp "1246=",
-		replace(replace((substring_index(substring(obs,locate("!!1246=",obs)),@sep,1)),"!!1246=",""),"!!",""),
-		null
-	) as scheduled_visit,
+	#1836 = CURRENT VISIT TYPE
+	#1246 = SCHEDULED VISIT
+	if(obs regexp "!!1836="
+		,replace(replace((substring_index(substring(obs,locate("!!1836=",obs)),@sep,1)),"!!1836=",""),"!!","")
+		,null) as scheduled_visit,
 
 	case
 		when location_id then @cur_location := location_id
@@ -275,6 +284,12 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
 		else @cur_rtc_date := null
 	end as cur_rtc_date,
+
+	# 7015 = TRANSFER IN CARE FROM OTHER CENTER
+	case
+		when obs regexp "!!7015=" then @transfer_in := replace(replace((substring_index(substring(obs,locate("!!7015=",obs)),@sep,1)),"!!7015=",""),"!!","")
+		else @transfer_in := null
+	end as transfer_in,
 
 	# 1285 = TRANSFER CARE TO OTHER CENTER
 	# 1596 = REASON EXITED CARE
@@ -355,13 +370,13 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when obs regexp "!!1255=(1107|1260)!!" then @cur_arv_line := null
 		when obs regexp "!!1250=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!1250=794!!" then @cur_arv_line := 2
+		when obs regexp "!!1250=(794|635|6160|6159)!!" then @cur_arv_line := 2
 		when obs regexp "!!1250=6156!!" then @cur_arv_line := 3
 		when obs regexp "!!1088=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!1088=794!!" then @cur_arv_line := 2
+		when obs regexp "!!1088=(794|635|6160|6159)!!" then @cur_arv_line := 2
 		when obs regexp "!!1088=6156!!" then @cur_arv_line := 3
 		when obs regexp "!!2154=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
-		when obs regexp "!!2154=794!!" then @cur_arv_line := 2
+		when obs regexp "!!2154=(794|635|6160|6159)!!" then @cur_arv_line := 2
 		when obs regexp "!!2154=6156!!" then @cur_arv_line := 3
 		when @prev_id = @cur_id then @cur_arv_line
 		else @cur_arv_line := null
@@ -504,7 +519,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 	case
 		when encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_date_resulted := date(encounter_datetime)
-		when @prev_id = @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_date_resulted 
+		when @prev_id = @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_date_resulted
 	end as cd4_resulted_date,
 
 	case
@@ -584,7 +599,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 	case
 		when encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_date_resulted := date(encounter_datetime)
-		when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_date_resulted 
+		when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_date_resulted
 	end as vl_resulted_date,
 
 	case
@@ -616,7 +631,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	# 856 = HIV VIRAL LOAD, QUANTITATIVE
 	case
 		when obs regexp "!!1271=856!!" then @vl_order_date := date(encounter_datetime)
-		when @prev_id=@cur_id then @vl_order_date
+		when @prev_id=@cur_id and (@vl_1_date is null or @vl_1_date < @vl_order_date) then @vl_order_date
 		else @vl_order_date := null
 	end as vl_order_date,
 
@@ -690,9 +705,6 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	end as hiv_dna_pcr_1_date,
 
 
-
-
-
 	case
 		when obs regexp "!!8302=8305!!" then @condoms_provided := 1
 		else null
@@ -731,21 +743,21 @@ create temporary table flat_hiv_summary_2
 	case
 		when @prev_id = @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
 		else @prev_encounter_datetime := null
-	end as next_encounter_datetime,
+	end as next_encounter_datetime_hiv,
 
 	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 	case
 		when @prev_id=@cur_id then @next_encounter_type := @cur_encounter_type
 		else @next_encounter_type := null
-	end as next_encounter_type,
+	end as next_encounter_type_hiv,
 
 	@cur_encounter_type := encounter_type as cur_encounter_type,
 
 	case
 		when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 		else @prev_clinical_datetime := null
-	end as next_clinical_datetime,
+	end as next_clinical_datetime_hiv,
 
 	case
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
@@ -778,20 +790,20 @@ create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, pre
 	case
         when @prev_id=@cur_id then @prev_encounter_type := @cur_encounter_type
         else @prev_encounter_type:=null
-	end as prev_encounter_type,
+	end as prev_encounter_type_hiv,
 
 	@cur_encounter_type := encounter_type as cur_encounter_type,
 
 	case
         when @prev_id=@cur_id then @prev_encounter_datetime := @cur_encounter_datetime
         else @prev_encounter_datetime := null
-	end as prev_encounter_datetime,
+	end as prev_encounter_datetime_hiv,
 	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 	case
 		when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 		else @prev_clinical_datetime := null
-	end as prev_clinical_datetime,
+	end as prev_clinical_datetime_hiv,
 
 	case
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
@@ -818,6 +830,7 @@ replace into flat_hiv_summary
 	hiv_start_date,
 	death_date,
 	scheduled_visit,
+	transfer_in,
 	transfer_out,
 	out_of_care,
 	prev_rtc_date,
@@ -856,15 +869,15 @@ replace into flat_hiv_summary
 	hiv_dna_pcr_1_date,
 	hiv_dna_pcr_2,
 	hiv_dna_pcr_2_date,
-	
+
 	condoms_provided,
 	using_modern_contraceptive_method,
-	prev_encounter_datetime,
-	next_encounter_datetime,
-	prev_encounter_type,
-	next_encounter_type,
-	prev_clinical_datetime,
-	next_clinical_datetime
+	prev_encounter_datetime_hiv,
+	next_encounter_datetime_hiv,
+	prev_encounter_type_hiv,
+	next_encounter_type_hiv,
+	prev_clinical_datetime_hiv,
+	next_clinical_datetime_hiv
 
 from flat_hiv_summary_3 t1
 	join amrs.location t2 using (location_id));
@@ -872,6 +885,6 @@ from flat_hiv_summary_3 t1
 
 #select * from flat_hiv_summary order by person_id, encounter_datetime;
 
-insert into flat_log values (@last_date_created,"flat_hiv_summary");
-
-select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
+select @end := now();
+insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

@@ -7,11 +7,13 @@
 # It seems that if you don't create the temporary table first, the sort is applied 
 # to the final result. Any references to the previous row will not an ordered row. 
 
+select @table_version := "flat_hiv_summary";
+select @start := now();
+
 set session sort_buffer_size=512000000;
 
 select @sep := " ## ";
 select @lab_encounter_type := 99999;
-select @start := now();
 select @last_date_created := (select max(max_date_created) from flat_obs);
 
 
@@ -72,7 +74,7 @@ create table if not exists flat_hiv_summary (
 );
 
 
-select @last_update := (select max(date_updated) from flat_log where table_name="flat_hiv_summary");
+select @last_update := (select max(date_updated) from flat_log where table_name=@table_version);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
@@ -176,12 +178,13 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		else @enrollment_date
 	end as enrollment_date,
 
-	# 1246 = SCHEDULED VISIT
-	if(obs regexp "1246=",
-		replace(replace((substring_index(substring(obs,locate("!!1250=",obs)),@sep,1)),"!!1250=",""),"!!",""),
+	#1836 = CURRENT VISIT TYPE
+	#1246 = SCHEDULED VISIT
+	if(obs regexp "!!1836=",
+		replace(replace((substring_index(substring(obs,locate("!!1836=",obs)),@sep,1)),"!!1836=",""),"!!",""),
 		null
 	) as scheduled_visit,
-		
+			
 	case
 		when location_id then @cur_location := location_id
 		when @prev_id = @cur_id then @cur_location
@@ -657,6 +660,6 @@ replace into flat_hiv_summary
 from flat_hiv_summary_1 t1
 	join amrs.location t2 using (location_id));
 
-insert into flat_log values (@last_date_created,"flat_hiv_summary");
-
-select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes");
+select @end := now();
+insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

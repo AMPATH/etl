@@ -1,7 +1,7 @@
 # This is the ETL table for flat_lab_obs
-# obs concept_ids: 
+# obs concept_ids:
 
-# lab concept_ids : 
+# lab concept_ids :
 # 856 = HIV VIRAL LOAD, QUANTITATIVE
 # 5497 = CD4, BY FACS
 # 730 = CD4%, BY FACS
@@ -16,8 +16,10 @@
 
 # 1. Replace flat_lab_obs with flat_lab_obs_name
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
-# 3. Add column definitions 
+# 3. Add column definitions
 # 4. Add obs_set column definitions
+
+select @table_version := "flat_lab_obs";
 
 set session group_concat_max_len=100000;
 select @start := now();
@@ -55,11 +57,11 @@ select @last_date_created := if(@last_date_created_enc > @last_date_created_obs,
 
 
 # this breaks when replication is down
-select @last_update := (select max(date_updated) from flat_log where table_name="flat_lab_obs");
+select @last_update := (select max(date_updated) from flat_log where table_name=@table_version);
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
-	if(@last_update is null, 
+	if(@last_update is null,
 		(select max(date_created) from amrs.encounter e join flat_lab_obs using (encounter_id)),
 		@last_update);
 
@@ -71,9 +73,9 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 drop table if exists voided_obs;
 create table voided_obs (index person_datetime (person_id, obs_datetime))
 (select distinct person_id, obs_datetime
-	from amrs.obs 
-	where voided=1 
-		and date_voided > @last_update 
+	from amrs.obs
+	where voided=1
+		and date_voided > @last_update
 		and date_created <= @last_update
 		and concept_id in (856, 5497, 730,21,653,790,12,1030,1040,1271)
 );
@@ -87,12 +89,12 @@ join voided_obs t2 on t1.test_datetime = t2.obs_datetime and t1.person_id=t2.per
 replace into flat_lab_obs
 (select
 	o.person_id,
-	min(o.obs_id) + 100000000 as encounter_id, 
+	min(o.obs_id) + 100000000 as encounter_id,
 	date(o.obs_datetime),
 	99999 as encounter_type,
 	null as location_id,
 	group_concat( distinct
-		case 
+		case
 			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
 			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
 			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
@@ -111,7 +113,7 @@ replace into flat_lab_obs
 
 	from voided_obs v
 		join amrs.obs o using (person_id, obs_datetime)
-	where 
+	where
 		o.concept_id in (856,5497, 730,21,653,790,12,1030,1040,1271)
 		and if(concept_id=1271 and value_coded=1107,false,true)
 		and voided=0
@@ -119,16 +121,16 @@ replace into flat_lab_obs
 );
 #select * from flat_lab_obs;
 
-# Insert newly created obs 
+# Insert newly created obs
 replace into flat_lab_obs
-(select 
-	o.person_id,	
-	min(o.obs_id) + 100000000 as encounter_id, 		
+(select
+	o.person_id,
+	min(o.obs_id) + 100000000 as encounter_id,
 	date(o.obs_datetime),
 	99999 as encounter_type,
 	null as location_id,
 	group_concat(
-		case 
+		case
 			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
 			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
 			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
@@ -155,12 +157,15 @@ replace into flat_lab_obs
 
 
 # Remove test patients
-delete t1 
-from flat_lab_obs t1 
-join amrs.person_attribute t2 using (person_id) 
+delete t1
+from flat_lab_obs t1
+join amrs.person_attribute t2 using (person_id)
 where t2.person_attribute_type_id=28 and value='true';
 
-
 drop table voided_obs;
-insert into flat_log values (@last_date_created,"flat_lab_obs");
+select @end := now();
+select @end;
+
+insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes") as "Time to complete";
