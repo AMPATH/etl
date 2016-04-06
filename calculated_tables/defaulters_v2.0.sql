@@ -18,7 +18,6 @@ where next_encounter_datetime_hiv is null #and rtc_date <= date_sub(now(),interv
 	and death_date is null
 	and out_of_care is null
 	and not (obs regexp "!!9082=9079!!") # this is only needed until the flat_hiv_summary table is rebuild so that untraceables are labeled as 'not_in_care'
-and t1.encounter_datetime >= "2015-09-01"
 );
 
 
