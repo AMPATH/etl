@@ -81,6 +81,8 @@ create table if not exists flat_hiv_summary (
 
 	condoms_provided int,
 	using_modern_contraceptive_method int,
+	#Current WHO Stage 5356
+	cur_who_stage int,
 	prev_encounter_datetime_hiv datetime,
 	next_encounter_datetime_hiv datetime,
 	prev_encounter_type_hiv mediumint,
@@ -233,6 +235,8 @@ select @hiv_dna_pcr_2_date:=null;
 select @condoms_provided := null;
 select @using_modern_contraceptive_method := null;
 
+#Current WHO Stage
+select @cur_who_stage := null;
 
 #TO DO
 # screened for cervical ca
@@ -714,7 +718,31 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when obs regexp "!!374=(5275|6220|780|5279)!!" then @using_modern_conctaceptive_method := 1
 		else null
-	end as using_modern_contraceptive_method
+	end as using_modern_contraceptive_method,
+
+	#Current WHO Stage 5356 - Adults
+	#Adult Who Stage 1 - 1204
+	#Adult Who Stage 2 - 1205
+	#Adult Who Stage 3 - 1206
+	#Adult Who Stage 4 - 1207
+
+	#Current WHO Stage 1224 - Peds
+	#Adult Who Stage 1 - 1220
+	#Adult Who Stage 2 - 1221
+	#Adult Who Stage 3 - 1222
+	#Adult Who Stage 4 - 1223
+	case
+		when obs regexp "!!5356=(1204)!!" then @cur_who_stage := 1
+		when obs regexp "!!5356=(1205)!!" then @cur_who_stage := 2
+		when obs regexp "!!5356=(1206)!!" then @cur_who_stage := 3
+		when obs regexp "!!5356=(1207)!!" then @cur_who_stage := 4
+		when obs regexp "!!1224=(1220)!!" then @cur_who_stage := 1
+		when obs regexp "!!1224=(1221)!!" then @cur_who_stage := 2
+		when obs regexp "!!1224=(1222)!!" then @cur_who_stage := 3
+		when obs regexp "!!1224=(1223)!!" then @cur_who_stage := 4
+		when @prev_id = @cur_id then @cur_who_stage
+		else @cur_who_stage := null
+	end as cur_who_stage
 
 from flat_hiv_summary_0 t1
 	join amrs.person p using (person_id)
@@ -875,6 +903,7 @@ replace into flat_hiv_summary
 
 	condoms_provided,
 	using_modern_contraceptive_method,
+	cur_who_stage,
 	prev_encounter_datetime_hiv,
 	next_encounter_datetime_hiv,
 	prev_encounter_type_hiv,
