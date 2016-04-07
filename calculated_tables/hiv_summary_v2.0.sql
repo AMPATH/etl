@@ -762,6 +762,7 @@ create temporary table flat_hiv_summary_2
 
 	case
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
+		when @prev_id = @cur_id then @cur_clinical_datetime
 		else @cur_clinical_datetime := null
 	end as cur_clinic_datetime
 
@@ -808,6 +809,7 @@ create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, pre
 
 	case
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
+		when @prev_id = @cur_id then @cur_clinical_datetime
 		else @cur_clinical_datetime := null
 	end as cur_clinical_datetime
 
