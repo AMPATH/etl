@@ -75,6 +75,8 @@ create table if not exists flat_hiv_summary (
 	hiv_dna_pcr_2 int,
 	hiv_dna_pcr_2_date datetime,
 
+	patient_care_status int,
+
 	# 1040 hiv rapid test
 #	hiv_rapid_test_resulted int,
 #	hiv_rapid_test_resulted_date datetime,
@@ -228,6 +230,8 @@ select @hiv_dna_pcr_1:=null;
 select @hiv_dna_pcr_2:=null;
 select @hiv_dna_pcr_1_date:=null;
 select @hiv_dna_pcr_2_date:=null;
+
+select @patient_care_status=null;
 
 select @condoms_provided := null;
 select @using_modern_contraceptive_method := null;
@@ -705,6 +709,15 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	end as hiv_dna_pcr_1_date,
 
 
+	# 9082 = PATIENT CARE STATUS
+	# 6101 = CONTINUE
+	case
+		when obs regexp "!!9082=" then @patient_care_status := replace(replace((substring_index(substring(obs,locate("!!9082=",obs)),@sep,1)),"!!9082=",""),"!!","")
+		when encounter_type = @lab_encounter_type and @cur_id != @prev_id then null
+		when encounter_type = @lab_encounter_type and @cur_id = @prev_id then @patient_care_status
+		else @patient_care_status := 6101
+	end as patient_care_status,
+
 	case
 		when obs regexp "!!8302=8305!!" then @condoms_provided := 1
 		else null
@@ -871,6 +884,8 @@ replace into flat_hiv_summary
 	hiv_dna_pcr_1_date,
 	hiv_dna_pcr_2,
 	hiv_dna_pcr_2_date,
+
+	patient_care_status,
 
 	condoms_provided,
 	using_modern_contraceptive_method,
