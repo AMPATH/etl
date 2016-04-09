@@ -6,8 +6,9 @@ mysql etl < drop_etl_tables.sql
 mysql etl < ../flat_tables/flat_log.sql
 mysql etl < ../flat_tables/flat_obs.sql
 mysql etl < ../flat_tables/flat_lab_obs.sql
-mysql etl < ../calculated_tables/hiv_summary.sql
-mysql etl < ../calculated_tables/labs_and_imaging.sql
+mysql etl < ../calculated_tables/hiv_summary_v2.0.sql
+mysql etl < ../calculated_tables/labs_and_imaging_v2.0.sql
 mysql etl < ../calculated_tables/vitals.sql
 mysql etl < ../calculated_tables/derived_encounter.sql
 mysql etl < ../calculated_tables/defaulters.sql
+mysql etl < ../calculated_tables/cohort_dates.sql
