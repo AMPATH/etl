@@ -6,14 +6,21 @@
 # This allows us to use the previous row's data when making calculations.
 # It seems that if you don't create the temporary table first, the sort is applied
 # to the final result. Any references to the previous row will not an ordered row.
+# v2.1 Notes: 
+#     Updated out_of_care to include untraceable
+#     Added tb_prophylaxis_start_date
+#     Updated patient_care_status to be more inclusive of other status questions
+#     Fixed problem with next_clinic_datetime_hiv
 
 select @start := now();
-select @table_version := "flat_hiv_summary_v2.0";
+select @start := now();
+select @table_version := "flat_hiv_summary_v2.1";
 
 set session sort_buffer_size=512000000;
 
 select @sep := " ## ";
 select @lab_encounter_type := 99999;
+select @death_encounter_type := 31;
 select @last_date_created := (select max(max_date_created) from flat_obs);
 
 
@@ -35,6 +42,8 @@ create table if not exists flat_hiv_summary (
 	scheduled_visit int,
 	transfer_out int,
 	transfer_in int,
+
+	patient_care_status int,
 	out_of_care int,
 	prev_rtc_date datetime,
 	rtc_date datetime,
@@ -45,6 +54,7 @@ create table if not exists flat_hiv_summary (
     first_evidence_patient_pregnant datetime,
     edd datetime,
 	screened_for_tb boolean,
+	tb_prophylaxis_start_date datetime,
 	tb_tx_start_date datetime,
 	pcp_prophylaxis_start_date datetime,
 	cd4_resulted double,
@@ -74,8 +84,6 @@ create table if not exists flat_hiv_summary (
 	hiv_dna_pcr_1_date datetime,
 	hiv_dna_pcr_2 int,
 	hiv_dna_pcr_2_date datetime,
-
-	patient_care_status int,
 
 	# 1040 hiv rapid test
 #	hiv_rapid_test_resulted int,
@@ -112,7 +120,7 @@ select @last_update :=
 
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
-# select @last_update := "2016-03-11"; #date(now());
+# select @last_update := "2016-04-07"; #date(now());
 #select @last_date_created := "2015-11-17"; #date(now());
 
 
@@ -122,8 +130,8 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 	from etl.flat_obs
 	where max_date_created > @last_update
 #	group by person_id
-#limit 10
 );
+
 
 replace into new_data_person_ids
 (select distinct person_id
@@ -187,9 +195,6 @@ order by person_id, date(encounter_datetime), encounter_type_sort_index
 );
 
 
-
-#select * from flat_hiv_summary_0 where person_id=1430;
-
 select @prev_id := null;
 select @cur_id := null;
 select @enrollment_date := null;
@@ -204,6 +209,7 @@ select @cur_arv_line := null;
 select @first_evidence_pt_pregnant := null;
 select @edd := null;
 select @cur_arv_meds := null;
+select @tb_prophylaxis_start_date := null;
 select @tb_treatment_start_date := null;
 select @pcp_prophylaxis_start_date := null;
 select @screened_for_tb := null;
@@ -234,7 +240,7 @@ select @hiv_dna_pcr_2:=null;
 select @hiv_dna_pcr_1_date:=null;
 select @hiv_dna_pcr_2_date:=null;
 
-select @patient_care_status=null;
+select @patient_care_status:=null;
 
 select @condoms_provided := null;
 select @using_modern_contraceptive_method := null;
@@ -316,10 +322,26 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		when obs regexp "!!1946=1065!!" then 1
 		when obs regexp "!!1285=(1287|9068)!!" then 1
 		when obs regexp "!!1596=" then 1
-		when obs regexp "!!9082=(159|9036|9083|1287|9068)!!" then 1
+		when obs regexp "!!9082=(159|9036|9083|1287|9068|9079)!!" then 1
+		when encounter_type = @death_encounter_type then 1
 		else null
 	end as out_of_care,
 
+	# 9082 = PATIENT CARE STATUS
+	# 6101 = CONTINUE
+	# 1946 = DISCONTINUE FROM CLINIC, HIV NEGATIVE (this is a question)
+	# 9036 = HIV NEGATIVE, NO LONGER AT RISK
+	case
+		when obs regexp "!!1946=1065!!" then @patient_care_status := 9036
+		when obs regexp "!!1285=" then @patient_care_status := replace(replace((substring_index(substring(obs,locate("!!1285=",obs)),@sep,1)),"!!1285=",""),"!!","")
+		when obs regexp "!!1596=" then @patient_care_status := replace(replace((substring_index(substring(obs,locate("!!1596=",obs)),@sep,1)),"!!1596=",""),"!!","")
+		when obs regexp "!!9082=" then @patient_care_status := replace(replace((substring_index(substring(obs,locate("!!9082=",obs)),@sep,1)),"!!9082=",""),"!!","")
+
+		when encounter_type = @death_encounter_type then @patient_care_status := 159
+		when encounter_type = @lab_encounter_type and @cur_id != @prev_id then @patient_care_status := null
+		when encounter_type = @lab_encounter_type and @cur_id = @prev_id then @patient_care_status
+		else @patient_care_status := 6101
+	end as patient_care_status,
 
 	# 1946 = DISCONTINUE FROM CLINIC, HIV NEGATIVE
 	# 1088 = CURRENT ANTIRETROVIRAL DRUGS USED FOR TREATMENT
@@ -453,6 +475,29 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		when obs regexp "!!1268=(1256|1850)!!" then @screened_for_tb := true
 		when obs regexp "!!1270=" and obs not regexp "!!1268=1257!!" then @screened_for_tb := true
 	end as screened_for_tb,
+
+	case
+		when obs regexp "!!1265=(1256|1257)!!" then @on_tb_prophylaxis := 1
+		when obs regexp "!!1110=656!!" then @on_tb_prophylaxis := 1
+		when @prev_id = @cur_id then @on_tb_prophylaxis
+		else null
+	end as on_tb_prophylaxis,
+
+	# 1265 = TUBERCULOSIS PROPHYLAXIS PLAN
+	# 1110 = PATIENT REPORTED CURRENT TUBERCULOSIS PROPHYLAXIS
+	# 656 = ISONIAZID
+	case
+		when obs regexp "!!1265=(1107|1268)!!" then @tb_prophylaxis_start_date := null
+		when obs regexp "!!1265=(1256|1850)!!" then @tb_prophylaxis_start_date := encounter_datetime
+		when obs regexp "!!1265=1257!!" then
+			case
+				when @prev_id!=@cur_id or @tb_prophylaxis_start_date is null then @tb_prophylaxis_start_date := encounter_datetime
+				else @tb_prophylaxis_start_date
+			end
+		when obs regexp "!!1110=656!!" and @tb_prophylaxis_start_date is null then @tb_prophylaxis_start_date := encounter_datetime
+		when @prev_id=@cur_id then @tb_prophylaxis_start_date
+		else @tb_prophylaxis_start_date := null
+	end as tb_prophylaxis_start_date,
 
 
 	# 1111 = PATIENT REPORTED CURRENT TUBERCULOSIS TREATMENT
@@ -714,15 +759,6 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	end as hiv_dna_pcr_1_date,
 
 
-	# 9082 = PATIENT CARE STATUS
-	# 6101 = CONTINUE
-	case
-		when obs regexp "!!9082=" then @patient_care_status := replace(replace((substring_index(substring(obs,locate("!!9082=",obs)),@sep,1)),"!!9082=",""),"!!","")
-		when encounter_type = @lab_encounter_type and @cur_id != @prev_id then null
-		when encounter_type = @lab_encounter_type and @cur_id = @prev_id then @patient_care_status
-		else @patient_care_status := 6101
-	end as patient_care_status,
-
 	case
 		when obs regexp "!!8302=8305!!" then @condoms_provided := 1
 		else null
@@ -760,7 +796,6 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 from flat_hiv_summary_0 t1
 	join amrs.person p using (person_id)
 );
-
 
 select @prev_id := null;
 select @cur_id := null;
@@ -874,8 +909,9 @@ replace into flat_hiv_summary
 	hiv_start_date,
 	death_date,
 	scheduled_visit,
-	transfer_in,
 	transfer_out,
+	transfer_in,
+    patient_care_status,
 	out_of_care,
 	prev_rtc_date,
 	cur_rtc_date,
@@ -886,6 +922,7 @@ replace into flat_hiv_summary
     first_evidence_patient_pregnant,
     edd,
 	screened_for_tb,
+	tb_prophylaxis_start_date,
 	tb_tx_start_date,
 	pcp_prophylaxis_start_date,
 	cd4_resulted,
@@ -913,9 +950,6 @@ replace into flat_hiv_summary
 	hiv_dna_pcr_1_date,
 	hiv_dna_pcr_2,
 	hiv_dna_pcr_2_date,
-
-	patient_care_status,
-
 	condoms_provided,
 	using_modern_contraceptive_method,
 	cur_who_stage,
@@ -930,7 +964,6 @@ from flat_hiv_summary_3 t1
 	join amrs.location t2 using (location_id));
 
 
-#select * from flat_hiv_summary order by person_id, encounter_datetime;
 
 select @end := now();
 insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));

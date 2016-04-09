@@ -1,4 +1,5 @@
 # v2.0 notes: add join to flat obs so that patients with an untraceable status can be excluded
+# v2.1 notes : removed flat_obs join after update to out_of_care
 
 select @table_version := "flat_defaulters_v2.0";
 select @start := now();
@@ -11,13 +12,11 @@ create temporary table flat_defaulters_0 (encounter_id int, primary key (encount
 (select 
 	encounter_id
 from flat_hiv_summary t1
-join flat_obs t2 using(encounter_id)
 where next_encounter_datetime_hiv is null #and rtc_date <= date_sub(now(),interval 90 day) 
 #	and if(rtc_date,date_add(rtc_date,interval 90 day),date_add(t1.encounter_datetime,interval 180 day)) <= now()
 	and if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)) < now()
 	and death_date is null
 	and out_of_care is null
-	and not (obs regexp "!!9082=9079!!") # this is only needed until the flat_hiv_summary table is rebuild so that untraceables are labeled as 'not_in_care'
 );
 
 
