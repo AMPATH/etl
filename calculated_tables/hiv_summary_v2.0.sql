@@ -97,7 +97,7 @@ create table if not exists flat_hiv_summary (
 	next_encounter_datetime_hiv datetime,
 	prev_encounter_type_hiv mediumint,
 	next_encounter_type_hiv mediumint,
-	prev_clinical_datetime_hiv_ datetime,
+	prev_clinical_datetime_hiv datetime,
 	next_clinical_datetime_hiv datetime,
 
     primary key encounter_id (encounter_id),
@@ -130,6 +130,7 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 	from etl.flat_obs
 	where max_date_created > @last_update
 #	group by person_id
+# limit 10
 );
 
 
@@ -255,6 +256,7 @@ select @cur_who_stage := null;
 drop temporary table if exists flat_hiv_summary_1;
 create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 (select
+	encounter_type_sort_index,
 	@prev_id := @cur_id as prev_id,
 	@cur_id := t1.person_id as cur_id,
 	t1.person_id,
@@ -844,7 +846,7 @@ create temporary table flat_hiv_summary_2
 
 
 	from flat_hiv_summary_1
-	order by person_id, encounter_datetime desc
+	order by person_id, date(encounter_datetime) desc, encounter_type_sort_index
 );
 
 alter table flat_hiv_summary_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime;
@@ -891,7 +893,7 @@ create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, pre
 
 
 	from flat_hiv_summary_2 t1
-	order by person_id, encounter_datetime
+	order by person_id, date(encounter_datetime), encounter_type_sort_index
 );
 
 replace into flat_hiv_summary
