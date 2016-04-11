@@ -846,7 +846,7 @@ create temporary table flat_hiv_summary_2
 
 
 	from flat_hiv_summary_1
-	order by person_id, date(encounter_datetime) desc, encounter_type_sort_index
+	order by person_id, date(encounter_datetime) desc, encounter_type_sort_index desc
 );
 
 alter table flat_hiv_summary_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime;
