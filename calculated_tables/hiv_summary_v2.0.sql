@@ -273,10 +273,12 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		else @enrollment_date
 	end as enrollment_date,
 
-	#1836 = CURRENT VISIT TYPE
+	#1839 = CURRENT VISIT TYPE
 	#1246 = SCHEDULED VISIT
-	if(obs regexp "!!1836="
-		,replace(replace((substring_index(substring(obs,locate("!!1836=",obs)),@sep,1)),"!!1836=",""),"!!","")
+	#1838 = UNSCHEDULED VISIT LATE
+	#1837 = UNSCHEDULED VISIT EARLY
+	if(obs regexp "!!1839="
+		,replace(replace((substring_index(substring(obs,locate("!!1839=",obs)),@sep,1)),"!!1839=",""),"!!","")
 		,null) as scheduled_visit,
 
 	case
