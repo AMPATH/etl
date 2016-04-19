@@ -1,6 +1,9 @@
 #This table will provide an easy way to filter cohort end dates for clinical summaru visualization
 drop table if exists dates;
-create table dates (endDate datetime);
+create table dates (
+endDate datetime,
+index endDate (endDate)
+);
 insert into dates (endDate) values
 ("2000-01-31"),
 ("2000-02-29"),
