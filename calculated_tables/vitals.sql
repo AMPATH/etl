@@ -24,7 +24,7 @@ create table if not exists flat_vitals (
 	location_id int,
 	weight decimal,
 	height decimal,
-	temp decimal,
+	temp decimal(4,1),
 	oxygen_sat int,
 	systolic_bp int,
 	diastolic_bp int,
