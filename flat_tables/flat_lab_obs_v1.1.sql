@@ -19,7 +19,7 @@
 # 3. Add column definitions
 # 4. Add obs_set column definitions
 
-select @table_version := "flat_lab_obs";
+select @table_version := "flat_lab_obs_v1.1";
 
 set session group_concat_max_len=100000;
 select @start := now();
@@ -68,7 +68,7 @@ select @last_update :=
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2016-02-16";
+#select @last_update := "2016-06-06";
 
 drop table if exists voided_obs;
 create table voided_obs (index person_datetime (person_id, obs_datetime))
@@ -117,7 +117,7 @@ replace into flat_lab_obs
 		o.concept_id in (856,5497, 730,21,653,790,12,1030,1040,1271)
 		and if(concept_id=1271 and value_coded=1107,false,true)
 		and voided=0
-	group by person_id, o.obs_datetime
+	group by person_id, date(o.obs_datetime)
 );
 #select * from flat_lab_obs;
 
@@ -151,7 +151,7 @@ replace into flat_lab_obs
 		and o.date_created > @last_update
 		and concept_id in (856,5497,730,21,653,790,12,1030,1040,1271)
 		and if(concept_id=1271 and value_coded=1107,false,true) # DO NOT INCLUDE ROWS WHERE ORDERS=NONE
-	group by person_id, o.obs_datetime
+	group by person_id, date(o.obs_datetime)
 );
 #select * from flat_lab_obs
 
