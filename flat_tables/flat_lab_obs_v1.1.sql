@@ -83,7 +83,7 @@ create table voided_obs (index person_datetime (person_id, obs_datetime))
 # delete any rows that have a voided obs
 delete t1
 from flat_lab_obs t1
-join voided_obs t2 on t1.test_datetime = t2.obs_datetime and t1.person_id=t2.person_id;
+join voided_obs t2 on date(t1.test_datetime) = date(t2.obs_datetime) and t1.person_id=t2.person_id;
 
 # Add back obs sets with voided obs removed
 replace into flat_lab_obs
