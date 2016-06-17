@@ -17,6 +17,7 @@
 
 # v2.3 Notes:
 #      Added arv_start_location. This makes it easier to query for the cumulative ever indicator
+#      Added visit_id This makes it easier to query  visits related indicators eg scheduled, unscheduled
 
 
 select @start := now();
@@ -36,6 +37,7 @@ select @last_date_created := (select max(max_date_created) from flat_obs);
 create table if not exists flat_hiv_summary (
 	person_id int,
 	uuid varchar(100),
+	visit_id int,
     encounter_id int,
 	encounter_datetime datetime,
 	encounter_type int,
@@ -157,6 +159,7 @@ drop table if exists flat_hiv_summary_0a;
 create temporary table flat_hiv_summary_0a
 (select
 	t1.person_id,
+	t1.visit_id,
 	t1.encounter_id,
 	t1.encounter_datetime,
 	t1.encounter_type,
@@ -184,6 +187,7 @@ create temporary table flat_hiv_summary_0a
 insert into flat_hiv_summary_0a
 (select
 	t1.person_id,
+	t1.visit_id,
 	t1.encounter_id,
 	t1.test_datetime,
 	t1.encounter_type,
@@ -273,6 +277,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	@cur_id := t1.person_id as cur_id,
 	t1.person_id,
 	p.uuid,
+	t1.visit_id,
 	t1.encounter_id,
 	t1.encounter_datetime,
 	t1.encounter_type,
@@ -924,6 +929,7 @@ replace into flat_hiv_summary
 (select
 	person_id,
 	t1.uuid,
+	t1.visit_id,
     encounter_id,
 	encounter_datetime,
 	encounter_type,
