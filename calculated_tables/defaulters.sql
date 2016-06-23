@@ -6,11 +6,11 @@ select @last_date_created := (select max(max_date_created) from flat_obs);
 
 drop table if exists flat_defaulters_0;
 create temporary table flat_defaulters_0 (encounter_id int, primary key (encounter_id))
-(select 
+(select
 	encounter_id
 from flat_hiv_summary t1
 join derived_encounter using (encounter_id)
-where next_encounter_datetime is null #and rtc_date <= date_sub(now(),interval 90 day) 
+where next_encounter_datetime is null #and rtc_date <= date_sub(now(),interval 90 day)
 #	and if(rtc_date,date_add(rtc_date,interval 90 day),date_add(t1.encounter_datetime,interval 180 day)) <= now()
 	and if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)) < now()
 	and death_date is null
@@ -21,32 +21,32 @@ where next_encounter_datetime is null #and rtc_date <= date_sub(now(),interval 9
 
 drop table if exists flat_defaulters;
 create table flat_defaulters (
-	person_id int, 
-	location_id int, 
-	location_uuid varchar (50), 
-	primary key (person_id), 
+	person_id int,
+	location_id int,
+	location_uuid varchar (50),
+	primary key (person_id),
 	index loc_rtc (location_uuid,days_since_rtc)
 )
-(select 
-	t1.person_id, 
+(select
+	t1.person_id,
 	t1.encounter_id,
 	t1.location_id,
 	t1.location_uuid,
 	timestampdiff(day,if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)),curdate()) as days_since_rtc,
-	date(t1.encounter_datetime) as encounter_datetime, 
+	date(t1.encounter_datetime) as encounter_datetime,
 	date(rtc_date) as rtc_date,
 	arv_start_date,
 	t4.name as encounter_type_name,
-	concat(t5.given_name,' ',t5.middle_name,' ',t5.family_name) as person_name, 
+	concat(t5.given_name,' ',t5.middle_name,' ',t5.family_name) as person_name,
 	t6.value as phone_number,
 	group_concat(distinct t7.identifier separator ', ') as identifiers,
 	t1.uuid as patient_uuid
 
-from flat_defaulters_0 
+from flat_defaulters_0
 	join etl.flat_hiv_summary t1 using (encounter_id)
 	join etl.derived_encounter t2 using (encounter_id)
 	join amrs.encounter t3 using (encounter_id)
-	join amrs.encounter_type t4 on t3.encounter_type = t4.encounter_type_id 
+	join amrs.encounter_type t4 on t3.encounter_type = t4.encounter_type_id
 	join amrs.person_name t5 on t1.person_id = t5.person_id and t5.voided=0
 	left outer join amrs.patient_identifier t7 on t1.person_id = t7.patient_id
 	left outer join amrs.person_attribute t6 on t1.person_id = t6.person_id and t6.person_attribute_type_id=10 and t6.voided=0
@@ -54,5 +54,5 @@ group by t1.person_id
 );
 
 select @end := now();
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

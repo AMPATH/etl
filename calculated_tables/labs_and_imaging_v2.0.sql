@@ -2,10 +2,10 @@
 #* CREATION OF MOH INDICATORS TABLE ****************************************************************************
 #********************************************************************************************************
 
-# Need to first create this temporary table to sort the data by person,encounterdateime. 
+# Need to first create this temporary table to sort the data by person,encounterdateime.
 # This allows us to use the previous row's data when making calculations.
-# It seems that if you don't create the temporary table first, the sort is applied 
-# to the final result. Any references to the previous row will not an ordered row. 
+# It seems that if you don't create the temporary table first, the sort is applied
+# to the final result. Any references to the previous row will not an ordered row.
 
 set session sort_buffer_size=512000000;
 set session group_concat_max_len=100000;
@@ -44,7 +44,7 @@ select @last_update := (select max(date_updated) from flat_log where table_name=
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
-	if(@last_update is null, 
+	if(@last_update is null,
 		(select max(date_created) from amrs.encounter e join flat_labs_and_imaging using (encounter_id)),
 		@last_update);
 
@@ -56,7 +56,7 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
-(select distinct person_id 
+(select distinct person_id
 	from flat_lab_obs
 	where max_date_created > @last_update
 );
@@ -64,9 +64,9 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 
 drop table if exists flat_labs_and_imaging_0;
 create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id), index person_test (person_id,test_datetime))
-(select 
-	t1.person_id, 
-	t1.encounter_id, 
+(select
+	t1.person_id,
+	t1.encounter_id,
 	t1.test_datetime,
 	t1.encounter_type,
 	t1.location_id,
@@ -90,13 +90,13 @@ select @chest_xray := null;
 
 drop temporary table if exists flat_labs_and_imaging_1;
 create temporary table flat_labs_and_imaging_1 (index encounter_id (encounter_id))
-(select 
-	@prev_id := @cur_id as prev_id, 
+(select
+	@prev_id := @cur_id as prev_id,
 	@cur_id := t1.person_id as cur_id,
 	t1.person_id,
 	p.uuid,
 	t1.encounter_id,
-	t1.test_datetime,			
+	t1.test_datetime,
 	t1.encounter_type,
 
 	case
@@ -115,7 +115,7 @@ create temporary table flat_labs_and_imaging_1 (index encounter_id (encounter_id
 	# 790 = SERUM CREATININE
 	# 12 = X-RAY, CHEST, PRELIMINARY FINDINGS
 	# 1271 = TESTS ORDERED
-	
+
 
 	if(obs regexp "!!1030=",cast(replace(replace((substring_index(substring(obs,locate("1030=",obs)),@sep,1)),"1030=",""),"!!","") as unsigned),null) as hiv_dna_pcr,
 	if(obs regexp "!!1040=",cast(replace(replace((substring_index(substring(obs,locate("1040=",obs)),@sep,1)),"1040=",""),"!!","") as unsigned),null) as hiv_rapid_test,
@@ -129,7 +129,7 @@ create temporary table flat_labs_and_imaging_1 (index encounter_id (encounter_id
 	if(obs regexp "!!1271=" and not obs regexp "!!1271=1107",
 			replace(replace((substring_index(substring(obs,locate("!!1271=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "1271=", "") ) ) / LENGTH("!!1271=") ))),"!!1271=",""),"!!",""),
 			null
-		) as tests_ordered	
+		) as tests_ordered
 
 from flat_labs_and_imaging_0 t1
 	join amrs.person p using (person_id)
@@ -138,7 +138,7 @@ from flat_labs_and_imaging_0 t1
 
 
 replace into flat_labs_and_imaging
-(select 
+(select
 	person_id,
 	t1.uuid,
     encounter_id,
@@ -159,5 +159,5 @@ from flat_labs_and_imaging_1 t1
 #select * from flat_labs_and_imaging;
 
 select @end := now();
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
