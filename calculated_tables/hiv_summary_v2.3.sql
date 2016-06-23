@@ -16,7 +16,9 @@
 #      Added encounter types for GENERALNOTE (112), CLINICREVIEW (113), MOH257BLUECARD (114), HEIFOLLOWUP (115), TRANSFERFORM (116)
 
 # v2.3 Notes:
-#      Added arv_start_location. This makes it easier to query for the cumulative ever indicator
+#      Added arv_first_regimen_start_date and arv_start_location. This makes it easier to query for the cumulative ever indicator
+#	   Added visit_id This makes it easier to query  visits related indicators eg scheduled, unscheduled
+#	   Added prev_clinical_rtc_date_hiv and next_clinical_rtc_date_hiv this required for creating outreach dataset
 
 
 select @start := now();
@@ -36,6 +38,7 @@ select @last_date_created := (select max(max_date_created) from flat_obs);
 create table if not exists flat_hiv_summary (
 	person_id int,
 	uuid varchar(100),
+	visit_id int,
     encounter_id int,
 	encounter_datetime datetime,
 	encounter_type int,
@@ -56,6 +59,7 @@ create table if not exists flat_hiv_summary (
 	rtc_date datetime,
 
     arv_start_location int,
+    arv_first_regimen_start_date datetime,
 
 	arv_start_date datetime,
 	arv_first_regimen varchar(500),
@@ -110,6 +114,9 @@ create table if not exists flat_hiv_summary (
 	prev_clinical_datetime_hiv datetime,
 	next_clinical_datetime_hiv datetime,
 
+	prev_clinical_rtc_date_hiv datetime,
+    next_clinical_rtc_date_hiv datetime,
+
     primary key encounter_id (encounter_id),
     index person_date (person_id, encounter_datetime),
 	index location_rtc (location_uuid,rtc_date),
@@ -157,6 +164,7 @@ drop table if exists flat_hiv_summary_0a;
 create temporary table flat_hiv_summary_0a
 (select
 	t1.person_id,
+	t1.visit_id,
 	t1.encounter_id,
 	t1.encounter_datetime,
 	t1.encounter_type,
@@ -184,6 +192,7 @@ create temporary table flat_hiv_summary_0a
 insert into flat_hiv_summary_0a
 (select
 	t1.person_id,
+	null,
 	t1.encounter_id,
 	t1.test_datetime,
 	t1.encounter_type,
@@ -273,6 +282,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	@cur_id := t1.person_id as cur_id,
 	t1.person_id,
 	p.uuid,
+	t1.visit_id,
 	t1.encounter_id,
 	t1.encounter_datetime,
 	t1.encounter_type,
@@ -377,7 +387,12 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		else @hiv_start_date
 	end as hiv_start_date,
 
-
+	case
+		when obs regexp "!!1255=1256!!" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_first_regimen_start_date := encounter_datetime
+		when @prev_id = @cur_id and obs regexp "!!(1250|1088|2154)=" and @arv_start_date is null then @arv_first_regimen_start_date := encounter_datetime
+		when @prev_id != @cur_id then @arv_first_regimen_start_date:= null
+		else @arv_first_regimen_start_date
+    end as arv_first_regimen_start_date,
 
 	# 1255 = ANTIRETROVIRAL PLAN
 	# 1250 = ANTIRETROVIRALS STARTED
@@ -866,14 +881,24 @@ create temporary table flat_hiv_summary_2
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
 		when @prev_id = @cur_id then @cur_clinical_datetime
 		else @cur_clinical_datetime := null
-	end as cur_clinic_datetime
+	end as cur_clinic_datetime,
 
+    case
+		when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
+		else @prev_clinical_rtc_date := null
+	end as next_clinical_rtc_date_hiv,
+
+	case
+		when is_clinical_encounter then @cur_clinical_rtc_date := cur_rtc_date
+		when @prev_id = @cur_id then @cur_clinical_rtc_date
+		else @cur_clinical_rtc_date:= null
+	end as cur_clinical_rtc_date
 
 	from flat_hiv_summary_1
 	order by person_id, date(encounter_datetime) desc, encounter_type_sort_index desc
 );
 
-alter table flat_hiv_summary_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime;
+alter table flat_hiv_summary_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime, drop cur_clinical_rtc_date;
 
 select @prev_id := null;
 select @cur_id := null;
@@ -894,15 +919,7 @@ create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, pre
 	case
         when @prev_id=@cur_id then @prev_encounter_type := @cur_encounter_type
         else @prev_encounter_type:=null
-	end as prev_encounter_type_hiv,
-
-	@cur_encounter_type := encounter_type as cur_encounter_type,
-
-	case
-        when @prev_id=@cur_id then @prev_encounter_datetime := @cur_encounter_datetime
-        else @prev_encounter_datetime := null
-	end as prev_encounter_datetime_hiv,
-	@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
+	end as prev_encounter_type_hiv,	@cur_encounter_type := encounter_type as cur_encounter_type,
 
 	case
 		when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
@@ -913,8 +930,18 @@ create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, pre
 		when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
 		when @prev_id = @cur_id then @cur_clinical_datetime
 		else @cur_clinical_datetime := null
-	end as cur_clinical_datetime
+	end as cur_clinical_datetime,
 
+	case
+		when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
+		else @prev_clinical_rtc_date := null
+	end as prev_clinical_rtc_date_hiv,
+
+	case
+		when is_clinical_encounter then @cur_clinical_rtc_date := cur_rtc_date
+		when @prev_id = @cur_id then @cur_clinical_rtc_date
+		else @cur_clinical_rtc_date:= null
+	end as cur_clinic_rtc_date
 
 	from flat_hiv_summary_2 t1
 	order by person_id, date(encounter_datetime), encounter_type_sort_index
@@ -924,6 +951,7 @@ replace into flat_hiv_summary
 (select
 	person_id,
 	t1.uuid,
+	t1.visit_id,
     encounter_id,
 	encounter_datetime,
 	encounter_type,
@@ -942,6 +970,7 @@ replace into flat_hiv_summary
 	prev_rtc_date,
 	cur_rtc_date,
     arv_start_location,
+    arv_first_regimen_start_date,
 	arv_start_date,
 	arv_first_regimen,
 	cur_arv_meds,
@@ -985,7 +1014,9 @@ replace into flat_hiv_summary
 	prev_encounter_type_hiv,
 	next_encounter_type_hiv,
 	prev_clinical_datetime_hiv,
-	next_clinical_datetime_hiv
+	next_clinical_datetime_hiv,
+	prev_clinical_rtc_date_hiv,
+    next_clinical_rtc_date_hiv
 
 from flat_hiv_summary_3 t1
 	join amrs.location t2 using (location_id));
@@ -993,5 +1024,5 @@ from flat_hiv_summary_3 t1
 
 
 select @end := now();
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
