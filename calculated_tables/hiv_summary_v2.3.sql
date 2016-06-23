@@ -813,6 +813,8 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 
 	case
 		when obs regexp "!!8302=8305!!" then @condoms_provided := 1
+		when obs regexp "!!374=(190|6717|6718)!!" then @condoms_provided := 1
+		when obs regexp "!!6579=" then @condoms_provided := 1
 		else null
 	end as condoms_provided,
 
