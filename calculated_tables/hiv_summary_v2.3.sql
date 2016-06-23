@@ -498,7 +498,18 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when obs regexp "!!6174=" then @screened_for_tb := true #there is an obs for "any symptoms of tb?"
 		when obs regexp "!!2022=1065!!" then @screened_for_tb := true #1065 = yes
+		when obs regexp "!!307=" then @screened_for_tb := true #test result for tb
+		when obs regexp "!!12=" then @screened_for_tb := true #test result for tb
+		when obs regexp "!!1271=(12|307)!!" then @screened_for_tb := true #test ordered for tb
+		when obs regexp "!!1866=(12|307)!!" then @screened_for_tb := true #test results for tb
+		when obs regexp "!!5958=1077!!" then @screened_for_tb := true #means cough is bloody
+		when obs regexp "!!2020=1065!!" then @screened_for_tb := true #means a familiy member was diagnosed for tb
+		when obs regexp "!!2021=1065!!" then @screened_for_tb := true #means a familiy member was diagnosed for tb
+		when obs regexp "!!2028=" then @screened_for_tb := true #TB DIAGNOSIS MADE ON THE BASIS OF
 		when obs regexp "!!1268=(1256|1850)!!" then @screened_for_tb := true
+		when obs regexp "!!5959=(1073|1074)!!" then @screened_for_tb := true #COUGH DURATION, CODED
+		when obs regexp "!!5971=(1073|1074)!!" then @screened_for_tb := true #CHEST PAIN DURATION, CODED
+		when obs regexp "!!1492=107!!" then @screened_for_tb := true #REVIEW OF SYSTEM, EXPRESS CARE(1492)=COUGH (107)
 		when obs regexp "!!1270=" and obs not regexp "!!1268=1257!!" then @screened_for_tb := true
 	end as screened_for_tb,
 
