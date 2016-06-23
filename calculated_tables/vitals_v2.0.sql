@@ -7,7 +7,7 @@
 # It seems that if you don't create the temporary table first, the sort is applied
 # to the final result. Any references to the previous row will not an ordered row.
 
-# v2.0 Notes: 
+# v2.0 Notes:
 #      Added encounter types for GENERALNOTE (112), CLINICREVIEW (113), MOH257BLUECARD (114), HEIFOLLOWUP (115)
 #      Added timestamp to logging
 

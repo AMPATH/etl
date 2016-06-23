@@ -166,6 +166,5 @@ drop table voided_obs;
 select @end := now();
 select @end;
 
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
-
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat("Time to complete: ",timestampdiff(minute, @start, now())," minutes") as "Time to complete";

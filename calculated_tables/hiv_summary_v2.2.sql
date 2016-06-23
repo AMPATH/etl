@@ -6,13 +6,13 @@
 # This allows us to use the previous row's data when making calculations.
 # It seems that if you don't create the temporary table first, the sort is applied
 # to the final result. Any references to the previous row will not an ordered row.
-# v2.1 Notes: 
+# v2.1 Notes:
 #     Updated out_of_care to include untraceable
 #     Added tb_prophylaxis_start_date
 #     Updated patient_care_status to be more inclusive of other status questions
 #     Fixed problem with next_clinic_datetime_hiv
 
-# v2.2 Notes: 
+# v2.2 Notes:
 #      Added encounter types for GENERALNOTE (112), CLINICREVIEW (113), MOH257BLUECARD (114), HEIFOLLOWUP (115), TRANSFERFORM (116)
 
 select @start := now();
@@ -973,5 +973,5 @@ from flat_hiv_summary_3 t1
 
 
 select @end := now();
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

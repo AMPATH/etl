@@ -1,10 +1,10 @@
 # This is the ETL table for flat_obs
-# obs concept_ids: 
+# obs concept_ids:
 
 # encounter types: 1,2,3,4,5,6,7,8,9,10,13,14,15,17,19,22,23,26,43,47,21
 # 1. Replace flat_obs with flat_obs_name
 # 2. Replace concept_id in () with concept_id in (obs concept_ids)
-# 3. Add column definitions 
+# 3. Add column definitions
 # 4. Add obs_set column definitions
 
 select @table_version := "flat_obs";
@@ -47,7 +47,7 @@ select @last_update := (select max(date_updated) from flat_log where table_name=
 
 # then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
 select @last_update :=
-	if(@last_update is null, 
+	if(@last_update is null,
 		(select max(date_created) from amrs.encounter e join flat_obs using (encounter_id)),
 		@last_update);
 
@@ -63,9 +63,9 @@ from amrs.obs where voided=1 and date_voided > @last_update and date_created <= 
 
 
 # remove test patients
-delete t1 
-from voided_obs t1 
-join amrs.person_attribute t2 using (person_id) 
+delete t1
+from voided_obs t1
+join amrs.person_attribute t2 using (person_id)
 where t2.person_attribute_type_id=28 and value='true';
 
 
@@ -83,12 +83,12 @@ where t2.encounter_id is null;
 replace into flat_obs
 (select
 	o.person_id,
-	o.encounter_id, 
+	o.encounter_id,
 	e.encounter_datetime,
 	e.encounter_type,
 	e.location_id,
 	group_concat(
-		case 
+		case
 			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
 			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
 			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
@@ -102,8 +102,8 @@ replace into flat_obs
 	) as obs,
 
 	group_concat(
-		case 
-			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
+		case
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
@@ -114,7 +114,7 @@ replace into flat_obs
 	from voided_obs v
 		join amrs.obs o using (encounter_id)
 		join amrs.encounter e using (encounter_id)
-	where 
+	where
 		o.encounter_id > 1 and o.voided=0
 	group by encounter_id
 );
@@ -124,12 +124,12 @@ replace into flat_obs
 replace into flat_obs
 (select
 	o.person_id,
-	min(o.obs_id) + 100000000 as encounter_id, 
+	min(o.obs_id) + 100000000 as encounter_id,
 	o.obs_datetime,
 	99999 as encounter_type,
 	null as location_id,
 	group_concat(
-		case 
+		case
 			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
 			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
 			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
@@ -143,8 +143,8 @@ replace into flat_obs
 	) as obs,
 
 	group_concat(
-		case 
-			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
+		case
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
@@ -154,21 +154,21 @@ replace into flat_obs
 
 	from voided_obs v
 		join amrs.obs o using (person_id, obs_datetime)
-	where 
+	where
 		o.encounter_id is null and voided=0
 	group by person_id, o.obs_datetime
 );
 
 # Insert newly creatred obs with encounter_ids
 replace into flat_obs
-(select 
+(select
 	o.person_id,
-	o.encounter_id, 
+	o.encounter_id,
 	encounter_datetime,
 	encounter_type,
 	e.location_id,
 	group_concat(
-		case 
+		case
 			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
 			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
 			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
@@ -182,8 +182,8 @@ replace into flat_obs
 	) as obs,
 
 	group_concat(
-		case 
-			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
+		case
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
@@ -193,21 +193,21 @@ replace into flat_obs
 
 	from amrs.obs o
 		join amrs.encounter e using (encounter_id)
-	where o.encounter_id > 0 
+	where o.encounter_id > 0
 		and o.voided=0 and o.date_created > @last_update
 	group by o.encounter_id
 );
 
 # Insert newly creatred obs without encounter_ids
 replace into flat_obs
-(select 
-	o.person_id,	
-	min(o.obs_id) + 100000000 as encounter_id, 		
+(select
+	o.person_id,
+	min(o.obs_id) + 100000000 as encounter_id,
 	o.obs_datetime,
 	99999 as encounter_type,
 	null as location_id,
 	group_concat(
-		case 
+		case
 			when value_coded is not null then concat(@boundary,o.concept_id,'=',value_coded,@boundary)
 			when value_numeric is not null then concat(@boundary,o.concept_id,'=',value_numeric,@boundary)
 			when value_datetime is not null then concat(@boundary,o.concept_id,'=',date(value_datetime),@boundary)
@@ -221,8 +221,8 @@ replace into flat_obs
 	) as obs,
 
 	group_concat(
-		case 
-			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null 
+		case
+			when value_coded is not null or value_numeric is not null or value_datetime is not null or value_boolean is not null or value_text is not null or value_drug is not null or value_modifier is not null
 			then concat(@boundary,o.concept_id,'=',date(o.obs_datetime),@boundary)
 		end
 		order by o.concept_id,value_coded
@@ -231,21 +231,21 @@ replace into flat_obs
 	max(o.date_created) as max_date_created
 
 	from amrs.obs o use index (date_created)
-	where 
-		o.encounter_id is null 
+	where
+		o.encounter_id is null
 		and voided=0 and o.date_created > @last_update
 	group by person_id, o.obs_datetime
 );
 
 # Remove test patients
-delete t1 
-from flat_obs t1 
-join amrs.person_attribute t2 using (person_id) 
+delete t1
+from flat_obs t1
+join amrs.person_attribute t2 using (person_id)
 where t2.person_attribute_type_id=28 and value='true';
 
 
 drop table voided_obs;
 
 select @end := now();
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
