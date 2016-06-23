@@ -9,6 +9,7 @@
 
 # v2.1 Notes:
 #      Added encounter types for GENERALNOTE (112), CLINICREVIEW (113), MOH257BLUECARD (114), HEIFOLLOWUP (115), TRANSFERFORM (116)
+#      Added timestamp to log
 
 
 set session sort_buffer_size=512000000;
@@ -164,5 +165,5 @@ from flat_labs_and_imaging_1 t1
 #select * from flat_labs_and_imaging;
 
 select @end := now();
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

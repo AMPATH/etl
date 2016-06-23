@@ -9,6 +9,7 @@
 
 # v2.0 Notes: 
 #      Added encounter types for GENERALNOTE (112), CLINICREVIEW (113), MOH257BLUECARD (114), HEIFOLLOWUP (115)
+#      Added timestamp to logging
 
 select @start:= now();
 select @table_version := "flat_vitals_v2.0";
@@ -148,5 +149,5 @@ replace into flat_vitals
 from flat_vitals_1);
 
 select @end := now();
-insert into flat_log values (@last_date_created,@table_version,timestampdiff(second,@start,@end));
+insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
