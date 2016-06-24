@@ -100,8 +100,8 @@ create table if not exists flat_hiv_summary (
 	hiv_dna_pcr_2_date datetime,
 
 	# 1040 hiv rapid test
-#	hiv_rapid_test_resulted int,
-#	hiv_rapid_test_resulted_date datetime,
+	hiv_rapid_test_resulted int,
+	hiv_rapid_test_resulted_date datetime,
 
 	condoms_provided int,
 	using_modern_contraceptive_method int,
@@ -261,6 +261,9 @@ select @hiv_dna_pcr_1:=null;
 select @hiv_dna_pcr_2:=null;
 select @hiv_dna_pcr_1_date:=null;
 select @hiv_dna_pcr_2_date:=null;
+
+select @hiv_rapid_test_resulted:=null;
+select @hiv_rapid_test_resulted_date:= null;
 
 select @patient_care_status:=null;
 
@@ -810,6 +813,15 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	  else @hiv_dna_pcr_1_date:=null
 	end as hiv_dna_pcr_1_date,
 
+	#1040|1042 hiv rapid test
+	case
+	  when encounter_type = @lab_encounter_type and obs regexp "!!(1040|1042)=[0-9]" then encounter_datetime
+	end as hiv_rapid_test_resulted_date,
+
+	case
+	  when encounter_type = @lab_encounter_type and obs regexp "!!(1040|1042)=[0-9]" then cast(replace(replace((substring_index(substring(obs,locate("!!(1040|1042)=",obs)),@sep,1)),"!!(1040|1042)=",""),"!!","") as unsigned)
+	end as hiv_rapid_test_resulted,
+
 
 	case
 		when obs regexp "!!8302=8305!!" then @condoms_provided := 1
@@ -1019,6 +1031,8 @@ replace into flat_hiv_summary
 	hiv_dna_pcr_1_date,
 	hiv_dna_pcr_2,
 	hiv_dna_pcr_2_date,
+	hiv_rapid_test_resulted,
+	hiv_rapid_test_resulted_date 
 	condoms_provided,
 	using_modern_contraceptive_method,
 	cur_who_stage,
