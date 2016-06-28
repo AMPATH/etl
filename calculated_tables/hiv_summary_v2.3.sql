@@ -935,6 +935,11 @@ create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, pre
 	end as prev_encounter_type_hiv,	@cur_encounter_type := encounter_type as cur_encounter_type,
 
 	case
+        when @prev_id=@cur_id then @prev_encounter_datetime := @cur_encounter_datetime
+        else @prev_encounter_datetime := null
+    end as prev_encounter_datetime_hiv, @cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
+
+	case
 		when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 		else @prev_clinical_datetime := null
 	end as prev_clinical_datetime_hiv,
