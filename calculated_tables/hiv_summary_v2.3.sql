@@ -1037,7 +1037,7 @@ replace into flat_hiv_summary
 	hiv_dna_pcr_2,
 	hiv_dna_pcr_2_date,
 	hiv_rapid_test_resulted,
-	hiv_rapid_test_resulted_date 
+	hiv_rapid_test_resulted_date,
 	condoms_provided,
 	using_modern_contraceptive_method,
 	cur_who_stage,
