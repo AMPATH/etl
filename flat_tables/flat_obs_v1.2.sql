@@ -10,8 +10,6 @@
 # v1.1 Notes:
 #      Added visit_id. This makes it easier to query for visits related indicators
 
-# v1.2 Notes
-#      Fixed bug where obs that were created between updates times were excluded from this table
 
 select @table_version := "flat_obs_v1.2";
 select @start := now();
@@ -171,6 +169,7 @@ replace into flat_obs
 );
 
 
+
 # find all encounters which have new obs after @last_update
 create temporary table encounters_with_new_obs
 (select 
@@ -180,8 +179,6 @@ from amrs.obs o
 		and o.voided=0 
         and o.date_created > @last_update
 );
-
-
 
 # Insert newly created obs with encounter_ids
 replace into flat_obs
