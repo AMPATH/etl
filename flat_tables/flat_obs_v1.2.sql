@@ -61,7 +61,7 @@ select @last_update :=
 #otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 
-#select @last_update := "2015-10-20";
+#select @last_update := "2016-07-06";
 
 drop table if exists voided_obs;
 create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
@@ -171,6 +171,7 @@ replace into flat_obs
 
 
 # find all encounters which have new obs after @last_update
+drop table if exists encounters_with_new_obs;
 create temporary table encounters_with_new_obs
 (select 
 	distinct encounter_id
@@ -216,7 +217,8 @@ replace into flat_obs
 	max(o.date_created) as max_date_created
 
 	from amrs.obs o
-		join encounters_with_new_obs e using (encounter_id)
+		join encounters_with_new_obs e1 using (encounter_id)
+        join amrs.encounter e using (encounter_id)
 	where o.voided=0 
 	group by o.encounter_id
 );
