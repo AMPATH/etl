@@ -13,6 +13,7 @@
 
 # v2.2 Notes:
 #      Add ability to handle error messages. Add columns for has_errors, vl_error, cd4_error, hiv_dna_pcr_error
+#      Delete all rows for a patient before inserting new data
 
 set session sort_buffer_size=512000000;
 set session group_concat_max_len=100000;
@@ -73,7 +74,9 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 	where max_date_created > @last_update	
 );
 
-
+delete 
+from flat_labs_and_imaging t1
+join new_data_person_ids t2 using (person_id);
 
 drop table if exists flat_labs_and_imaging_0;
 create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id), index person_test (person_id,test_datetime))
