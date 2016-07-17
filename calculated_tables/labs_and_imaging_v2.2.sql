@@ -74,7 +74,15 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 	where max_date_created > @last_update	
 );
 
-delete 
+drop table if exists new_data_person_ids;
+create temporary table new_data_person_ids(person_id int, primary key (person_id))
+(select distinct person_id 
+	from etl.flat_lab_obs
+	where max_date_created > "2016-07-01"	
+);
+
+
+delete t1
 from flat_labs_and_imaging t1
 join new_data_person_ids t2 using (person_id);
 
