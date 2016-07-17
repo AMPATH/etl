@@ -74,7 +74,8 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 	where max_date_created > @last_update	
 );
 
-delete 
+
+delete t1
 from flat_labs_and_imaging t1
 join new_data_person_ids t2 using (person_id);
 
