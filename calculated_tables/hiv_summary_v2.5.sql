@@ -30,6 +30,7 @@
 #Added prev_arv_end_date to track when they stopped the previous regimen
 #Added prev_arv_line to track the arv line the patient was previously on
 #Added prev_arv_meds to track the arv medications the patient was previously on
+#Fixed arv_start_date and arv_first_regimen_start_date
 
 select @start := now();
 select @start := now();
@@ -409,8 +410,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	end as hiv_start_date,
 
 	case
-		when obs regexp "!!1255=(1256|1259|1850)!!" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_first_regimen_start_date := encounter_datetime
-		when @prev_id = @cur_id and obs regexp "!!(1250|1088|2154)=" and @arv_start_date is null then @arv_first_regimen_start_date := encounter_datetime
+		when (obs regexp "!!1255=(1257|1256|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_first_regimen_start_date := encounter_datetime
 		when @prev_id != @cur_id then @arv_first_regimen_start_date:= null
 		else @arv_first_regimen_start_date
     end as arv_first_regimen_start_date,
@@ -427,7 +427,6 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when obs regexp "!!1255=(1256|1259|1850)" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_date := date(t1.encounter_datetime)
 		when obs regexp "!!1255=(1107|1260)!!" then @arv_start_date := null
-		when @prev_id = @cur_id and obs regexp "!!(1250|1088|2154)=" and @arv_start_date is null then @arv_start_date := date(t1.encounter_datetime)
 		when @prev_id != @cur_id then @arv_start_date := null
 		else @arv_start_date
 	end as arv_start_date,
