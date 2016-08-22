@@ -71,10 +71,10 @@ create table if not exists flat_hiv_summary (
 
     arv_start_location int,
     arv_first_regimen_start_date datetime,
-
 	arv_start_date datetime,
     prev_arv_start_date datetime,
     prev_arv_end_date datetime,
+
 	arv_first_regimen varchar(500),
     prev_arv_meds varchar(500),
 	cur_arv_meds varchar(500),
@@ -1034,8 +1034,8 @@ replace into flat_hiv_summary
 	cur_rtc_date,
     arv_start_location,
     arv_first_regimen_start_date,
-    prev_arv_start_date,
 	arv_start_date,
+	prev_arv_start_date,
     prev_arv_end_date,
 	arv_first_regimen,
     prev_arv_meds,
