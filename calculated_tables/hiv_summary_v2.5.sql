@@ -31,6 +31,7 @@
 #Added prev_arv_line to track the arv line the patient was previously on
 #Added prev_arv_meds to track the arv medications the patient was previously on
 #Fixed arv_start_date and arv_first_regimen_start_date
+#Added RESISTANCECLINIC 117 encounter type in is_clinical_encounter indicator
 
 select @start := now();
 select @start := now();
@@ -188,7 +189,7 @@ create temporary table flat_hiv_summary_0a
 	t1.obs_datetimes,
 	# in any visit, there many be multiple encounters. for this dataset, we want to include only clinical encounters (e.g. not lab or triage visit)
 	case
-		when encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115) then 1
+		when encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117) then 1
 		else null
 	end as is_clinical_encounter,
 
@@ -200,7 +201,7 @@ create temporary table flat_hiv_summary_0a
 	from flat_obs t1
 		join new_data_person_ids t0 using (person_id)
 #		join new_data_person_ids t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
-	where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116)
+	where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116,117)
 );
 
 
