@@ -165,15 +165,17 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 # limit 10
 );
 
-
 replace into new_data_person_ids
 (select distinct person_id
 	from flat_lab_obs
 	where max_date_created > @last_update
 );
 
-
-
+replace into new_data_person_ids
+(select distinct person_id
+	from flat_orders
+	where max_date_created > @last_update
+);
 
 drop table if exists flat_hiv_summary_0a;
 create temporary table flat_hiv_summary_0a
@@ -195,14 +197,14 @@ create temporary table flat_hiv_summary_0a
 	case
 		when encounter_type in (110,@lab_encounter_type,111,5,6,7,8,9,13,16,21,22,23,43) then 1
 		else 10
-	end as encounter_type_sort_index
-
+	end as encounter_type_sort_index,
+	t2.orders
 	from flat_obs t1
 		join new_data_person_ids t0 using (person_id)
+		left join flat_orders t2 using(encounter_id)
 #		join new_data_person_ids t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
-	where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116)
+	where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116,117)
 );
-
 
 insert into flat_hiv_summary_0a
 (select
@@ -216,8 +218,8 @@ insert into flat_hiv_summary_0a
 	null, #obs_datetimes
 	# in any visit, there many be multiple encounters. for this dataset, we want to include only clinical encounters (e.g. not lab or triage visit)
 	0 as is_clinical_encounter,
-	1 as encounter_type_sort_index
-
+	1 as encounter_type_sort_index,
+	null
 	from flat_lab_obs t1
 		join new_data_person_ids t0 using (person_id)
 );
@@ -361,7 +363,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	case
 		when obs regexp "!!1285=(1287|9068)!!" then 1
 		when obs regexp "!!1596=1594!!" then 1
-		when obs regexp "!!9082=(1287|9068)!!" then 1
+		when obs regexp "!!9082=(1287|9068|9504)!!" then 1
 		else null
 	end as transfer_out,
 
@@ -370,7 +372,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 		when obs regexp "!!1946=1065!!" then 1
 		when obs regexp "!!1285=(1287|9068)!!" then 1
 		when obs regexp "!!1596=" then 1
-		when obs regexp "!!9082=(159|9036|9083|1287|9068|9079)!!" then 1
+		when obs regexp "!!9082=(159|9036|9083|1287|9068|9079|9504)!!" then 1
 		when encounter_type = @death_encounter_type then 1
 		else null
 	end as out_of_care,
@@ -773,6 +775,7 @@ create temporary table flat_hiv_summary_1 (index encounter_id (encounter_id))
 	# 856 = HIV VIRAL LOAD, QUANTITATIVE
 	case
 		when obs regexp "!!1271=856!!" then @vl_order_date := date(encounter_datetime)
+		where orders regexp "!!856!!" then @vl_order_date := date(encounter_datetime)
 		when @prev_id=@cur_id and (@vl_1_date is null or @vl_1_date < @vl_order_date) then @vl_order_date
 		else @vl_order_date := null
 	end as vl_order_date,
