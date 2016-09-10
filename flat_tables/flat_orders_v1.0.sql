@@ -22,8 +22,11 @@ create table if not exists flat_orders
 (person_id int,
 encounter_id int,
 order_id int,
-activated_date datetime,
+encounter_datetime datetime,
+encounter_type int,
+date_activated datetime,
 orders text,
+order_datetimes text,
 max_date_created datetime,
 index encounter_id (encounter_id),
 index person_enc_id (person_id,encounter_id),
@@ -47,7 +50,7 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 
 drop table if exists voided_orders;
 create table voided_orders (index encounter_id (encounter_id), index orders_id (order_id))
-(select person_id, encounter_id, order_id, orders_datetime, date_voided, concept_id, date_created
+(select patient_id, encounter_id, order_id, date_activated, date_voided, concept_id, date_created
 from amrs.orders where voided=1 and date_voided > @last_update and date_created <= @last_update);
 
 
@@ -61,35 +64,35 @@ join voided_orders t2 using (encounter_id);
 
 replace into flat_orders
 (select
-	o.person_id,
+	o.patient_id,
 	o.encounter_id, 
     o.order_id,
 	e.encounter_datetime,
 	e.encounter_type,
 	e.location_id,
-	group_concat(concept_id order by o.concept_id separator ' ## ') as orders,
-	group_concat(concat(@boundary,o.concept_id,'=',date(o.activated_datetime),@boundary) order by o.concept_id,value_coded separator ' ## ') as order_datetimes,
+	group_concat(o.concept_id order by o.concept_id separator ' ## ') as orders,
+	group_concat(concat(@boundary,o.concept_id,'=',date(o.date_activated),@boundary) order by o.concept_id separator ' ## ') as order_datetimes,
 	max(o.date_created) as max_date_created
 	from voided_orders v
 		join amrs.orders o using (encounter_id)
 		join amrs.encounter e using (encounter_id)
 	where 
 		o.encounter_id >= 1 and o.voided=0
-	group by encounter_id
+	group by o.encounter_id
 );
 
 
 # Insert newly created orders with encounter_ids
 replace into flat_orders
 (select 
-	o.person_id,
+	o.patient_id,
 	o.encounter_id, 
     o.order_id,
 	e.encounter_datetime,
 	e.encounter_type,
 	e.location_id,
 	group_concat(concept_id order by o.concept_id separator ' ## ') as orders,
-	group_concat(concat(@boundary,o.concept_id,'=',date(o.activated_datetime),@boundary) order by o.concept_id,value_coded separator ' ## ') as order_datetimes,
+	group_concat(concat(@boundary,o.concept_id,'=',date(o.date_activated),@boundary) order by o.concept_id separator ' ## ') as order_datetimes,
 	max(o.date_created) as max_date_created
 
 	from amrs.orders o
