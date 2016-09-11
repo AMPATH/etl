@@ -65,8 +65,6 @@ select @last_update :=
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 #select @last_update := "2015-05-14";
 
-
-
 drop table if exists new_data_person_ids;
 create temporary table new_data_person_ids(person_id int, primary key (person_id))
 (select distinct person_id
@@ -155,7 +153,7 @@ create temporary table flat_labs_and_imaging_1 (index encounter_id (encounter_id
     if(obs regexp "!!9239=1030",1,null) as hiv_dna_pcr_error,
 
 	if(obs regexp "!!1271=" and not obs regexp "!!1271=1107",
-			concat(replace(replace((substring_index(substring(obs,locate("!!1271=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "1271=", "") ) ) / LENGTH("!!1271=") ))),"!!1271=",""),"!!","") ' ## ' orders),
+			concat(replace(replace((substring_index(substring(obs,locate("!!1271=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "1271=", "") ) ) / LENGTH("!!1271=") ))),"!!1271=",""),"!!",""), ' ## ', orders),
 			null
 		) as tests_ordered
 
