@@ -49,7 +49,7 @@ DELIMITER $$
 
 					#drop table if exists flat_hiv_summary;
 					#delete from flat_log where table_name="flat_hiv_summary";
-					create table if not exists flat_hiv_summary_staging (
+					create table if not exists flat_hiv_summary (
 						person_id int,
 						uuid varchar(100),
 						visit_id int,
@@ -185,7 +185,7 @@ DELIMITER $$
 						#create temp table with a set of person ids
 						drop table if exists new_data_person_ids_0;
 
-						create temporary table new_data_person_ids_0 (select * from new_data_person_ids limit 1000); #TODO - change this when data_fetch_size changes
+						create temporary table new_data_person_ids_0 (select * from new_data_person_ids limit 500); #TODO - change this when data_fetch_size changes
 
 						delete from new_data_person_ids where person_id in (select person_id from new_data_person_ids_0);
 
@@ -1026,7 +1026,7 @@ DELIMITER $$
 							order by person_id, date(encounter_datetime), encounter_type_sort_index
 						);
 
-						replace into flat_hiv_summary_staging
+						replace into flat_hiv_summary
 						(select
 							person_id,
 							t1.uuid,
@@ -1106,11 +1106,11 @@ DELIMITER $$
 							from flat_hiv_summary_3 t1
 								join amrs.location t2 using (location_id));
 
-							select @end := now();
-							insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-							select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
-
 				 end while;
+
+				 select @end := now();
+				 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
 		END $$
 	DELIMITER ;
