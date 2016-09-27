@@ -180,12 +180,14 @@ DELIMITER $$
 
 					select @person_ids_count := (select count(*) from new_data_person_ids);
 
+					delete t1 from flat_hiv_summary t1 join new_data_person_ids t2 using (person_id);
+
 					while @person_ids_count > 0 do
 
 						#create temp table with a set of person ids
 						drop table if exists new_data_person_ids_0;
 
-						create temporary table new_data_person_ids_0 (select * from new_data_person_ids limit 500); #TODO - change this when data_fetch_size changes
+						create temporary table new_data_person_ids_0 (select * from new_data_person_ids limit 10000); #TODO - change this when data_fetch_size changes
 
 						delete from new_data_person_ids where person_id in (select person_id from new_data_person_ids_0);
 
@@ -1026,7 +1028,7 @@ DELIMITER $$
 							order by person_id, date(encounter_datetime), encounter_type_sort_index
 						);
 
-						replace into flat_hiv_summary
+						insert into flat_hiv_summary
 						(select
 							person_id,
 							t1.uuid,
