@@ -151,11 +151,22 @@ create temporary table flat_labs_and_imaging_1 (index encounter_id (encounter_id
     if(obs regexp "!!9239=856!!",1,null) as vl_error,
     if(obs regexp "!!9239=5497!!",1,null) as cd4_error,
     if(obs regexp "!!9239=1030",1,null) as hiv_dna_pcr_error,
-
-	if(obs regexp "!!1271=" and not obs regexp "!!1271=1107",
-			concat(replace(replace((substring_index(substring(obs,locate("!!1271=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "1271=", "") ) ) / LENGTH("!!1271=") ))),"!!1271=",""),"!!",""), ' ## ', orders),
-			null
-		) as tests_ordered
+    CASE
+        WHEN
+            (obs REGEXP '!!1271='
+                AND NOT obs REGEXP '!!1271=1107')
+        THEN
+            CONCAT(REPLACE(REPLACE((SUBSTRING_INDEX(SUBSTRING(obs, LOCATE('!!1271=', obs)),
+                                    @sep,
+                                    ROUND((LENGTH(obs) - LENGTH(REPLACE(obs, '1271=', ''))) / LENGTH('!!1271=')))),
+                            '!!1271=',
+                            ''),
+                        '!!',
+                        ''),
+                    ' ## ',
+                    IFNULL(orders, ''))
+        ELSE orders
+    END AS tests_ordered
 
 from flat_labs_and_imaging_0 t1
 	join amrs.person p using (person_id)
