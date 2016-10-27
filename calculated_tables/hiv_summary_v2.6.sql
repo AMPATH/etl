@@ -427,9 +427,9 @@ DELIMITER $$
 							end as hiv_start_date,
 
 							case
-								when (obs regexp "!!1255=(1257|1256|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_first_regimen_start_date := encounter_datetime
-								when @prev_id != @cur_id then @arv_first_regimen_start_date:= null
-								else @arv_first_regimen_start_date
+								when @arv_first_regimen is null and @cur_arv_meds is not null then @arv_first_regimen_start_date := date(t1.encounter_datetime)
+								when @prev_id = @cur_id then @arv_first_regimen_start_date
+								else @arv_first_regimen_start_date := null
 						    end as arv_first_regimen_start_date,
 							case
 						        when @prev_id=@cur_id then @prev_arv_start_date := @arv_start_date
