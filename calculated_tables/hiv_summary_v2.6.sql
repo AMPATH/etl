@@ -568,6 +568,7 @@ DELIMITER $$
 								when obs regexp "!!307=" then @screened_for_tb := true #test result for tb
 								when obs regexp "!!12=" then @screened_for_tb := true #test result for tb
 								when obs regexp "!!1271=(12|307)!!" then @screened_for_tb := true #test ordered for tb
+								when orders regexp "(12|307)" then @screened_for_tb := true #test ordered for tb
 								when obs regexp "!!1866=(12|307)!!" then @screened_for_tb := true #test results for tb
 								when obs regexp "!!5958=1077!!" then @screened_for_tb := true #means cough is bloody
 								when obs regexp "!!2020=1065!!" then @screened_for_tb := true #means a familiy member was diagnosed for tb
@@ -790,7 +791,7 @@ DELIMITER $$
 							# 856 = HIV VIRAL LOAD, QUANTITATIVE
 							case
 								when obs regexp "!!1271=856!!" then @vl_order_date := date(encounter_datetime)
-								when orders regexp "!!856!!" then @vl_order_date := date(encounter_datetime)
+								when orders regexp "856" then @vl_order_date := date(encounter_datetime)
 								when @prev_id=@cur_id and (@vl_1_date is null or @vl_1_date < @vl_order_date) then @vl_order_date
 								else @vl_order_date := null
 							end as vl_order_date,
@@ -798,6 +799,7 @@ DELIMITER $$
 							# 657 = CD4 PANEL
 							case
 								when obs regexp "!!1271=657!!" then @cd4_order_date := date(encounter_datetime)
+								when orders regexp "657" then @cd4_order_date := date(encounter_datetime)
 								when @prev_id=@cur_id then @cd4_order_date
 								else @cd4_order_date := null
 							end as cd4_order_date,
@@ -805,6 +807,7 @@ DELIMITER $$
 								# 1030 = HIV DNA PCR
 							case
 							  when obs regexp "!!1271=1030!!" then @hiv_dna_pcr_order_date := date(encounter_datetime)
+							  when orders regexp "1030" then @hiv_dna_pcr_order_date := date(encounter_datetime)
 							  when @prev_id=@cur_id then @hiv_dna_pcr_order_date
 							  else @hiv_dna_pcr_order_date := null
 							end as hiv_dna_pcr_order_date,
