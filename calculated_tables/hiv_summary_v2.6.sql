@@ -426,11 +426,7 @@ DELIMITER $$
 								else @hiv_start_date
 							end as hiv_start_date,
 
-							case
-								when @arv_first_regimen is null and @cur_arv_meds is not null then @arv_first_regimen_start_date := date(t1.encounter_datetime)
-								when @prev_id = @cur_id then @arv_first_regimen_start_date
-								else @arv_first_regimen_start_date := null
-						    end as arv_first_regimen_start_date,
+								
 							case
 						        when @prev_id=@cur_id then @prev_arv_start_date := @arv_start_date
 						        else @prev_arv_start_date := null
@@ -486,6 +482,13 @@ DELIMITER $$
 								when @prev_id = @cur_id then @arv_first_regimen
 								else @arv_first_regimen := null
 							end as arv_first_regimen,
+
+							case
+								when @arv_first_regimen_start_date is null and (obs regexp "!!1255=(1256|1259|1850)" or obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!") then @arv_first_regimen_start_date := date(t1.encounter_datetime)
+								when @prev_id != @cur_id then @arv_first_regimen_start_date := null								
+                                else @arv_first_regimen_start_date
+							end as arv_first_regimen_start_date,
+
 							case
 						        when @prev_id=@cur_id then @prev_arv_line := @cur_arv_line
 						        else @prev_arv_line := null
@@ -1031,7 +1034,7 @@ DELIMITER $$
 							order by person_id, date(encounter_datetime), encounter_type_sort_index
 						);
 
-						insert into flat_hiv_summary
+						replace into flat_hiv_summary
 						(select
 							person_id,
 							t1.uuid,
