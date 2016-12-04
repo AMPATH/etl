@@ -37,6 +37,7 @@
 #Added hiv_status_disclosed indicator
 #Added prev_arv_adherence, cur_arv_adherence indicators
 #Added prev_vl_1_date and prev_vl_1
+#fixed cur_clinic_datetime to include NONCLINICALENCOUNTER Encounter type
 
 drop procedure if exists generate_hiv_summary;
 DELIMITER $$
@@ -173,7 +174,16 @@ DELIMITER $$
 					#select @last_date_created := "2015-11-17"; #date(now());
 
 					drop table if exists new_data_person_ids;
-					create temporary table new_data_person_ids(person_id int, primary key (person_id))
+					create temporary table new_data_person_ids(person_id int, primary key (person_id));
+
+                    replace into new_data_person_ids
+                    (select distinct person_id #, min(encounter_datetime) as start_date
+                        from etl.flat_obs
+                        where max_date_created > @last_update
+                    #	group by person_id
+                    # limit 10
+                    );
+
 					(select distinct person_id #, min(encounter_datetime) as start_date
 						from etl.flat_obs
 						where max_date_created > @last_update
@@ -814,10 +824,13 @@ DELIMITER $$
 								when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_resulted
 							end as vl_resulted,
 
-							case
-                                when @prev_id=@cur_id then
+                            case
+                                when @prev_id=@cur_id  then
                                     case
-                                        when obs regexp "!!856=[0-9]" and date(encounter_datetime)<>date(@vl_1_date) then @prev_vl_1:= @vl_1
+                                        when (obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type)  then @prev_vl_1  := @vl_1
+                                        when (obs regexp "!!856=[0-9]"
+                                                                                and (@vl_1_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!",""),@vl_1_date)) > 30)
+                                                                                and (@vl_1_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) > @vl_1_date))  then @prev_vl_1 := @vl_1
                                         else @prev_vl_1
                                     end
                                 else @prev_vl_1:=null
@@ -834,24 +847,29 @@ DELIMITER $$
 							end as vl_1,
 
                             case
-                                when @prev_id=@cur_id then
+                                when @prev_id=@cur_id  then
                                     case
-                                        when obs regexp "!!856=[0-9]" and date(encounter_datetime)<>date(@vl_1_date) then @prev_vl_1_date:= @vl_1_date
+                                        when (obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type)  then @prev_vl_1_date  := @vl_1_date
+                                        when (obs regexp "!!856=[0-9]"
+                                                                                and (@vl_1_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!",""),@vl_1_date)) > 30)
+                                                                                and (@vl_1_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) > @vl_1_date))  then @prev_vl_1_date := @vl_1_date
                                         else @prev_vl_1_date
                                     end
                                 else @prev_vl_1_date:=null
                             end as prev_vl_1_date,
 
 
-								case
-									when obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type then @vl_1_date:= encounter_datetime
-									when obs regexp "!!856=[0-9]"
-											and (@vl_1_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!",""),@vl_1_date)) > 30)
-											and (@vl_1_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) > @vl_1_date)
-										then @vl_1_date := replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")
-									when @prev_id=@cur_id then @vl_1_date
-									else @vl_1_date:=null
-								end as vl_1_date,
+
+
+                            case
+                                when obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type then @vl_1_date:= encounter_datetime
+                                when obs regexp "!!856=[0-9]"
+                                        and (@vl_1_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!",""),@vl_1_date)) > 30)
+                                        and (@vl_1_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) > @vl_1_date)
+                                    then @vl_1_date := replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")
+                                when @prev_id=@cur_id then @vl_1_date
+                                else @vl_1_date:=null
+                            end as vl_1_date,
 
 
 
@@ -1036,7 +1054,7 @@ DELIMITER $$
 							end as next_clinical_rtc_date_hiv,
 
 							case
-								when is_clinical_encounter then @cur_clinical_rtc_date := cur_rtc_date
+								when is_clinical_encounter or  encounter_type in (120) then @cur_clinical_rtc_date := cur_rtc_date
 								when @prev_id = @cur_id then @cur_clinical_rtc_date
 								else @cur_clinical_rtc_date:= null
 							end as cur_clinical_rtc_date
@@ -1187,10 +1205,11 @@ DELIMITER $$
 				 end while;
 
 				 select @end := now();
-				 #insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+				 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
 		END $$
 	DELIMITER ;
 
 call generate_hiv_summary();
+
