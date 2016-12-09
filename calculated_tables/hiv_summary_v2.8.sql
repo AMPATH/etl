@@ -456,29 +456,6 @@ DELIMITER $$
 								else @hiv_start_date
 							end as hiv_start_date,
 
-
-							case
-						        when @prev_id=@cur_id then @prev_arv_start_date := @arv_start_date
-						        else @prev_arv_start_date := null
-							end as prev_arv_start_date,
-
-							# 1255 = ANTIRETROVIRAL PLAN
-							# 1250 = ANTIRETROVIRALS STARTED
-							# 1088 = CURRENT ANTIRETROVIRAL DRUGS USED FOR TREATMENT
-							# 2154 = PATIENT REPORTED CURRENT ANTIRETROVIRAL TREATMENT
-							# 1260 = STOP ALL MEDICATIONS
-							case
-								when obs regexp "!!1255=(1256|1259|1850)" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_date := date(t1.encounter_datetime)
-								when obs regexp "!!1255=(1107|1260)!!" then @arv_start_date := null
-								when @prev_id != @cur_id then @arv_start_date := null
-								else @arv_start_date
-							end as arv_start_date,
-
-						    case
-								when @prev_arv_start_date != @arv_start_date then @prev_arv_end_date = date(t1.encounter_datetime)
-								else @prev_arv_end_date
-						    end as prev_arv_end_date,
-
 							case
 								when obs regexp "!!1255=1256!!" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_location := location_id
 								when @prev_id = @cur_id and obs regexp "!!(1250|1088|2154)=" and @arv_start_date is null then @arv_start_location := location_id
@@ -538,6 +515,30 @@ DELIMITER $$
 								when @prev_id = @cur_id then @cur_arv_line
 								else @cur_arv_line := null
 							end as cur_arv_line,
+
+							case
+				        when @prev_id=@cur_id then @prev_arv_start_date := @arv_start_date
+				        else @prev_arv_start_date := null
+							end as prev_arv_start_date,
+
+							# 1255 = ANTIRETROVIRAL PLAN
+							# 1250 = ANTIRETROVIRALS STARTED
+							# 1088 = CURRENT ANTIRETROVIRAL DRUGS USED FOR TREATMENT
+							# 2154 = PATIENT REPORTED CURRENT ANTIRETROVIRAL TREATMENT
+							# 1260 = STOP ALL MEDICATIONS
+
+							case
+								when obs regexp "!!1255=(1256|1259|1850)" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_date := date(t1.encounter_datetime)
+								when obs regexp "!!1255=(1107|1260)!!" then @arv_start_date := null
+								when @cur_arv_meds != @prev_arv_meds and @cur_arv_line != @prev_arv_line then @arv_start_date := date(t1.encounter_datetime)
+								when @prev_id != @cur_id then @arv_start_date := null
+								else @arv_start_date
+							end as arv_start_date,
+
+							case
+								when @prev_arv_start_date != @arv_start_date then @prev_arv_end_date  := date(t1.encounter_datetime)
+								else @prev_arv_end_date
+							end as prev_arv_end_date,
 
 							case
 						        when @prev_id=@cur_id then @prev_arv_adherence := @cur_arv_adherence
@@ -1212,4 +1213,3 @@ DELIMITER $$
 	DELIMITER ;
 
 call generate_hiv_summary();
-
