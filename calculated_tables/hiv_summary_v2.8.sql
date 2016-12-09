@@ -46,7 +46,7 @@ DELIMITER $$
 
 					select @start := now();
 					select @start := now();
-					select @table_version := "flat_hiv_summary_v2.7";
+					select @table_version := "flat_hiv_summary_v2.8";
 
 					set session sort_buffer_size=512000000;
 
@@ -244,7 +244,7 @@ DELIMITER $$
 								join new_data_person_ids_0 t0 using (person_id)
 								left join etl.flat_orders t2 using(encounter_id)
 						#		join new_data_person_ids t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
-							where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116,117)
+							where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116,117,120)
 						);
 
 						insert into flat_hiv_summary_0a
