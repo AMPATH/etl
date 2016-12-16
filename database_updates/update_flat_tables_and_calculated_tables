@@ -8,4 +8,5 @@ mysql etl < ../flat_tables/flat_lab_obs_v1.2.sql
 mysql etl < ../calculated_tables/hiv_summary_v2.8.sql
 mysql etl < ../calculated_tables/labs_and_imaging_v2.3.sql
 mysql etl < ../calculated_tables/vitals_v2.0.sql
+mysql etl < ../calculated_tables/hiv_vl_summary_v1.0.sql
 

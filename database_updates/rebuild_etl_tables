@@ -12,3 +12,4 @@ mysql etl < ../calculated_tables/vitals_v2.0.sql
 mysql etl < ../calculated_tables/derived_encounter.sql
 mysql etl < ../calculated_tables/defaulters_v2.0.sql
 mysql etl < ../calculated_tables/cohort_dates.sql
+mysql etl < ../calculated_tables/hiv_vl_summary_v1.0.sql
