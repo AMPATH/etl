@@ -6,3 +6,4 @@ drop table flat_vitals;
 drop table flat_labs_and_imaging;
 drop table derived_encounter;
 drop table etl.dates;
+drop table flat_hiv_vl_summary;
