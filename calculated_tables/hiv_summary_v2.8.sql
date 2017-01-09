@@ -39,6 +39,10 @@
 #Added prev_vl_1_date and prev_vl_1
 #fixed cur_clinic_datetime to include NONCLINICALENCOUNTER Encounter type
 
+# v2.8 Notes:
+#Removed prev_vl_1_date and prev_vl_1
+#Fixed vl_2 and vl_2_date
+
 drop procedure if exists generate_hiv_summary;
 DELIMITER $$
 	CREATE PROCEDURE generate_hiv_summary()
@@ -115,9 +119,7 @@ DELIMITER $$
 						cd4_percent_2_date datetime,
 						vl_resulted int,
 						vl_resulted_date datetime,
-							prev_vl_1 int,
 							vl_1 int,
-							prev_vl_1_date datetime,
 							vl_1_date datetime,
 							vl_2 int,
 							vl_2_date datetime,
@@ -300,9 +302,7 @@ DELIMITER $$
 						select @pcp_prophylaxis_start_date := null;
 						select @screened_for_tb := null;
 						select @death_date := null;
-						select @prev_vl_1:=null;
 						select @vl_1:=null;
-						select @prev_vl_1_date:=null;
 						select @vl_2:=null;
 						select @vl_1_date:=null;
 						select @vl_2_date:=null;
@@ -800,20 +800,22 @@ DELIMITER $$
 							case
 									when @prev_id=@cur_id then
 										case
-											when obs regexp "!!856=[0-9]" and @vl_1 >= 0 and date(encounter_datetime)<>date(@vl_1_date) then @vl_2:= @vl_1
+											when obs regexp "!!856=[0-9]" and @vl_1 >= 0 							
+												and (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) <>date(@vl_1_date) then @vl_2:= @vl_1
 											else @vl_2
 										end
 									else @vl_2:=null
-								end as vl_2,
-
-								case
+							end as vl_2,
+						
+							case
 									when @prev_id=@cur_id then
 										case
-											when obs regexp "!!856=[0-9]" and @vl_1 >= 0 and date(encounter_datetime)<>date(@vl_1_date) then @vl_2_date:= @vl_1_date
+											when obs regexp "!!856=[0-9]" and @vl_1 >= 0 							
+												and (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) <>date(@vl_1_date) then @vl_2_date:= @vl_1_date
 											else @vl_2_date
 										end
 									else @vl_2_date:=null
-								end as vl_2_date,
+							end as vl_2_date,
 
 							case
 								when t1.encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_date_resulted := date(encounter_datetime)
@@ -825,18 +827,6 @@ DELIMITER $$
 								when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_resulted
 							end as vl_resulted,
 
-                            case
-                                when @prev_id=@cur_id  then
-                                    case
-                                        when (obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type)  then @prev_vl_1  := @vl_1
-                                        when (obs regexp "!!856=[0-9]"
-                                                                                and (@vl_1_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!",""),@vl_1_date)) > 30)
-                                                                                and (@vl_1_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) > @vl_1_date))  then @prev_vl_1 := @vl_1
-                                        else @prev_vl_1
-                                    end
-                                else @prev_vl_1:=null
-                            end as prev_vl_1,
-
 							case
 									when obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type then @vl_1:=cast(replace(replace((substring_index(substring(obs,locate("!!856=",obs)),@sep,1)),"!!856=",""),"!!","") as unsigned)
 									when obs regexp "!!856=[0-9]"
@@ -846,21 +836,6 @@ DELIMITER $$
 									when @prev_id=@cur_id then @vl_1
 									else @vl_1:=null
 							end as vl_1,
-
-                            case
-                                when @prev_id=@cur_id  then
-                                    case
-                                        when (obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type)  then @prev_vl_1_date  := @vl_1_date
-                                        when (obs regexp "!!856=[0-9]"
-                                                                                and (@vl_1_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!",""),@vl_1_date)) > 30)
-                                                                                and (@vl_1_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) > @vl_1_date))  then @prev_vl_1_date := @vl_1_date
-                                        else @prev_vl_1_date
-                                    end
-                                else @prev_vl_1_date:=null
-                            end as prev_vl_1_date,
-
-
-
 
                             case
                                 when obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type then @vl_1_date:= encounter_datetime
@@ -1171,9 +1146,7 @@ DELIMITER $$
 							cd4_percent_2_date,
 							vl_resulted,
 							vl_resulted_date,
-							prev_vl_1,
 						    vl_1,
-							prev_vl_1_date,
 						    vl_1_date,
 						    vl_2,
 						    vl_2_date,
