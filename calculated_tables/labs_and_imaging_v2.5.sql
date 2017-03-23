@@ -73,8 +73,8 @@ select @last_update :=
 select @last_update := if(@last_update,@last_update,'1900-01-01');
 #select @last_update := "2015-05-14";
 
-drop table if exists new_data_person_ids;
-create temporary table new_data_person_ids(person_id int, primary key (person_id))
+drop table if exists new_data_person_ids_0;
+create temporary table new_data_person_ids_0(person_id int, primary key (person_id))
 (select distinct person_id
 	from flat_lab_obs
 	where max_date_created > @last_update
@@ -83,12 +83,12 @@ create temporary table new_data_person_ids(person_id int, primary key (person_id
 
 delete t1
 from flat_labs_and_imaging t1
-join new_data_person_ids t2 using (person_id);
+join new_data_person_ids_0 t2 using (person_id);
 
 drop table if exists flat_labs_and_imaging_0;
 create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id), index person_test (person_id,test_datetime))
-(select
-	t1.person_id,
+(select * from
+((select t1.person_id,
 	t1.encounter_id,
 	t1.test_datetime,
 	t1.encounter_type,
@@ -96,10 +96,21 @@ create temporary table flat_labs_and_imaging_0(index encounter_id (encounter_id)
 	t1.obs,
 	t2.orders
 	from flat_lab_obs t1
-		join new_data_person_ids t0 using (person_id)
-		left join flat_orders t2 on date(t1.test_datetime) = date(t2.encounter_datetime)
-	order by t1.person_id, test_datetime
-);
+		join new_data_person_ids_0 t0 using (person_id)
+		left join flat_orders t2 on date(t1.test_datetime) = date(t2.encounter_datetime) and t1.person_id = t2.person_id)
+        UNION ALL
+( select t1.person_id,
+	t1.encounter_id,
+	t1.encounter_datetime as test_datetime,
+	t2.encounter_type,
+	t2.location_id,
+	t2.obs,
+	t1.orders
+	from flat_orders t1
+		left join flat_lab_obs t2 on date(t2.test_datetime) = date(t1.encounter_datetime) and t1.person_id = t2.person_id
+        where t1.encounter_datetime >= @last_update and t2.person_id is null
+
+) order by person_id, test_datetime) as derived );
 
 
 select @prev_id := null;
