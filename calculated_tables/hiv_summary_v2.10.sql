@@ -119,6 +119,7 @@ DELIMITER $$
 						tb_prophylaxis_start_date datetime,
 						tb_prophylaxis_end_date datetime,
 						tb_tx_start_date datetime,
+						tb_tx_end_date datetime,
 						pcp_prophylaxis_start_date datetime,
 						cd4_resulted double,
 						cd4_resulted_date datetime,
@@ -317,6 +318,7 @@ DELIMITER $$
 						select @tb_prophylaxis_start_date := null;
 						select @tb_prophylaxis_end_date := null;
 						select @tb_treatment_start_date := null;
+						select @tb_treatment_end_date := null;
 						select @pcp_prophylaxis_start_date := null;
 						select @screened_for_tb := null;
 						select @tb_screening_result := null;
@@ -704,16 +706,20 @@ DELIMITER $$
 							# 1110 = PATIENT REPORTED CURRENT TUBERCULOSIS PROPHYLAXIS
 							# 656 = ISONIAZID
 							case
-								when obs regexp "!!1265=(1107|1260)!!" then @tb_prophylaxis_start_date := null
-								when obs regexp "!!1265=(1256|1850)!!" then @tb_prophylaxis_start_date := encounter_datetime
-								when obs regexp "!!1265=1257!!" then
+								when @cur_id != @prev_id then
 									case
-										when @prev_id!=@cur_id or @tb_prophylaxis_start_date is null then @tb_prophylaxis_start_date := encounter_datetime
-										else @tb_prophylaxis_start_date
+                                        when obs regexp "!!1265=(1256|1850)!!" then @tb_prophylaxis_start_date := encounter_datetime
+                                        when obs regexp "!!1265=(1257|981|1406|1849)!!" then @tb_prophylaxis_start_date := encounter_datetime
+										when obs regexp "!!1110=656!!" then @tb_prophylaxis_start_date := encounter_datetime
+                                        else @tb_prophylaxis_start_date := null
 									end
-								when obs regexp "!!1110=656!!" and @tb_prophylaxis_start_date is null then @tb_prophylaxis_start_date := encounter_datetime
-								when @prev_id=@cur_id then @tb_prophylaxis_start_date
-								else @tb_prophylaxis_start_date := null
+								when @cur_id = @prev_id then
+									case
+										when obs regexp "!!1265=(1256|1850)!!" then @tb_prophylaxis_start_date := encounter_datetime
+                                        when @tb_prophylaxis_start_date is not null then @tb_prophylaxis_start_date
+                                        when obs regexp "!!1265=(1257|981|1406|1849)!!" then @tb_prophylaxis_start_date := encounter_datetime
+                                        when obs regexp "!!1110=656!!" then @tb_prophylaxis_start_date := encounter_datetime
+									end
 							end as tb_prophylaxis_start_date,
 
 							# 1265 = TUBERCULOSIS PROPHYLAXIS PLAN
@@ -721,16 +727,17 @@ DELIMITER $$
 							# 1110 = PATIENT REPORTED CURRENT TUBERCULOSIS PROPHYLAXIS
 							# 656 = ISONIAZID
 							case
-								when obs regexp "!!1265=1260!!" then @tb_prophylaxis_end_date :=  encounter_datetime
-								when obs regexp "!!1265=(1256|1850|1107)!!" then @tb_prophylaxis_end_date := null
-								when obs regexp "!!1265=1257!!" then
+								when @cur_id != @prev_id then
 									case
-										when @prev_id!=@cur_id or @tb_prophylaxis_end_date is not null then @tb_prophylaxis_end_date := null
-										else @tb_prophylaxis_end_date
+										when obs regexp "!!1265=1260!!" then @tb_prophylaxis_end_date :=  encounter_datetime
+                                        else @tb_prophylaxis_end_date := null
+                                    end
+								when @cur_id = @prev_id then
+									case
+										when obs regexp "!!1265=1260!!" then @tb_prophylaxis_end_date :=  encounter_datetime
+                                        when  @tb_prophylaxis_end_date is not null then @tb_prophylaxis_end_date
+										when @tb_prophylaxis_start_date is not null and obs regexp "!!1110=1107!!" and obs regexp "!!1265=" and obs regexp "!!1265=(1107|1260)!!" then @tb_prophylaxis_end_date := encounter_datetime
 									end
-								when obs regexp "!!1110=656!!" and @tb_prophylaxis_end_date is not null then @tb_prophylaxis_end_date := null
-								when @prev_id=@cur_id then @tb_prophylaxis_end_date
-								else @tb_prophylaxis_end_date := null
 							end as tb_prophylaxis_end_date,
 
 
@@ -738,17 +745,42 @@ DELIMITER $$
 							# 1267 = COMPLETED
 							# 1107 = NONE
 							case
-								when obs regexp "!!1268=(1107|1260)!!" then @tb_treatment_start_date := null
-								when obs regexp "!!1268=1256!!" then @tb_treatment_start_date := encounter_datetime
-								when obs regexp "!!1268=(1257|1259|1849|981)!!" then
+								when @cur_id != @prev_id then
 									case
-										when @prev_id!=@cur_id or @tb_treatment_start_date is null then @tb_treatment_start_date := encounter_datetime
-										else @tb_treatment_start_date
+										when obs regexp "!!1113=" then @tb_treatment_start_date := date(replace(replace((substring_index(substring(obs,locate("!!1113=",obs)),@sep,1)),"!!1113=",""),"!!",""))
+                                        when obs regexp "!!1268=1256!!" then @tb_treatment_start_date := encounter_datetime
+                                        when obs regexp "!!1268=(1257|1259|1849|981)!!" then @tb_treatment_start_date := encounter_datetime
+                                        when obs regexp "!!1111=" and obs not regexp "!!1111=(1267|1107)!!" then @tb_treatment_start_date := encounter_datetime
+                                        else @tb_treatment_start_date := null
 									end
-								when obs regexp "!!1111=" and obs not regexp "!!1111=(1267|1107)!!" and @tb_treatment_start_date is null then @tb_treatment_start_date := encounter_datetime
-								when @prev_id=@cur_id then @tb_treatment_start_date
-								else @tb_treatment_start_date := null
+								when @cur_id = @prev_id then
+									case
+										when obs regexp "!!1113=" then @tb_treatment_start_date := date(replace(replace((substring_index(substring(obs,locate("!!1113=",obs)),@sep,1)),"!!1113=",""),"!!",""))
+                                        when @tb_treatment_start_date is not null then @tb_treatment_start_date
+										when obs regexp "!!1268=1256!!" then @tb_treatment_start_date := encounter_datetime
+                                        when obs regexp "!!1268=(1257|1259|1849|981)!!" then @tb_treatment_start_date := encounter_datetime
+                                        when obs regexp "!!1111=" and obs not regexp "!!1111=(1267|1107)!!" then @tb_treatment_start_date := encounter_datetime
+									end
 							end as tb_tx_start_date,
+
+                            # 1111 = PATIENT REPORTED CURRENT TUBERCULOSIS TREATMENT
+							# 1267 = COMPLETED
+							# 1107 = NONE
+							case
+								when @cur_id != @prev_id then
+									case
+										when obs regexp "!!2041=" then @tb_treatment_end_date := date(replace(replace((substring_index(substring(obs,locate("!!2041=",obs)),@sep,1)),"!!2041=",""),"!!",""))
+                                        when obs regexp "!!1268=1260!!" then @tb_treatment_end_date := encounter_datetime
+                                        else @tb_treatment_end_date := null
+									end
+								when @cur_id = @prev_id then
+									case
+										when obs regexp "!!2041=" then @tb_treatment_end_date := date(replace(replace((substring_index(substring(obs,locate("!!2041=",obs)),@sep,1)),"!!2041=",""),"!!",""))
+                                        when obs regexp "!!1268=1260!!" then @tb_treatment_end_date := encounter_datetime
+										when @tb_treatment_end_date is not null then @tb_treatment_end_date
+                                        when @tb_treatment_start_date is not null and obs regexp "!!6176=1066!!" and !(obs regexp "!!1268=(1256|1257|1259|1849|981)!!") then @tb_treatment_end_date := encounter_datetime
+									end
+							end as tb_tx_end_date,
 
 							# 1109 = PATIENT REPORTED CURRENT PCP PROPHYLAXIS
 							# 1261 = PCP PROPHYLAXIS PLAN
@@ -1215,6 +1247,7 @@ DELIMITER $$
 							tb_prophylaxis_start_date,
                             tb_prophylaxis_end_date,
 							tb_tx_start_date,
+							tb_tx_end_date,
 							pcp_prophylaxis_start_date,
 							cd4_resulted,
 							cd4_resulted_date,
