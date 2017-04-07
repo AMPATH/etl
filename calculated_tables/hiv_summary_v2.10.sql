@@ -52,7 +52,6 @@
 # added encounter type index so that flat_defaulters can execute much faster
 # added tb_screening_result indicator
 # added index for location_uuid_rtc_date
-# added hiv_exposed_occupational and pep_start_date
 
 drop procedure if exists generate_hiv_summary;
 DELIMITER $$
@@ -165,8 +164,6 @@ DELIMITER $$
 
 						prev_clinical_rtc_date_hiv datetime,
 							next_clinical_rtc_date_hiv datetime,
-							hiv_exposed_occupational boolean,
-							pep_start_date date,
 
 							primary key encounter_id (encounter_id),
 							index person_date (person_id, encounter_datetime),
@@ -250,7 +247,7 @@ DELIMITER $$
 							t1.obs_datetimes,
 							# in any visit, there many be multiple encounters. for this dataset, we want to include only clinical encounters (e.g. not lab or triage visit)
 							case
-								when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,120, 56) then 1
+								when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,120) then 1
 								else null
 							end as is_clinical_encounter,
 
@@ -263,7 +260,7 @@ DELIMITER $$
 								join new_data_person_ids_0 t0 using (person_id)
 								left join etl.flat_orders t2 using(encounter_id)
 						#		join new_data_person_ids t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
-							where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116,117,120, 56)
+							where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116,117,120)
 						);
 
 						insert into flat_hiv_summary_0a
@@ -357,10 +354,6 @@ DELIMITER $$
 
 						#Current WHO Stage
 						select @cur_who_stage := null;
-
-						#OCCUPATIONAL PEP
-						select @hiv_exposed_occupational := null;
-						select @pep_start_date := null;
 
 						#TO DO
 						# screened for cervical ca
@@ -1042,18 +1035,7 @@ DELIMITER $$
 								when obs regexp "!!1224=(1223)!!" then @cur_who_stage := 4
 								when @prev_id = @cur_id then @cur_who_stage
 								else @cur_who_stage := null
-							end as cur_who_stage,
-							case
-								when encounter_type = 56 and obs regexp "!!1972=(5619|5507|1496|6280|8710|8713|8714)" then @hiv_exposed_occupational := 1
-                                when encounter_type = 56 and !(obs regexp "!!1972=(5619|5507|1496|6280|8710|8713|8714)") then @hiv_exposed_occupational := 0
-                                when @prev_id = @cur_id then @hiv_exposed_occupational
-                                else @hiv_exposed_occupational := null
-							end as hiv_exposed_occupational,
-                            case
-								when encounter_type = 56 and (obs regexp "!!1705=1149" or obs regexp  "!!7123=") then @pep_start_date := encounter_datetime
-                                when @prev_id = @cur_id then @pep_start_date
-                                else @pep_start_date := null
-							end as pep_start_date
+							end as cur_who_stage
 
 						from flat_hiv_summary_0 t1
 							join amrs.person p using (person_id)
@@ -1253,9 +1235,8 @@ DELIMITER $$
 							prev_clinical_datetime_hiv,
 							next_clinical_datetime_hiv,
 							prev_clinical_rtc_date_hiv,
-						    next_clinical_rtc_date_hiv,
-							hiv_exposed_occupational,
-							pep_start_date
+						    next_clinical_rtc_date_hiv
+
 							from flat_hiv_summary_3 t1
 								join amrs.location t2 using (location_id));
 
