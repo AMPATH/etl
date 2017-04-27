@@ -198,7 +198,7 @@ DELIMITER $$
 					drop table if exists new_data_person_ids;
 					create temporary table new_data_person_ids(person_id int, primary key (person_id));
                   replace into new_data_person_ids
-                    (select distinct patient_id #, min(encounter_datetime) as start_date
+                    (select distinct patient_id # encounters changed after last update
                         from amrs.encounter
                         where date_changed > @last_update
                     );
