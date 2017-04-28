@@ -9,4 +9,5 @@ mysql etl < ../calculated_tables/hiv_summary_v2.11.sql
 mysql etl < ../calculated_tables/labs_and_imaging_v2.5.sql
 mysql etl < ../calculated_tables/vitals_v2.0.sql
 mysql etl < ../calculated_tables/hiv_vl_summary_v1.0.sql
+mysql etl < ../calculated_tables/pep_summary_v1.0.sql
 
