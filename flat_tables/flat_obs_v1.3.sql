@@ -9,6 +9,9 @@
 
 # v1.1 Notes:
 #      Added visit_id. This makes it easier to query for visits related indicators
+# v1.3 Notes:
+#   1. Added updated encounter tracking when updating flat_obs
+#   2. Removed voided patients' data from flat_obs
 
 
 select @table_version := "flat_obs_v1.3";
@@ -326,6 +329,11 @@ from flat_obs t1
 join amrs.person_attribute t2 using (person_id)
 where t2.person_attribute_type_id=28 and value='true';
 
+# remove voided patients
+delete t1
+from flat_obs t1
+join amrs.person t2 sing (person_id)
+where t2.voided=1;
 
 drop table voided_obs;
 
