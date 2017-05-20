@@ -7,7 +7,7 @@
 # 3. Add column definitions
 # 4. Add orders_set column definitions
 
-select @table_version := "flat_orders_v1.0";
+select @table_version := "flat_orders_v1.1";
 select @start := now();
 
 set session group_concat_max_len=100000;

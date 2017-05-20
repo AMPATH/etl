@@ -68,7 +68,7 @@ DELIMITER $$
 
 					select @start := now();
 					select @start := now();
-					select @table_version := "flat_hiv_summary_v2.11";
+					select @table_version := "flat_hiv_summary_v2.12";
 
 					set session sort_buffer_size=512000000;
 
@@ -180,8 +180,9 @@ DELIMITER $$
 						index location_enc_date (location_uuid,encounter_datetime),
 						index enc_date_location (encounter_datetime, location_uuid),
 						index location_id_rtc_date (location_id,rtc_date),
-            index location_uuid_rtc_date (location_uuid,rtc_date),
-            index encounter_type (encounter_type)
+                        index location_uuid_rtc_date (location_uuid,rtc_date),
+                        index loc_id_enc_date_next_clinical (location_id, encounter_datetime, next_clinical_datetime_hiv),
+                        index encounter_type (encounter_type)
 					);
 
 					select @last_update := (select max(date_updated) from etl.flat_log where table_name=@table_version);
