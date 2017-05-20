@@ -112,7 +112,7 @@ where t2.person_attribute_type_id=28 and value='true';
 # remove voided patients
 delete t1
 from flat_orders t1
-join amrs.person t2 sing (person_id)
+join amrs.person t2 using (person_id)
 where t2.voided=1;
 
 drop table voided_orders;
