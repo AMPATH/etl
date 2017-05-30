@@ -440,7 +440,7 @@ DELIMITER $$
 							case
 								when obs regexp "!!1285=(1287|9068)!!" then 1
 								when obs regexp "!!1596=1594!!" then 1
-								when obs regexp "!!9082=(1287|9068|9504)!!" then 1
+								when obs regexp "!!9082=(1287|9068|9504|1285)!!" then 1
 								else null
 							end as transfer_out,
 
@@ -449,7 +449,7 @@ DELIMITER $$
 								when obs regexp "!!1946=1065!!" then 1
 								when obs regexp "!!1285=(1287|9068)!!" then 1
 								when obs regexp "!!1596=" then 1
-								when obs regexp "!!9082=(159|9036|9083|1287|9068|9079|9504)!!" then 1
+								when obs regexp "!!9082=(159|9036|9083|1287|9068|9079|9504|1285)!!" then 1
 								when t1.encounter_type = @death_encounter_type then 1
 								else null
 							end as out_of_care,
