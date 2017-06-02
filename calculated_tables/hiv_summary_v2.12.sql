@@ -61,11 +61,16 @@
 
 #v2.12 Notes:
 # added encounter type 127 and 128 to is_clinical_encounter
+# Added Concept TRANSFER CARE TO OTHER CENTER to transfer_out indicator
+# Added ability to rebuild/sync at any day of the week
+# Added ability to continue rebuilding in case of an error
+# Renamed new_data_person_ids table to flat_hiv_summary_queue and made it permanent
+
 drop procedure if exists generate_hiv_summary;
 DELIMITER $$
 	CREATE PROCEDURE generate_hiv_summary()
 		BEGIN
-
+                    select @query_type := "sync"; # this can be either sync or rebuild
 					select @start := now();
 					select @start := now();
 					select @table_version := "flat_hiv_summary_v2.12";
@@ -198,55 +203,56 @@ DELIMITER $$
 					#select @last_update := "2016-09-12"; #date(now());
 					#select @last_date_created := "2015-11-17"; #date(now());
 
-					drop table if exists new_data_person_ids;
-					create temporary table new_data_person_ids(person_id int, primary key (person_id));
-                  replace into new_data_person_ids
-                    (select distinct patient_id #, min(encounter_datetime) as start_date
-                        from amrs.encounter
-                        where date_changed > @last_update
-                    );
+					# drop table if exists flat_hiv_summary_queue;
+					create  table if not exists flat_hiv_summary_queue(person_id int, primary key (person_id));
 
-                    replace into new_data_person_ids
-                    (select distinct person_id #, min(encounter_datetime) as start_date
-                        from etl.flat_obs
-                        where max_date_created > @last_update
-                    #	group by person_id
-                    # limit 10
-                    );
+					# we will add new patient id to be rebuilt when either we  are in sync mode or if the existing table is empty
+					# this will allow us to restart rebuilding the table if it crashes in the middle of a rebuild
+					select @num_ids := (select count(*) from flat_hiv_summary_queue limit 1);
 
-					(select distinct person_id #, min(encounter_datetime) as start_date
-						from etl.flat_obs
-						where max_date_created > @last_update
-					#	group by person_id
-					# limit 10
-					);
+					if (@num_ids=0 or @query_type="sync") then
 
-					replace into new_data_person_ids
-					(select distinct person_id
-						from etl.flat_lab_obs
-						where max_date_created > @last_update
-					);
+                        replace into flat_hiv_summary_queue
+                        (select distinct patient_id #, min(encounter_datetime) as start_date
+                            from amrs.encounter
+                            where date_changed > @last_update
+                        );
 
-					replace into new_data_person_ids
-					(select distinct person_id
-						from etl.flat_orders
-						where max_date_created > @last_update
-					);
 
-					select @person_ids_count := (select count(*) from new_data_person_ids);
+                        replace into flat_hiv_summary_queue
+                        (select distinct person_id #, min(encounter_datetime) as start_date
+                            from etl.flat_obs
+                            where max_date_created > @last_update
+                        #	group by person_id
+                        # limit 10
+                        );
 
-					delete t1 from flat_hiv_summary t1 join new_data_person_ids t2 using (person_id);
+                        replace into flat_hiv_summary_queue
+                        (select distinct person_id
+                            from etl.flat_lab_obs
+                            where max_date_created > @last_update
+                        );
+
+                        replace into flat_hiv_summary_queue
+                        (select distinct person_id
+                            from etl.flat_orders
+                            where max_date_created > @last_update
+                        );
+					  end if;
+
+					select @person_ids_count := (select count(*) from flat_hiv_summary_queue);
+
+					delete t1 from flat_hiv_summary t1 join flat_hiv_summary_queue t2 using (person_id);
 
 					while @person_ids_count > 0 do
 
 						#create temp table with a set of person ids
-						drop table if exists new_data_person_ids_0;
+						drop table if exists flat_hiv_summary_queue_0;
 
-						create temporary table new_data_person_ids_0 (select * from new_data_person_ids limit 10000); #TODO - change this when data_fetch_size changes
+						create temporary table flat_hiv_summary_queue_0 (select * from flat_hiv_summary_queue limit 5000); #TODO - change this when data_fetch_size changes
 
-						delete from new_data_person_ids where person_id in (select person_id from new_data_person_ids_0);
 
-						select @person_ids_count := (select count(*) from new_data_person_ids);
+						select @person_ids_count := (select count(*) from flat_hiv_summary_queue);
 
 						drop table if exists flat_hiv_summary_0a;
 						create temporary table flat_hiv_summary_0a
@@ -272,9 +278,9 @@ DELIMITER $$
 
 							t2.orders
 							from etl.flat_obs t1
-								join new_data_person_ids_0 t0 using (person_id)
+								join flat_hiv_summary_queue_0 t0 using (person_id)
 								left join etl.flat_orders t2 using(encounter_id)
-						#		join new_data_person_ids t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
+						#		join flat_hiv_summary_queue t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
 							where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,115,116,117,120,127,128,129)
 						);
 
@@ -293,7 +299,7 @@ DELIMITER $$
 							1 as encounter_type_sort_index,
 							null
 							from etl.flat_lab_obs t1
-								join new_data_person_ids_0 t0 using (person_id)
+								join flat_hiv_summary_queue_0 t0 using (person_id)
 						);
 
 						drop table if exists flat_hiv_summary_0;
@@ -440,7 +446,7 @@ DELIMITER $$
 							case
 								when obs regexp "!!1285=(1287|9068)!!" then 1
 								when obs regexp "!!1596=1594!!" then 1
-								when obs regexp "!!9082=(1287|9068|9504)!!" then 1
+								when obs regexp "!!9082=(1287|9068|9504|1285)!!" then 1
 								else null
 							end as transfer_out,
 
@@ -449,7 +455,7 @@ DELIMITER $$
 								when obs regexp "!!1946=1065!!" then 1
 								when obs regexp "!!1285=(1287|9068)!!" then 1
 								when obs regexp "!!1596=" then 1
-								when obs regexp "!!9082=(159|9036|9083|1287|9068|9079|9504)!!" then 1
+								when obs regexp "!!9082=(159|9036|9083|1287|9068|9079|9504|1285)!!" then 1
 								when t1.encounter_type = @death_encounter_type then 1
 								else null
 							end as out_of_care,
@@ -1285,6 +1291,8 @@ DELIMITER $$
 						    next_clinical_rtc_date_hiv
 							from flat_hiv_summary_3 t1
 								join amrs.location t2 using (location_id));
+
+				    delete from flat_hiv_summary_queue where person_id in (select person_id from flat_hiv_summary_queue_0);
 
 				 end while;
 
