@@ -65,6 +65,7 @@
 # Added ability to rebuild/sync at any day of the week
 # Added ability to continue rebuilding in case of an error
 # Renamed new_data_person_ids table to flat_hiv_summary_queue and made it permanent
+# Added 1594 (PATIENT TRANSFERRED OUT) to transfer_out indicator
 
 drop procedure if exists generate_hiv_summary;
 DELIMITER $$
@@ -446,7 +447,7 @@ DELIMITER $$
 							case
 								when obs regexp "!!1285=(1287|9068)!!" then 1
 								when obs regexp "!!1596=1594!!" then 1
-								when obs regexp "!!9082=(1287|9068|9504|1285)!!" then 1
+								when obs regexp "!!9082=(1287|1594|9068|9504|1285)!!" then 1
 								else null
 							end as transfer_out,
 
