@@ -273,6 +273,7 @@ DELIMITER $$
 							end as is_clinical_encounter,
 
 						    case
+						        when t1.encounter_type in (116) then 20
 								when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,129) then 10
 								else 1
 							end as encounter_type_sort_index,
