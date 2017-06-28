@@ -29,6 +29,7 @@ where next_encounter_datetime_hiv is null #and rtc_date <= date_sub(now(),interv
 	and death_date is null
   and encounter_type!=116
 	and out_of_care is null
+	and transfer_out is null
 );
 
 drop table if exists universal_ids;
