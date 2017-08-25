@@ -1385,6 +1385,12 @@ DELIMITER $$
 
 				 end while;
 
+				# Remove test patients
+				delete t1
+				from flat_hiv_summary t1
+				join amrs.person_attribute t2 using (person_id)
+				where t2.person_attribute_type_id=28 and value='true' and voided=0;
+
 				 select @end := now();
 				 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");

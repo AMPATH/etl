@@ -323,11 +323,7 @@ replace into flat_obs
 	where o.voided=0
 	group by o.encounter_id
 );
-# Remove test patients
-delete t1
-from flat_obs t1
-join amrs.person_attribute t2 using (person_id)
-where t2.person_attribute_type_id=28 and value='true';
+
 
 # remove voided patients
 delete t1

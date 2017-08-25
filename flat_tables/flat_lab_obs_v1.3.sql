@@ -164,11 +164,6 @@ replace into flat_lab_obs
 #select * from flat_lab_obs where person_id in (386322,152885,783334)
 
 
-# Remove test patients
-delete t1
-from flat_lab_obs t1
-join amrs.person_attribute t2 using (person_id)
-where t2.person_attribute_type_id=28 and value='true';
 
 drop table voided_obs;
 select @end := now();

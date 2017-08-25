@@ -230,6 +230,11 @@ replace into flat_labs_and_imaging
 from flat_labs_and_imaging_1 t1
 );
 
+# Remove test patients
+delete t1
+from flat_labs_and_imaging t1
+join amrs.person_attribute t2 using (person_id)
+where t2.person_attribute_type_id=28 and value='true' and voided=0;
 
 #select * from flat_labs_and_imaging;
 
