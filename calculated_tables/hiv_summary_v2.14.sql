@@ -75,6 +75,11 @@
 #    transfer_date_bncd,
 #    transfer_transfer_out_bncd
 
+#v2.14 Notes:
+# added:
+# prev_clinical_location_id
+# next_clinical_location_id
+
 drop procedure if exists generate_hiv_summary;
 DELIMITER $$
 	CREATE PROCEDURE generate_hiv_summary()
@@ -82,7 +87,7 @@ DELIMITER $$
                     select @query_type := "sync"; # this can be either sync or rebuild
 					select @start := now();
 					select @start := now();
-					select @table_version := "flat_hiv_summary_v2.13";
+					select @table_version := "flat_hiv_summary_v2.14";
 
 					set session sort_buffer_size=512000000;
 
@@ -184,8 +189,11 @@ DELIMITER $$
 						next_encounter_type_hiv mediumint,
 						prev_clinical_datetime_hiv datetime,
 						next_clinical_datetime_hiv datetime,
+                        prev_clinical_location_id mediumint,
+                        next_clinical_location_id mediumint,
 						prev_clinical_rtc_date_hiv datetime,
                         next_clinical_rtc_date_hiv datetime,
+
 
                         #bncd means before next clinical datetime
                         outreach_date_bncd datetime,
@@ -1122,6 +1130,9 @@ DELIMITER $$
 						select @next_encounter_type := null;
 						select @cur_encounter_type := null;
 
+                        select @prev_clinical_location_id := null;
+						select @cur_clinical_location_id := null;
+
 
 						alter table flat_hiv_summary_1 drop prev_id, drop cur_id;
 
@@ -1150,11 +1161,22 @@ DELIMITER $$
 								else @prev_clinical_datetime := null
 							end as next_clinical_datetime_hiv,
 
+                            case
+								when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
+								else @prev_clinical_location_id := null
+							end as next_clinical_location_id,
+
 							case
 								when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
 								when @prev_id = @cur_id then @cur_clinical_datetime
 								else @cur_clinical_datetime := null
 							end as cur_clinic_datetime,
+
+                            case
+								when is_clinical_encounter then @cur_clinical_location_id := location_id
+								when @prev_id = @cur_id then @cur_clinical_location_id
+								else @cur_clinical_location_id := null
+							end as cur_clinic_location_id,
 
 						    case
 								when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
@@ -1247,6 +1269,8 @@ DELIMITER $$
 						select @cur_encounter_datetime := null;
 						select @prev_clinical_datetime := null;
 						select @cur_clinical_datetime := null;
+                        select @prev_clinical_location_id := null;
+						select @cur_clinical_location_id := null;
 
 						drop temporary table if exists flat_hiv_summary_3;
 						create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, prev_encounter_type int, index person_enc (person_id, encounter_datetime desc))
@@ -1258,23 +1282,37 @@ DELIMITER $$
 							case
 						        when @prev_id=@cur_id then @prev_encounter_type := @cur_encounter_type
 						        else @prev_encounter_type:=null
-							end as prev_encounter_type_hiv,	@cur_encounter_type := encounter_type as cur_encounter_type,
+							end as prev_encounter_type_hiv,	
+                            @cur_encounter_type := encounter_type as cur_encounter_type,
 
 							case
 						        when @prev_id=@cur_id then @prev_encounter_datetime := @cur_encounter_datetime
 						        else @prev_encounter_datetime := null
-						    end as prev_encounter_datetime_hiv, @cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
+						    end as prev_encounter_datetime_hiv,
+
+                            @cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 							case
 								when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 								else @prev_clinical_datetime := null
 							end as prev_clinical_datetime_hiv,
 
+                            case
+								when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
+								else @prev_clinical_location_id := null
+							end as prev_clinical_location_id,
+
 							case
 								when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
 								when @prev_id = @cur_id then @cur_clinical_datetime
 								else @cur_clinical_datetime := null
 							end as cur_clinical_datetime,
+
+                            case
+								when is_clinical_encounter then @cur_clinical_location_id := location_id
+								when @prev_id = @cur_id then @cur_clinical_location_id
+								else @cur_clinical_location_id := null
+							end as cur_clinical_location_id,
 
 							case
 								when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
@@ -1371,6 +1409,8 @@ DELIMITER $$
 							next_encounter_type_hiv,
 							prev_clinical_datetime_hiv,
 							next_clinical_datetime_hiv,
+                            prev_clinical_location_id,
+							next_clinical_location_id,
 							prev_clinical_rtc_date_hiv,
 						    next_clinical_rtc_date_hiv,
                             outreach_date_bncd,
