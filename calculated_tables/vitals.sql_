@@ -7,12 +7,8 @@
 # It seems that if you don't create the temporary table first, the sort is applied
 # to the final result. Any references to the previous row will not an ordered row.
 
-# v2.0 Notes:
-#      Added encounter types for GENERALNOTE (112), CLINICREVIEW (113), MOH257BLUECARD (114), HEIFOLLOWUP (115)
-#      Added timestamp to logging
-
 select @start:= now();
-select @table_version := "flat_vitals_v2.0";
+select @table_version := "flat_vitals";
 
 set session sort_buffer_size=512000000;
 
@@ -75,7 +71,7 @@ create temporary table flat_vitals_0(encounter_id int, primary key (encounter_id
 	t1.obs_datetimes
 	from flat_obs t1
 		join new_data_person_ids t0 using (person_id)
-	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,32,33,43,47,110,112,113,114,115)
+	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,32,33,43,47,110,111)
 	order by person_id, encounter_datetime
 );
 

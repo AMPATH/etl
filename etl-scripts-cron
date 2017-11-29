@@ -1,0 +1,3 @@
+37 * * * * root /opt/etl/database_updates/update_calculated_tables_hourly
+0-59/5 * * * * root /opt/etl/database_updates/update_flat_tables_and_calculated_tables > etl_log
+#* 01 * * * /opt/etl/database_updates/update_lab_tables > etl_log
