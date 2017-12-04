@@ -291,13 +291,13 @@ DELIMITER $$
 							t1.obs_datetimes,
 							# in any visit, there many be multiple encounters. for this dataset, we want to include only clinical encounters (e.g. not lab or triage visit)
 							case
-								when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,129) then 1
+								when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,129,153,154) then 1
 								else null
 							end as is_clinical_encounter,
 
 						    case
 						        when t1.encounter_type in (116) then 20
-								when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,129) then 10
+								when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,129,153,154) then 10
 								else 1
 							end as encounter_type_sort_index,
 
@@ -306,7 +306,7 @@ DELIMITER $$
 								join flat_hiv_summary_queue_0 t0 using (person_id)
 								left join etl.flat_orders t2 using(encounter_id)
 						#		join flat_hiv_summary_queue t0 on t1.person_id=t0.person_id and t1.encounter_datetime >= t0.start_date
-							where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129)
+							where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,153,154)
 							AND NOT obs regexp "!!5303=(822|664)!!"
 						);
 
