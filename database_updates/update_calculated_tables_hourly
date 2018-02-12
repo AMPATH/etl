@@ -2,4 +2,4 @@
 parent_path=$( cd "$(dirname "${BASH_SOURCE}")" ; pwd -P )
 cd "$parent_path"
 #git pull
-mysql etl < ../calculated_tables/defaulters_v2.3.sql
+mysql -u$(< /run/secrets/etl_user)  -p$(< /run/secrets/etl_password) etl < ../calculated_tables/defaulters_v2.3.sql
