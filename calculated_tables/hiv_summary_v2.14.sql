@@ -555,6 +555,8 @@ DELIMITER $$
 							end as arv_first_regimen,
 
 							case
+								when @arv_first_regimen_start_date is null and obs regexp '!!1499=' and encounter_type in (1,3,105) THEN @arv_first_regimen_start_date := date(replace(replace((substring_index(substring(obs,locate("!!1499=",obs)),@sep,1)),"!!1499=",""),"!!",""))
+        						when @arv_first_regimen_start_date is null and obs regexp '!!8247=' and encounter_type in (1,3,105) THEN @arv_first_regimen_start_date := date(replace(replace((substring_index(substring(obs,locate("!!8247=",obs)),@sep,1)),"!!8247=",""),"!!",""))
 								when @arv_first_regimen_start_date is null and (obs regexp "!!1255=(1256|1259|1850)" or obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!") then @arv_first_regimen_start_date := date(t1.encounter_datetime)
 								when @prev_id != @cur_id then @arv_first_regimen_start_date := null
                                 else @arv_first_regimen_start_date
@@ -592,13 +594,14 @@ DELIMITER $$
 							# 1260 = STOP ALL MEDICATIONS
 
 							case
+								when obs regexp '!!1499=' and encounter_type in (1,3,105) THEN @arv_start_date := date(replace(replace((substring_index(substring(obs,locate("!!1499=",obs)),@sep,1)),"!!1499=",""),"!!",""))
+        						when obs regexp '!!8247=' and encounter_type in (1,3,105) THEN @arv_start_date := date(replace(replace((substring_index(substring(obs,locate("!!8247=",obs)),@sep,1)),"!!8247=",""),"!!",""))
 								when obs regexp "!!1255=(1256|1259|1850)" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_date := date(t1.encounter_datetime)
 								when obs regexp "!!1255=(1107|1260)!!" then @arv_start_date := null
 								when @cur_arv_meds != @prev_arv_meds and @cur_arv_line != @prev_arv_line then @arv_start_date := date(t1.encounter_datetime)
 								when @prev_id != @cur_id then @arv_start_date := null
 								else @arv_start_date
 							end as arv_start_date,
-
 							case
 								when @prev_arv_start_date != @arv_start_date then @prev_arv_end_date  := date(t1.encounter_datetime)
 								else @prev_arv_end_date
