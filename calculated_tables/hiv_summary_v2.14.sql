@@ -543,21 +543,28 @@ DELIMITER $$
 									replace(replace((substring_index(substring(obs,locate("!!1088=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!1088=", "") ) ) / LENGTH("!!1088=") ))),"!!1088=",""),"!!","")
 								when obs regexp "!!2154=" then @cur_arv_meds :=
 									replace(replace((substring_index(substring(obs,locate("!!2154=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!2154=", "") ) ) / LENGTH("!!2154=") ))),"!!2154=",""),"!!","")
-								when @prev_id=@cur_id then @cur_arv_meds
+								when @prev_id = @cur_id then @cur_arv_meds
 								else @cur_arv_meds:= null
 							end as cur_arv_meds,
 
 
 							case
+								when @arv_first_regimen is null and obs regexp "!!2157=" then
+										@arv_first_regimen := replace(replace((substring_index(substring(obs,locate("!!2157=",obs)),@sep,ROUND ((LENGTH(obs) - LENGTH( REPLACE ( obs, "!!2157=", "") ) ) / LENGTH("!!2157=") ))),"!!2157=",""),"!!","")
+								when obs regexp "!!7015=" and @arv_first_regimen is null then @arv_first_regimen := "unknown"
 								when @arv_first_regimen is null and @cur_arv_meds is not null then @arv_first_regimen := @cur_arv_meds
 								when @prev_id = @cur_id then @arv_first_regimen
-								else @arv_first_regimen := null
+								when @prev_id != @cur_id then @arv_first_regimen := null
+								else "-1"
 							end as arv_first_regimen,
 
 							case
-								when @arv_first_regimen_start_date is null and (obs regexp "!!1255=(1256|1259|1850)" or obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!") then @arv_first_regimen_start_date := date(t1.encounter_datetime)
+								when @arv_first_regimen_start_date is null and obs regexp "!!1499=" then @arv_first_regimen_start_date := replace(replace((substring_index(substring(obs,locate("!!1499=",obs)),@sep,1)),"!!1499=",""),"!!","")
+								when obs regexp "!!7015=" and @arv_first_regimen_start_date is null then @arv_first_regimen_start_date := date(t1.encounter_datetime)
+								when @arv_first_regimen_start_date is null and @cur_arv_meds is not null then @arv_first_regimen_start_date := date(t1.encounter_datetime)
+								when @prev_id = @cur_id then @arv_first_regimen_start_date
 								when @prev_id != @cur_id then @arv_first_regimen_start_date := null
-                                else @arv_first_regimen_start_date
+								else @arv_first_regimen_start_date
 							end as arv_first_regimen_start_date,
 
 							case
