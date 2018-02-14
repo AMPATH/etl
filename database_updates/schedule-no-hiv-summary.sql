@@ -1,4 +1,4 @@
-insert into etl.flat_hiv_summary_queue (SELECT
+replace into etl.flat_hiv_summary_queue (SELECT
     DISTINCT fo.person_id
 FROM
     etl.flat_obs fo left outer join etl.flat_hiv_summary hs on fo.person_id = hs.person_id
