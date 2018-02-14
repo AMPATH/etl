@@ -5,7 +5,7 @@ cd "$parent_path"
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_obs_v1.3.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_orders_v1.1.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_lab_obs_v1.3.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/schedule-no-hiv-summary.sql 
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./schedule-no-hiv-summary.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/hiv_summary_v2.14.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/labs_and_imaging_v2.5.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/vitals_v2.0.sql
