@@ -29,4 +29,4 @@ WHERE
         138,
         153,
         154,
-        158) and hs.person_id is null limit 300);
+        158) and hs.person_id is null limit 150);
