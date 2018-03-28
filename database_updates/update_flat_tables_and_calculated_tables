@@ -9,7 +9,7 @@ mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../fla
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/hiv_summary_v2.14.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/generate_flat_hiv_summary.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/generate_hiv_monthly_report_dataset.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/labs_and_imaging_v2.5.sql
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/generate_flat_tests_and_imaging.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/vitals_v2.0.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/hiv_vl_summary_v1.0.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/pep_summary_v1.0.sql
