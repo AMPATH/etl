@@ -441,6 +441,7 @@ BEGIN
 							@dm_status := GetValues(obs,7287) as dm_status,
                             @htn_status := GetValues(obs,7288) as htn_status,
                             @dm_meds := GetValues(obs,7290) as dm_meds,
+							@htn_med := GetValues(obs,7332) as htn_med,
                             t2.prescriptions as prescriptions,
 
                             @problems := GetValues(obs,6042 ) as problems
@@ -639,7 +640,7 @@ BEGIN
                         dm_status,
                         htn_status,
                         dm_meds,
-                        null, #htn_meds,
+                        htn_med,
                         prescriptions,
                         problems,
                         
