@@ -22,7 +22,7 @@ create temporary table flat_defaulters_0 (encounter_id int, primary key (encount
 	arv_start_date,
 	t1.encounter_type
 
-from flat_hiv_summary t1
+from flat_hiv_summary_v15b t1
 where next_encounter_datetime_hiv is null #and rtc_date <= date_sub(now(),interval 90 day)
 #	and if(rtc_date,date_add(rtc_date,interval 90 day),date_add(t1.encounter_datetime,interval 180 day)) <= now()
 	and if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)) < now()
