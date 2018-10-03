@@ -1,0 +1,6 @@
+#!/bin/bash
+parent_path=$( cd "$(dirname "${BASH_SOURCE}")" ; pwd -P )
+cd "$parent_path"
+
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_hiv_summary_and_monthly_set.sql
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_cdm_summary_and_monthly_set.sql
