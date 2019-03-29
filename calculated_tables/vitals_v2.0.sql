@@ -75,7 +75,7 @@ create temporary table flat_vitals_0(encounter_id int, primary key (encounter_id
 	t1.obs_datetimes
 	from flat_obs t1
 		join new_data_person_ids t0 using (person_id)
-	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,32,33,43,47,110,112,113,114,115)
+	where encounter_type in (1,2,3,4,10,13,14,15,17,19,22,23,26,32,33,43,47,110,112,113,114,115,141,130,96,131,55,54,79,78,188,171,172,117,106,105,134,133,162,163)
 	order by person_id, encounter_datetime
 );
 
