@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_summary_v15_6`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_hiv_summary_v15_8`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
                     set @primary_table := "flat_hiv_summary_v15b";
                     set @query_type = query_type;
@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.15";
+                    set @table_version = "flat_hiv_summary_v2.17";
 
                     set session sort_buffer_size=512000000;
 
@@ -48,6 +48,7 @@ BEGIN
                         arv_first_regimen varchar(500),
                         arv_first_regimen_location_id int,
                         arv_first_regimen_start_date datetime,
+                        arv_first_regimen_start_date_flex datetime,
                         prev_arv_meds varchar(500),
                         cur_arv_meds varchar(500),
                         cur_arv_meds_strict varchar(500),                        
@@ -267,15 +268,16 @@ BEGIN
                             t1.location_id,
                             t1.obs,
                             t1.obs_datetimes,
+
                             
                             case
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,129,138,153,154,158,162,163) then 1
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,129,138,140,153,154,158,162,163) then 1
                                 else null
                             end as is_clinical_encounter,
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 153,154,158,162,163) then 10
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -284,7 +286,7 @@ BEGIN
                             from etl.flat_obs t1
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,153,154,158, 161,162,163)
+                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -328,7 +330,8 @@ BEGIN
                         set @arv_start_date = null;
                         set @prev_arv_end_date = null;
                         set @arv_start_location_id = null;
-                        set @art_first_regimen_start_date = null;
+                        set @arv_first_regimen_start_date = null;
+                        set @arv_first_regimen_start_date_flex = null;
                         set @arv_first_regimen = null;
                         set @prev_arv_line = null;
                         set @cur_arv_line = null;
@@ -577,7 +580,8 @@ BEGIN
                             
                             
                             
-                            
+                            #2154 : PATIENT REPORTED CURRENT ANTIRETROVIRAL TREATMENT
+                            #2157 : PATIENT REPORTED PAST ANTIRETROVIRAL TREATMENT
                             case
                                 when obs regexp "!!1255=(1107|1260)!!" then @cur_arv_meds := null
                                 when obs regexp "!!1250=" then @cur_arv_meds := normalize_arvs(obs,'1250')
@@ -595,6 +599,7 @@ BEGIN
                             
 
                             case
+								when 1 then null
                                 when obs regexp "!!1255=(1107|1260)!!" then null
                                 when obs regexp "!!1250=" then @cur_arv_meds := normalize_arvs(obs,'1250')
                                     
@@ -609,7 +614,136 @@ BEGIN
                             end as cur_arv_meds_strict,
 
 
+							case
+                                when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
+                                else @prev_clinical_datetime := null
+                            end as prev_clinical_datetime_hiv,
+                            
+                            case
+                                when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
+                                when @prev_id = @cur_id then @cur_clinical_datetime
+                                else @cur_clinical_datetime := null
+                            end as cur_clinical_datetime,
+                            
+                            
+							case
+                                when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
+                                else @prev_clinical_rtc_date := null
+                            end as prev_clinical_rtc_date_hiv,
 
+                            case
+                                when is_clinical_encounter then @cur_clinical_rtc_date := @cur_rtc_date
+                                when @prev_id = @cur_id then @cur_clinical_rtc_date
+                                else @cur_clinical_rtc_date:= null
+                            end as cur_clinic_rtc_date,
+
+                            
+                            CASE                             
+                                WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+									AND obs REGEXP '!!1499='
+                                THEN
+                                    @arv_first_regimen_start_date:=GetValues(obs,1499)                                        
+
+                                WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
+                                THEN
+                                    @arv_first_regimen_start_date:='1900-01-01'
+
+                                WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
+                                THEN
+                                    @arv_first_regimen_start_date:=DATE(encounter_datetime)
+
+                                    
+								WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'
+										AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+                                THEN
+                                    @arv_first_regimen_start_date:= "1900-01-01" #DATE(encounter_datetime)
+
+                                WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
+										AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+                                THEN
+                                    @arv_first_regimen_start_date:= "1900-01-01" # DATE(encounter_datetime)
+
+                                WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                        AND @cur_arv_meds IS NOT NULL
+                                THEN
+                                    @arv_first_regimen_start_date:='1900-01-01'
+                                WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
+                                WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
+                                ELSE @arv_first_regimen_start_date
+                            END AS arv_first_regimen_start_date,
+                            
+
+
+                            
+                            /*
+							CASE                             
+                                WHEN
+                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+									AND obs REGEXP '!!1499='
+                                THEN
+                                    @arv_first_regimen_start_date_flex := GetValues(obs,1499)                               
+								WHEN
+                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
+                                THEN
+                                    @arv_first_regimen_start_date_flex :='1900-01-01'
+
+                                WHEN
+                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
+                                THEN
+                                    @arv_first_regimen_start_date_flex:=DATE(encounter_datetime)
+
+
+								WHEN
+                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'                                        
+                                        AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+                                        
+                                THEN
+                                    @arv_first_regimen_start_date_flex :=date(encounter_datetime)
+
+                                WHEN
+                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
+                                        AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+                                        
+                                THEN
+                                    @arv_first_regimen_start_date_flex :=date(encounter_datetime)
+
+                                WHEN
+                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+                                        AND @cur_arv_meds IS NOT NULL
+                                THEN
+                                    @arv_first_regimen_start_date_flex:='1900-01-01'
+                                WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date_flex
+                                WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date_flex:=NULL
+                                ELSE @arv_first_regimen_start_date_flex
+                            END 
+                            */
+                            null AS arv_first_regimen_start_date_flex,
+
+
+
+/*
                             case
                                 when @arv_first_regimen is null and obs regexp "!!2157=" and not obs regexp "!!2157=1066" then @arv_first_regimen := normalize_arvs(obs,'2157')
                                 when obs regexp "!!7015=" and @arv_first_regimen is null then @arv_first_regimen := "unknown"
@@ -618,53 +752,61 @@ BEGIN
                                 when @prev_id != @cur_id then @arv_first_regimen := @cur_arv_meds
                                 else "-1"
                             end as arv_first_regimen,
+*/
+						
+							CASE                             
+                                WHEN
+                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+									AND obs REGEXP '!!1499='
+                                THEN
+                                    @arv_first_regimen:= "unknown"
 
+                                WHEN
+                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
+                                THEN
+                                    @arv_first_regimen:= "unknown"
 
-                            
-                            CASE 
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL
-                                        || (@arv_first_regimen_start_date IS NOT NULL
-                                        AND @prev_id != @cur_id))
-                                        AND obs REGEXP '!!1499='
+                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
                                 THEN
-                                    @arv_first_regimen_start_date:=REPLACE(REPLACE((SUBSTRING_INDEX(SUBSTRING(obs, LOCATE('!!1499=', obs)),
-                                                    @sep,
-                                                    1)),
-                                            '!!1499=',
-                                            ''),
-                                        '!!',
-                                        '')
-                                WHEN
-                                    (@arv_first_regimen_start_date IS NULL
-                                        || (@arv_first_regimen_start_date IS NOT NULL
-                                        AND @prev_id != @cur_id))
-                                        AND obs REGEXP '!!7015='
-                                        AND (obs REGEXP '!!1255=(1256)!!'
-                                        || obs REGEXP '!!1250=')
+                                    @arv_first_regimen := @cur_arv_meds
+
+                                    
+								WHEN
+                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'
+										AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+
                                 THEN
-                                    @arv_first_regimen_start_date:=DATE(encounter_datetime)
+                                    @arv_first_regimen:= "unknown" #@cur_arv_meds
+
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL
-                                        || (@arv_first_regimen_start_date IS NOT NULL
-                                        AND @prev_id != @cur_id))
-                                        AND obs REGEXP '!!7015='
+                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
+										AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+
                                 THEN
-                                    @arv_first_regimen_start_date:='1900-01-01'
+                                    @arv_first_regimen:= "unknown" #@cur_arv_meds
+
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL
-                                        || (@arv_first_regimen_start_date IS NOT NULL
-                                        AND @prev_id != @cur_id))
+                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
-                                    @arv_first_regimen_start_date:=DATE(encounter_datetime)
-                                WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
-                                WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
-                                ELSE @arv_first_regimen_start_date
-                            END AS arv_first_regimen_start_date,
-                            
-                            
-						                            
+                                    @arv_first_regimen := "unknown"
+                                    
+                                WHEN @prev_id = @cur_id THEN @arv_first_regimen
+                                WHEN @prev_id != @cur_id THEN @arv_first_regimen:=NULL
+                                ELSE @arv_first_regimen
+                            END AS arv_first_regimen,
+                                              
+                                              
+/*						                            
                             case																	
                                 when @arv_first_regimen is null and obs regexp "!!1499=" then  @arv_first_regimen_location_id := 9999
                                 when @prev_id != @cur_id and @cur_arv_meds is not null then @arv_first_regimen_location_id := location_id                                
@@ -673,6 +815,56 @@ BEGIN
                                 when @prev_id != @cur_id then @arv_first_regimen_location_id := null
                                 else "-1"
                             end as arv_first_regimen_location_id,
+*/
+
+							CASE                             
+                                WHEN
+                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+									AND obs REGEXP '!!1499='
+                                THEN
+                                    @arv_first_regimen_location_id := 9999                                         
+
+                                WHEN
+                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
+                                THEN
+                                    @arv_first_regimen_location_id:=9999
+
+                                WHEN
+                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
+                                THEN
+                                    @arv_first_regimen_location_id:=location_id
+
+                                    
+								WHEN
+                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'
+										AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+                                THEN
+                                    @arv_first_regimen_location_id:= 9999 #location_id
+
+                                WHEN
+                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
+										AND not obs regexp'!!7015='
+										AND (@prev_clinical_datetime is null 
+														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
+                                THEN
+                                    @arv_first_regimen_location_id:= 9999 #location_id
+
+                                WHEN
+                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                        AND @cur_arv_meds IS NOT NULL
+                                THEN
+                                    @arv_first_regimen_location_id:=9999
+                                WHEN @prev_id = @cur_id THEN @arv_first_regimen_location_id
+                                WHEN @prev_id != @cur_id THEN @arv_first_regimen_location_id:=NULL
+                                ELSE @arv_first_regimen_location_id
+                            END AS arv_first_regimen_location_id,
+
 
 
                             case
@@ -913,7 +1105,7 @@ BEGIN
                             
                             
                             case
-                                when obs regexp "!!1266=!!" then @ipt_stop_date :=  encounter_datetime
+                                when obs regexp "!!1266=" then @ipt_stop_date :=  encounter_datetime
                                 when @cur_id = @prev_id then @ipt_stop_date
                                 when @cur_id != @prev_id then @ipt_stop_date := null
                                 else @ipt_stop_date
@@ -1241,14 +1433,22 @@ BEGIN
                             
                             
                             case
-                                when obs regexp "!!5356=(1204)!!" then @cur_who_stage := 1
-                                when obs regexp "!!5356=(1205)!!" then @cur_who_stage := 2
-                                when obs regexp "!!5356=(1206)!!" then @cur_who_stage := 3
-                                when obs regexp "!!5356=(1207)!!" then @cur_who_stage := 4
-                                when obs regexp "!!1224=(1220)!!" then @cur_who_stage := 1
-                                when obs regexp "!!1224=(1221)!!" then @cur_who_stage := 2
-                                when obs regexp "!!1224=(1222)!!" then @cur_who_stage := 3
-                                when obs regexp "!!1224=(1223)!!" then @cur_who_stage := 4
+                                when obs regexp "!!5356=(1204|1220)!!" then @cur_who_stage := 1
+                                when obs regexp "!!5356=(1205|1221)!!" then @cur_who_stage := 2
+                                when obs regexp "!!5356=(1206|1222)!!" then @cur_who_stage := 3
+                                when obs regexp "!!5356=(1207|1223)!!" then @cur_who_stage := 4
+                                when obs regexp "!!8287=(1204|1220)!!" then @cur_who_stage := 1
+                                when obs regexp "!!8287=(1205|1221)!!" then @cur_who_stage := 2
+                                when obs regexp "!!8287=(1206|1222)!!" then @cur_who_stage := 3
+                                when obs regexp "!!8287=(1207|1223)!!" then @cur_who_stage := 4
+                                when obs regexp "!!1224=(1204|1220)!!" then @cur_who_stage := 1
+                                when obs regexp "!!1224=(1205|1221)!!" then @cur_who_stage := 2
+                                when obs regexp "!!1224=(1206|1222)!!" then @cur_who_stage := 3
+                                when obs regexp "!!1224=(1207|1223)!!" then @cur_who_stage := 4
+								when obs regexp "!!8307=(1204|1220)!!" then @cur_who_stage := 1
+                                when obs regexp "!!8307=(1205|1221)!!" then @cur_who_stage := 2
+                                when obs regexp "!!8307=(1206|1222)!!" then @cur_who_stage := 3
+                                when obs regexp "!!8307=(1207|1223)!!" then @cur_who_stage := 4
                                 when @prev_id = @cur_id then @cur_who_stage
                                 else @cur_who_stage := null
                             end as cur_who_stage,
@@ -1289,7 +1489,7 @@ BEGIN
                         set @cur_clinical_location_id = null;
 
 
-                        alter table flat_hiv_summary_1 drop prev_id, drop cur_id;
+                        alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
 
                         drop table if exists flat_hiv_summary_2;
                         create temporary table flat_hiv_summary_2
@@ -1448,28 +1648,32 @@ BEGIN
 
                             @cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
+/* Moved to flat_hiv_summary_1
                             case
                                 when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
                                 else @prev_clinical_datetime := null
                             end as prev_clinical_datetime_hiv,
 
                             case
-                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
-                                else @prev_clinical_location_id := null
-                            end as prev_clinical_location_id,
-
-                            case
                                 when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
                                 when @prev_id = @cur_id then @cur_clinical_datetime
                                 else @cur_clinical_datetime := null
                             end as cur_clinical_datetime,
+*/
+
+                            case
+                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
+                                else @prev_clinical_location_id := null
+                            end as prev_clinical_location_id,
+
 
                             case
                                 when is_clinical_encounter then @cur_clinical_location_id := location_id
                                 when @prev_id = @cur_id then @cur_clinical_location_id
                                 else @cur_clinical_location_id := null
-                            end as cur_clinical_location_id,
+                            end as cur_clinical_location_id
 
+/* MOVED to flat_hiv_summary_1
                             case
                                 when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
                                 else @prev_clinical_rtc_date := null
@@ -1480,7 +1684,7 @@ BEGIN
                                 when @prev_id = @cur_id then @cur_clinical_rtc_date
                                 else @cur_clinical_rtc_date:= null
                             end as cur_clinic_rtc_date
-
+*/
                             from flat_hiv_summary_2 t1
                             order by person_id, date(encounter_datetime), encounter_type_sort_index
                         );
@@ -1605,6 +1809,7 @@ BEGIN
                         arv_first_regimen,
                         arv_first_regimen_location_id,
                         arv_first_regimen_start_date,
+                        arv_first_regimen_start_date_flex,
                         prev_arv_meds,
                         cur_arv_meds,
                         cur_arv_meds_strict,                        
