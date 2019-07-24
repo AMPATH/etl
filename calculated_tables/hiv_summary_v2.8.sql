@@ -512,13 +512,15 @@ DELIMITER $$
 								when obs regexp "!!2154=(6467|6964|792|633|631)!!" then @cur_arv_line := 1
 								when obs regexp "!!2154=(794|635|6160|6159)!!" then @cur_arv_line := 2
 								when obs regexp "!!2154=6156!!" then @cur_arv_line := 3
+								when obs regexp "!!(1250|1088|2154)=" then @cur_arv_line := 0 #added this line
 								when @prev_id = @cur_id then @cur_arv_line
 								else @cur_arv_line := null
 							end as cur_arv_line,
 
 							case
-				        when @prev_id=@cur_id then @prev_arv_start_date := @arv_start_date
-				        else @prev_arv_start_date := null
+								when @prev_id=@cur_id
+								then @prev_arv_start_date := @arv_start_date
+								else @prev_arv_start_date := null
 							end as prev_arv_start_date,
 
 							# 1255 = ANTIRETROVIRAL PLAN
@@ -528,12 +530,28 @@ DELIMITER $$
 							# 1260 = STOP ALL MEDICATIONS
 
 							case
-								when obs regexp "!!1255=(1256|1259|1850)" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_date := date(t1.encounter_datetime)
 								when obs regexp "!!1255=(1107|1260)!!" then @arv_start_date := null
-								when @cur_arv_meds != @prev_arv_meds and @cur_arv_line != @prev_arv_line then @arv_start_date := date(t1.encounter_datetime)
+								when @cur_arv_meds != @prev_arv_meds then @arv_start_date := date(t1.encounter_datetime)
+								when @cur_arv_meds is null then @arv_start_date := null
+								when @cur_arv_meds is not null and @prev_arv_meds is null then @arv_start_date := date(t1.encounter_datetime)
 								when @prev_id != @cur_id then @arv_start_date := null
 								else @arv_start_date
 							end as arv_start_date,
+
+							case
+								when @prev_id=@cur_id
+								then @prev_arv_line_start_date := @arv_line_start_date
+								else @prev_arv_line_start_date := null
+							end as prev_arv_line_start_date,
+
+							case
+								when obs regexp "!!1255=(1107|1260)!!" then @arv_line_start_date := null
+								when @cur_arv_line != @prev_arv_line then @arv_line_start_date := date(t1.encounter_datetime)
+								when @cur_arv_line is null then @arv_line_start_date := null
+								when @cur_arv_line is not null and @prev_arv_line is null then @arv_line_start_date := date(t1.encounter_datetime)
+								when @prev_id != @cur_id then @arv_line_start_date := null
+								else @arv_line_start_date
+							end as arv_line_start_date,
 
 							case
 								when @prev_arv_start_date != @arv_start_date then @prev_arv_end_date  := date(t1.encounter_datetime)
