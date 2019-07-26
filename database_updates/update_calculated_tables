@@ -4,4 +4,4 @@ cd "$parent_path"
 #git pull
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/hiv_summary_v2.3.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/labs_and_imaging_v2.2.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/vitals_v2.0.sql
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/vitals_v2.1.sql

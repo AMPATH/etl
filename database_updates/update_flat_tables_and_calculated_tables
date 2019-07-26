@@ -2,13 +2,18 @@
 parent_path=$( cd "$(dirname "${BASH_SOURCE}")" ; pwd -P )
 cd "$parent_path"
 #git pull
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_obs_v1.3.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_orders_v1.1.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_lab_obs_v1.3.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_obs_v1.3.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_orders_v1.1.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../flat_tables/flat_lab_obs_v1.4.sql
 #mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./schedule-no-hiv-summary.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/hiv_summary_v2.14.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_hiv_summary_and_monthly_set.sql
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_cdm_summary_and_monthly_set.sql
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_onc_tables.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_appointments.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/labs_and_imaging_v2.5.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/vitals_v2.0.sql
-mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/hiv_vl_summary_v1.0.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/labs_and_imaging_v2.5.sql
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_flat_labs_and_imaging.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/vitals_v2.1.sql
+#mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/hiv_vl_summary_v1.0.sql
 mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ../calculated_tables/pep_summary_v1.0.sql
 
