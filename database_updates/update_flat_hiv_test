@@ -1,0 +1,5 @@
+#!/bin/bash
+parent_path=$( cd "$(dirname "${BASH_SOURCE}")" ; pwd -P )
+cd "$parent_path"
+#git pull
+mysql -u$(< /run/secrets/etl_user) -p$(< /run/secrets/etl_password) etl < ./sync_hiv_summary_test.sql

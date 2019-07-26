@@ -1,2 +1,5 @@
 ### JetBrains
 .idea/
+*.cfg
+db
+*.pyc
