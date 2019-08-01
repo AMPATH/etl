@@ -5,7 +5,7 @@ BEGIN
 				set session group_concat_max_len=100000;
 				set @start = now();
 				set @primary_table := "flat_labs_and_imaging";
-				select @table_version := 'flat_labs_and_imaging_v4.3';
+				select @table_version := 'flat_labs_and_imaging_v4.4';
 				set @total_rows_written = 0;
 				set @query_type = query_type;
                 set @queue_number = queue_number;
@@ -37,7 +37,7 @@ BEGIN
 				# 1984 = PRESENCE OF PUS CELLS URINE
 				# 2339 = PRESENCE OF PROTEIN URINE
 				# 6337 = PRESENCE OF LEUCOCYTES
-				# 7276 = PRESENCE OF KETONES
+				# 7276 = PRESENCE OF KETONE
 				# 2340 = PRESENCE OF SUGAR URINE
 				# 9307 = PRESENCE OF NITRITES
 				# 1327 = RETICULOCYTES
@@ -89,6 +89,7 @@ BEGIN
                 set @concept_ids = '(1030, 1040, 856, 5497, 730, 21,653,790,12,6126,887,6252,1537,1271,9239,9020,857
 													679,21,851,1018,1017,1016,729,678,1330,6134,790,1132,1133,1134,655,1297,6123,
                                                     653,654,717,848,785,1014,10249,10250,10251,9010,9011,9699,9012,9812,10304,10313,8731,8595
+													10253,10252,1984,2339,6337,7276,2340,9307,1327,8732,8733,8734,8735,8596,10195,10196,10197
                 )';
 
 #set @queue_number = 1;
@@ -157,6 +158,23 @@ BEGIN
                             dst_image varchar(255),
                             serum_m_protein int,
                             spep int,
+							sample_c_date date,
+							results_r_date date,
+							pus_c_urine int,
+							protein_urine int,
+							leuc int,
+							ketone int,
+							sugar_urine int,
+							nitrites int,
+							retic decimal,
+							a_1_glob decimal,
+							a_2_glob decimal,
+							beta_glob decimal,
+							gamma_glob decimal,
+							urine_p_elect int,
+							kappa_l_c decimal,
+							lambda_l_c decimal,
+							ratio_l_c decimal,
 							tests_ordered varchar(1000),
 							primary key encounter_id (encounter_id),
 							index person_date (person_id, test_datetime),
@@ -334,8 +352,23 @@ BEGIN
                                         if(obs regexp "!!8595=",getValues(obs,8595),null) as serum_m_protein,
                                         if(obs regexp "!!8731=",getValues(obs,8731),null) as spep,
 
-
-
+										if(obs regexp "!!10253=",getValues(obs,10253) as date) as sample_c_date,
+										if(obs regexp "!!10252=",getValues(obs,10252) as date) as results_r_date,
+										if(obs regexp "!!1984=",cast(getValues(obs,1984) as int)) as pus_c_urine,
+										if(obs regexp "!!2339=",cast(getValues(obs,2339) as int)) as protein_urine,
+										if(obs regexp "!!6337=",cast(getValues(obs,6337) as int)) as leuc,
+										if(obs regexp "!!7276=",cast(getValues(obs,7276) as int)) as ketone,
+										if(obs regexp "!!2340=",cast(getValues(obs,2340) as int)) as sugar_urine,
+										if(obs regexp "!!9307=",cast(getValues(obs,9307) as int)) as nitrites,
+										if(obs regexp "!!1327=",cast(getValues(obs,1327) as decimal(5,2))) as retic,
+										if(obs regexp "!!8732=",cast(getValues(obs,8732) as decimal(5,2))) as a_1_glob,
+										if(obs regexp "!!8733=",cast(getValues(obs,8733) as decimal(5,2))) as a_2_glob,
+										if(obs regexp "!!8734=",cast(getValues(obs,8734) as decimal(5,2))) as beta_glob,
+										if(obs regexp "!!8735=",cast(getValues(obs,8735) as decimal(5,2))) as gamma_glob,
+										if(obs regexp "!!8596=",cast(getValues(obs,8596) as int)) as urine_p_elect,
+										if(obs regexp "!!10195=",cast(getValues(obs,10195) as decimal(5,2))) as kappa_l_c,
+										if(obs regexp "!!10196=",cast(getValues(obs,10196) as decimal(5,2))) as lambda_l_c,
+										if(obs regexp "!!10197=",cast(getValues(obs,10197) as decimal(5,2))) as ratio_l_c,
 
 										CONCAT(
 											case
@@ -441,9 +474,26 @@ BEGIN
                             gene_expert_image,
                             dst_image,
                             serum_m_protein,
-                            spep,
+							spep,
+							sample_c_date date,
+							results_r_date date,
+							pus_c_urine int,
+							protein_urine int,
+							leuc int,
+							ketone int,
+							sugar_urine int,
+							nitrites int,
+							retic decimal,
+							a_1_glob decimal,
+							a_2_glob decimal,
+							beta_glob decimal,
+							gamma_glob decimal,
+							urine_p_elect int,
+							kappa_l_c decimal,
+							lambda_l_c decimal,
+							ratio_l_c decimal,
 							tests_ordered
-						from flat_labs_and_imaging_0 t1
+							from flat_labs_and_imaging_0 t1
 							join amrs.person t2 using (person_id)
 						)'
 					);
