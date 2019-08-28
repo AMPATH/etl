@@ -94,7 +94,7 @@ wait = BashOperator(
 
 update_hiv_summary = MySqlOperator(
     task_id='update_hiv_summary',
-    sql='call generate_hiv_summary_v15_11("sync",1,15000,20);',
+    sql='call generate_hiv_summary_v15_12("sync",1,15000,20);',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
