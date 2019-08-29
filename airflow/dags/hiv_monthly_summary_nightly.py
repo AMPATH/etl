@@ -22,7 +22,8 @@ start_date = datetime.strptime('2019-06-25', '%Y-%m-%d')
 dag = DAG(
     dag_id=DAG_ID,
     schedule_interval='30 22 * * *',
-    start_date=start_date
+    start_date=start_date,
+    catchup=False
 )
 
 update_hiv_monthly_report_dataset = MySqlOperator(

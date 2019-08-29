@@ -33,6 +33,7 @@ default_args = {
     'start_date': '2019-05-20',
     'retries': 0,
     'retry_delay': timedelta(minutes=30),
+    'max_active_runs':1
 }
 
 
@@ -110,7 +111,7 @@ update_hiv_summary = MySqlOperator(
 
 update_vitals = MySqlOperator(
     task_id='update_vitals',
-    sql='vitals_v2.1.sql',
+    sql='vitals_v2.2.sql',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
@@ -124,13 +125,13 @@ update_flat_labs_and_imaging = MySqlOperator(
     dag=dag
 )
 
-#update_pep_summary = CustomMySqlOperator(
-#    task_id='update_pep_summary',
-#    sql='pep_summary_v1.0.sql',
-#    mysql_conn_id=MYSQL_CONN_ID,
-#    database='etl',
-#    dag=dag
-#)
+update_pep_summary = MySqlOperator(
+    task_id='update_pep_summary',
+    sql='pep_summary_v1.0.sql',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
 
 #update_appointments = SSHOperator(
 #    task_id="update_appointments",
@@ -220,7 +221,7 @@ wait >> update_flat_labs_and_imaging
 wait >> update_vitals
 
 
-update_hiv_summary >> update_defaulters >> update_appointments >> update_onc_tables >> update_cdm_summary >>  finito
+update_hiv_summary >> update_defaulters >> update_appointments >> update_onc_tables >> update_cdm_summary >> update_pep_summary >> finito
 update_flat_labs_and_imaging >> finito
 update_vitals >> finito
 
