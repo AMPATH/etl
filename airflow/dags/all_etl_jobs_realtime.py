@@ -60,6 +60,25 @@ class CustomMySqlOperator(MySqlOperator):
         return hook.get_records(self.sql, parameters=self.parameters)
 
 
+
+pause_replication = MySqlOperator(
+    task_id='pause_replication',
+    sql='STOP SLAVE SQL_THREAD;',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
+
+resume_replication = MySqlOperator(
+    task_id='resume_replication',
+    sql='START SLAVE SQL_THREAD;',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag,
+    trigger_rule='all_done'
+)
+
+
 update_flat_obs = MySqlOperator(
     task_id='update_flat_obs',
     sql='flat_obs_v1.3.sql',
@@ -87,9 +106,21 @@ update_flat_lab_obs = MySqlOperator(
 )
 
 
-wait = BashOperator(
-    task_id='wait',
+wait_for_base_tables = BashOperator(
+    task_id='wait_for_base_tables',
     bash_command="echo 'Finished all base table jobs' && sleep 5s",
+    dag=dag,
+)
+
+wait_for_replication_pause = BashOperator(
+    task_id='wait_for_replication_pause',
+    bash_command="echo 'Replication stopped!' && sleep 5s",
+    dag=dag,
+)
+
+wait_for_replication_catchup = BashOperator(
+    task_id='wait_for_replication_catchup',
+    bash_command="echo 'Replication resumed!' && sleep 2m",
     dag=dag,
 )
 
@@ -175,8 +206,8 @@ update_defaulters =  MySqlOperator(
 
 
 
-finito = DummyOperator(
-    task_id='finito',
+finish = DummyOperator(
+    task_id='finish',
     dag=dag
 )
 
@@ -211,22 +242,30 @@ sleep_trigger = TriggerDagRunOperator(
     dag=dag
 )
 
-update_flat_obs >> wait
-update_flat_orders >> wait
-update_flat_lab_obs >> wait
+pause_replication >> wait_for_replication_pause
 
-wait >> update_hiv_summary
-wait >> update_flat_labs_and_imaging
-#wait >> update_pep_summary
-wait >> update_vitals
+wait_for_replication_pause >> update_flat_obs
+wait_for_replication_pause >> update_flat_orders
+wait_for_replication_pause >> update_flat_lab_obs
+
+update_flat_obs >> wait_for_base_tables
+update_flat_orders >> wait_for_base_tables
+update_flat_lab_obs >> wait_for_base_tables
+
+wait_for_base_tables >> update_hiv_summary
+wait_for_base_tables >> update_flat_labs_and_imaging
+#wait_for_base_tables >> update_pep_summary
+wait_for_base_tables >> update_vitals
 
 
-update_hiv_summary >> update_defaulters >> update_appointments >> update_onc_tables >> update_cdm_summary >> update_pep_summary >> finito
-update_flat_labs_and_imaging >> finito
-update_vitals >> finito
+update_hiv_summary >> update_defaulters >> update_appointments >> update_onc_tables >> update_cdm_summary >> update_pep_summary >> finish
+update_flat_labs_and_imaging >> finish
+update_vitals >> finish
 
 
-finito >> branch
+finish >> resume_replication
+resume_replication >> wait_for_replication_catchup
+wait_for_replication_catchup >> branch
 branch >> rerun_trigger
 branch >> sleep_trigger
 
