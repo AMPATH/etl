@@ -37,6 +37,7 @@ default_args = {
 dag = DAG(
     dag_id=DAG_ID,
     default_args=default_args,
+    catchup=False,
     schedule_interval=None,
     dagrun_timeout=timedelta(minutes=60),
     template_searchpath=[

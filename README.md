@@ -2,8 +2,9 @@
 > ETL (Extract, Transform and Load) is a process in data warehousing responsible for pulling data out of the source systems and placing it into a data warehouse. For more information about ETL go to http://datawarehouse4u.info/ETL-process.html
 
 This project is responsible for the first 2 layers of ETL i.e ET (Extract, Transform) while L (Load) is handled by a different project (https://github.com/AMPATH/etl-rest-server)
-The diagram below shows you the entire lifecycle of openmrs data from  Extraction to Transformation to Loading
+The diagrams below shows you the entire lifecycle of openmrs data from  Extraction to Transformation to Loading along with the entire data pipeline respectively.
 ![](model.png)
+![](AMRS_Data_Pipeline_2019.jpg)
 
 ## Getting Started
 
@@ -22,28 +23,28 @@ Open up a screen(sudo apt-get install screen) using the below command:
 ```sh
 screen -r
 ```
-Run this commands sequentially in that order (please use latest version of each script. See etl/database_updates/update_flat_tables_and_calculated_tables)
+Run this commands sequentially in that order (please use latest version of each script. See etl-scripts/database_updates/update_flat_tables_and_calculated_tables)
 Each scripts takes a couple of seconds to hours depending with the amount of data in openmrs db
 ```sh
-mysql etl < ../flat_tables/flat_obs_v1.3.sql
-mysql etl < ../flat_tables/flat_orders_v1.0.sql
-mysql etl < ../flat_tables/flat_lab_obs_v1.2.sql
-mysql etl < ../calculated_tables/hiv_summary_v2.12.sql
-mysql etl < ../calculated_tables/labs_and_imaging_v2.5.sql
-mysql etl < ../calculated_tables/vitals_v2.0.sql
-mysql etl < ../calculated_tables/hiv_vl_summary_v1.0.sql
-mysql etl < ../calculated_tables/pep_summary_v1.0.sql
-mysql etl < ../calculated_tables/defaulters_v2.3.sql
+mysql etl < ./etl-scripts/flat_tables/flat_obs_v1.3.sql
+mysql etl < ./etl-scripts/flat_tables/flat_orders_v1.0.sql
+mysql etl < ./etl-scripts/flat_tables/flat_lab_obs_v1.2.sql
+mysql etl < ./etl-scripts/calculated_tables/hiv_summary_v2.12.sql
+mysql etl < ./etl-scripts/calculated_tables/labs_and_imaging_v2.5.sql
+mysql etl < ./etl-scripts/calculated_tables/vitals_v2.0.sql
+mysql etl < ./etl-scripts/calculated_tables/hiv_vl_summary_v1.0.sql
+mysql etl < ./etl-scripts/calculated_tables/pep_summary_v1.0.sql
+mysql etl < ./etl-scripts/calculated_tables/defaulters_v2.3.sql
 
 ```
 
 After all the tasks are completed, schedule the syncing process.
 ## Scheduling Syncing Process
+### i) Using Crontab
 The syncing process allows ETL process to run after every 5 minutes or (x minutes). This facilitate access of data  in realtime (5 minutes delay) as data are inserted and updated on base db (openmrs/amrs) 
 Run the following commands
 ```sh
 screen -r
-cd /etl/etl/
 git pull origin master
 chmod +x database_updates/*
 crontab -e
@@ -55,6 +56,13 @@ when you run crontab -e a nano editor will open up. paste this code
 0-59/5 5-20 * * 1-5 /home/etl/etl/etl/database_updates/update_flat_tables_and_calculated_tables > etl_log
 ```
 to understand more about cronjobs, please see https://help.ubuntu.com/community/CronHowto
+### ii) Using Apache Airflow
+Using airflow, you can start the scheduling jobs by running:
+```
+docker-compose up -d
+```
+Once done, open your browser and head over to `http://localhost:8092` and you should see the airflow DAGs. Make sure to add your MySQL connection credentials under the the `Admin -> Connections` tab. The Connection ID must be `amrs_slave_conn`. After that, head back to DAGs and trigger the `etl_jobs_realtime` DAG.
+
 
 ## Contributing
 

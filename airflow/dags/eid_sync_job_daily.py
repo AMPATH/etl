@@ -31,6 +31,7 @@ dag = DAG(
     dag_id='sync_eid_labs_daily_10pm',
     default_args=default_args,
     schedule_interval= '0 22 * * *',
+    catchup=False,
     dagrun_timeout=timedelta(minutes=60)
 )
 

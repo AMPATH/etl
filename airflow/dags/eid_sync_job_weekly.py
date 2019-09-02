@@ -10,7 +10,8 @@ import airflow
 from airflow.models import DAG
 
 nbo_timezone = timezone("Africa/Nairobi")
-start_date = nbo_timezone.localize(datetime.strptime('2019-06-25 20:00', '%Y-%m-%d %H:%M'))
+#start_date = nbo_timezone.localize(datetime.strptime('2019-06-25 20:00', '%Y-%m-%d %H:%M'))
+start_date = datetime.strptime('2019-06-25', '%Y-%m-%d')
 
 default_args = {
     'owner': 'airflow',
@@ -28,7 +29,8 @@ dag = DAG(
     dag_id='sync_eid_labs_weekly_sat_10pm',
     default_args=default_args,
     schedule_interval= '0 22 * * 6',
-    dagrun_timeout=timedelta(minutes=60)
+    dagrun_timeout=timedelta(minutes=60),
+    catchup=False
 )
 
 sync_eid_sync_alupe = SSHOperator(
