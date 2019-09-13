@@ -4,8 +4,11 @@ BEGIN
 # v2.0 notes: add join to flat obs so that patients with an untraceable status can be excluded
 # v2.2 notes : removed flat_obs join after update to out_of_care
 # v2.3 notes : excluded encounter_type 116 (TRANSFERFORM). Fixes bug where transferred out patients appears in ‘Defaulters list
+# v2.4 notes: add check for whether encounter is a clinical encounter. Fixes issue where LTFUs who had been seen via an In-Patient Peer visit 
+# and had a drug pickup encounter in an AMPATH facility other than their mother facility were appearing as LTFUs in that other facility instead 
+# of being on the defaulter list at their mother clinic. 
 
-select @table_version := "flat_defaulters_v2.3";
+select @table_version := "flat_defaulters_v2.4";
 select @start := now();
 select @last_date_created := (select max(max_date_created) from flat_obs);
 
@@ -26,13 +29,14 @@ create temporary table flat_defaulters_0 (encounter_id int, primary key (encount
 	t1.encounter_type
 
 from flat_hiv_summary_v15b t1
-where next_encounter_datetime_hiv is null #and rtc_date <= date_sub(now(),interval 90 day)
+where next_clinical_datetime_hiv is null #and rtc_date <= date_sub(now(),interval 90 day)
 #	and if(rtc_date,date_add(rtc_date,interval 90 day),date_add(t1.encounter_datetime,interval 180 day)) <= now()
 	and if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)) < now()
 	and death_date is null
   and encounter_type not in (110,116)
 	and out_of_care is null
 	and transfer_out is null
+  and is_clinical_encounter IN (1)
 );
 
 drop table if exists universal_ids;
@@ -99,7 +103,7 @@ insert into flat_log values (@start, @last_date_created,@table_version,timestamp
 
 
 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
-
+    
 
 END$$
 DELIMITER ;
