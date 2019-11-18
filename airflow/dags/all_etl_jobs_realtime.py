@@ -170,6 +170,13 @@ update_pep_summary = MySqlOperator(
 #    ssh_conn_id='.115',
 #    dag=dag)
 
+update_surge_data = MySqlOperator(
+    task_id='update_surge_data',
+    sql='CALL etl.generate_surge_weekly_report_dataset_v2("sync",1,15000,20);',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
 
 update_appointments = MySqlOperator(
     task_id='update_appointments',
@@ -258,7 +265,7 @@ wait_for_base_tables >> update_flat_labs_and_imaging
 wait_for_base_tables >> update_vitals
 
 
-update_hiv_summary >> update_defaulters >> update_appointments >> update_onc_tables >> update_cdm_summary >> update_pep_summary >> finish
+update_hiv_summary >> update_defaulters >> update_appointments >> update_surge_data >> update_onc_tables >> update_cdm_summary >> update_pep_summary >> finish
 update_flat_labs_and_imaging >> finish
 update_vitals >> finish
 
