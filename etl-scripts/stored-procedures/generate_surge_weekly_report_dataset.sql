@@ -1212,8 +1212,11 @@ while @person_ids_count > 0 do
                     1,
                     0) AS surge_ltfu_and_still_ltfu,
                 
-                IF(@is_ltfu_after_may_revised = 1 OR 
-                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))),
+                IF((@is_ltfu_after_may_revised = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
+                AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
+                AND ((transfer_out_date IS NULL AND transfer_out_location_id IS NULL) OR (DATE(transfer_reporting_date) > end_date))
+                AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
                     1,
                     0) AS is_ltfu_after_may_total,
                     
@@ -1228,9 +1231,10 @@ while @person_ids_count > 0 do
 
                 IF((@is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1) AND @cur_status = 'ltfu'
                         AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
-                        AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > end_date))
+                        AND ((transfer_out_date IS NULL AND transfer_out_location_id IS NULL) OR (DATE(transfer_reporting_date) > end_date))
                         AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
                         1, 0) AS surge_ltfu_and_ltfu_after_may,
+                        
                 IF( YEARWEEK(death_date)=year_week, 1,0) as dead_this_week,
                 
                 IF(@prev_status = 'defaulter'
