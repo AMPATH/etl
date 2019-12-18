@@ -11,7 +11,7 @@ from airflow.operators.python_operator import BranchPythonOperator
 MYSQL_CONN_ID = 'amrs_slave_conn'
 ## DAG ID
 DAG_ID = 'check_dag'
-ETL_REALTIME_DAG_ID = 'etl_jobs_realtime'
+ETL_REALTIME_DAG_ID = 'test_new_etl_jobs_realtime'
 ### END TRIGGER RULES ###
 
 default_args = {

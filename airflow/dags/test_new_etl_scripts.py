@@ -20,7 +20,7 @@ ONE_SUCCESS = 'one_success'
 MYSQL_CONN_ID = 'amrs_slave_conn'
 
 ## DAG ID
-DAG_ID = 'old_etl_jobs_realtime_DONT_START'
+DAG_ID = 'test_new_etl_jobs_realtime'
 SLEEP_DAG_ID = 'check_dag'
 ### END TRIGGER RULES ###
 
@@ -60,6 +60,17 @@ class CustomMySqlOperator(MySqlOperator):
         return hook.get_records(self.sql, parameters=self.parameters)
 
 
+
+resume_replication = MySqlOperator(
+    task_id='resume_replication',
+    sql='START SLAVE;',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag,
+    trigger_rule='all_done'
+)
+
+
 update_flat_obs = MySqlOperator(
     task_id='update_flat_obs',
     sql='flat_obs_v1.3.sql',
@@ -80,16 +91,23 @@ update_flat_orders = MySqlOperator(
 
 update_flat_lab_obs = MySqlOperator(
     task_id='update_flat_lab_obs',
-    sql='flat_lab_obs_v1.8.sql',
+    sql='flat_lab_obs_v1.9.sql',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
 )
 
 
-wait = BashOperator(
-    task_id='wait',
+wait_for_base_tables = BashOperator(
+    task_id='wait_for_base_tables',
     bash_command="echo 'Finished all base table jobs' && sleep 5s",
+    dag=dag,
+)
+
+
+wait_for_replication_catchup = BashOperator(
+    task_id='wait_for_replication_catchup',
+    bash_command="echo 'Replication resumed!' && sleep 2m",
     dag=dag,
 )
 
@@ -110,16 +128,16 @@ update_hiv_summary = MySqlOperator(
 
 
 update_vitals = MySqlOperator(
-    task_id='update_vitals',
-    sql='vitals_v2.2.sql',
-    mysql_conn_id=MYSQL_CONN_ID,
-    database='etl',
-    dag=dag
+   task_id='update_vitals',
+   sql='vitals_v2.2.sql',
+   mysql_conn_id=MYSQL_CONN_ID,
+   database='etl',
+   dag=dag
 )
 
 update_flat_labs_and_imaging = MySqlOperator(
     task_id='update_flat_labs_and_imaging',
-    sql='sync_flat_labs_and_imaging.sql',
+    sql='call generate_flat_labs_and_imaging_v4_4("sync",1,15000,100);',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
@@ -158,42 +176,54 @@ update_onc_tables =  MySqlOperator(
 
 
 update_cdm_summary = MySqlOperator(
-    task_id='update_cdm_summary',
-    sql='sync_cdm_summary_and_monthly_set.sql',
-    mysql_conn_id=MYSQL_CONN_ID,
-    database='etl',
-    dag=dag
+   task_id='update_cdm_summary',
+   sql='sync_cdm_summary_and_monthly_set.sql',
+   mysql_conn_id=MYSQL_CONN_ID,
+   database='etl',
+   dag=dag
 )
 
 update_defaulters =  MySqlOperator(
-    task_id='update_defaulters',
-    sql='call generate_defaulters();',
-    mysql_conn_id=MYSQL_CONN_ID,
-    database='etl',
-    dag=dag
+   task_id='update_defaulters',
+   sql='call generate_defaulters();',
+   mysql_conn_id=MYSQL_CONN_ID,
+   database='etl',
+   dag=dag
 )
 
 
 
-finito = DummyOperator(
-    task_id='finito',
+finish = DummyOperator(
+    task_id='finish',
     dag=dag
 )
 
 
 def decide_which_path():
     now = datetime.now(timezone('Africa/Nairobi'))
-    print('Current Hour in Africa/Nairobi')
-    print(now.hour);
     if now.hour >= 5 and now.hour <= 21:
         return "rerun_trigger"
     else:
         return "sleep_trigger"
 
+
+def decide_to_run_cdm_summary():
+    now = datetime.now(timezone('Africa/Nairobi'))
+    if now.hour >= 19:
+        return "update_cdm_summary"
+    else:
+        return "finish"
+
+
 branch = BranchPythonOperator(
     task_id='branch',
     python_callable=decide_which_path,
     trigger_rule="all_done",
+    dag=dag)
+
+cdm_branch = BranchPythonOperator(
+    task_id='check_time',
+    python_callable=decide_to_run_cdm_summary,
     dag=dag)
 
 
@@ -211,22 +241,26 @@ sleep_trigger = TriggerDagRunOperator(
     dag=dag
 )
 
-update_flat_obs >> wait
-update_flat_orders >> wait
-update_flat_lab_obs >> wait
+update_flat_obs >> wait_for_base_tables
+update_flat_orders >> wait_for_base_tables
+update_flat_lab_obs >> wait_for_base_tables
 
-wait >> update_hiv_summary
-wait >> update_flat_labs_and_imaging
-#wait >> update_pep_summary
-wait >> update_vitals
-
-
-update_hiv_summary >> update_defaulters >> update_appointments >> update_onc_tables >> update_cdm_summary >> update_pep_summary >> finito
-update_flat_labs_and_imaging >> finito
-update_vitals >> finito
+wait_for_base_tables >> update_hiv_summary
+wait_for_base_tables >> update_flat_labs_and_imaging
+#wait_for_base_tables >> update_pep_summary
+#wait_for_base_tables >> update_vitals
 
 
-finito >> branch
+update_hiv_summary >> update_appointments >> update_onc_tables >> update_pep_summary >> cdm_branch
+cdm_branch >> update_cdm_summary >> update_defaulters >> update_vitals >> finish
+cdm_branch >> finish
+update_flat_labs_and_imaging >> finish
+#update_vitals >> finish
+
+
+finish >> resume_replication
+resume_replication >> wait_for_replication_catchup
+wait_for_replication_catchup >> branch
 branch >> rerun_trigger
 branch >> sleep_trigger
 

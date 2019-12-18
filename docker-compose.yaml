@@ -30,8 +30,22 @@ services:
         ports:
             - 8092:8080
         command: webserver
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> added airflow scripts
         #healthcheck:
         #    test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
         #    interval: 30s
         #    timeout: 30s
         #    retries: 3
+<<<<<<< HEAD
+=======
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+>>>>>>> init
+=======
+>>>>>>> added airflow scripts
