@@ -91,7 +91,7 @@ update_flat_orders = MySqlOperator(
 
 update_flat_lab_obs = MySqlOperator(
     task_id='update_flat_lab_obs',
-    sql='flat_lab_obs_v1.9.sql',
+    sql='flat_lab_obs.sql',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
@@ -137,7 +137,7 @@ update_vitals = MySqlOperator(
 
 update_flat_labs_and_imaging = MySqlOperator(
     task_id='update_flat_labs_and_imaging',
-    sql='call generate_flat_labs_and_imaging_v4_4("sync",1,15000,100);',
+    sql='call generate_flat_labs_and_imaging("sync",1,15000,100);',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
