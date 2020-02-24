@@ -9,7 +9,7 @@
 # v1 Notes:
 # added hiv_exposed_occupational and pep_start_date
 
-drop procedure if exists generate_pep_summary;
+#drop procedure if exists generate_pep_summary;
 DELIMITER $$
 	CREATE PROCEDURE generate_pep_summary()
 		BEGIN

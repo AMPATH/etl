@@ -66,8 +66,8 @@ select @last_update := if(@last_update,@last_update,'1900-01-01');
 
 #select @last_update := "2016-07-06";
 
-drop table if exists voided_obs;
-create table voided_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
+drop table if exists voided_obs_by_flat_obs;
+create table voided_obs_by_flat_obs (index encounter_id (encounter_id), index obs_id (obs_id), index person_datetime (person_id, obs_datetime))
 (select person_id, encounter_id, obs_id, obs_datetime, date_voided, concept_id, date_created
 from amrs.obs where voided=1 and date_voided > @last_update and date_created <= @last_update);
 
@@ -83,7 +83,7 @@ join flat_obs t2 using(encounter_id)
 
 # remove test patients
 delete t1
-from voided_obs t1
+from voided_obs_by_flat_obs t1
 join amrs.person_attribute t2 using (person_id)
 where t2.person_attribute_type_id=28 and value='true';
 
@@ -91,7 +91,7 @@ where t2.person_attribute_type_id=28 and value='true';
 # delete any rows that have voided obs with encounter_id
 delete t1
 from flat_obs t1
-join voided_obs t2 using (encounter_id);
+join voided_obs_by_flat_obs t2 using (encounter_id);
 
 # delete any rows whose encounter changed after last update
 delete t1
@@ -102,7 +102,7 @@ join encounters_with_updated_data using (encounter_id);
 # delete any rows that have a voided obs with no encounter_id
 delete t1
 from flat_obs t1
-join voided_obs t2 on t1.encounter_datetime = t2.obs_datetime and t1.person_id=t2.person_id
+join voided_obs_by_flat_obs t2 on t1.encounter_datetime = t2.obs_datetime and t1.person_id=t2.person_id
 where t2.encounter_id is null;
 
 replace into flat_obs
@@ -137,7 +137,7 @@ replace into flat_obs
 	) as obs_datetimes,
 	max(o.date_created) as max_date_created
 
-	from voided_obs v
+	from voided_obs_by_flat_obs v
 		join amrs.obs o using (encounter_id)
 		join amrs.encounter e using (encounter_id)
 	where
@@ -179,7 +179,7 @@ replace into flat_obs
 	) as obs_datetimes,
 	max(o.date_created) as max_date_created
 
-	from voided_obs v
+	from voided_obs_by_flat_obs v
 		join amrs.obs o using (person_id, obs_datetime)
 	where
 		o.encounter_id is null and voided=0
@@ -331,7 +331,7 @@ from flat_obs t1
 join amrs.person t2 using (person_id)
 where t2.voided=1;
 
-drop table voided_obs;
+drop table voided_obs_by_flat_obs;
 
 select @end := now();
 insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
