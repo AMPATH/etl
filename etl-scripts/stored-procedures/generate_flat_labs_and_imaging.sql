@@ -1,11 +1,11 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_flat_labs_and_imaging_v4_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_flat_labs_and_imaging`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 				set session sort_buffer_size=512000000;
 				set session group_concat_max_len=100000;
 				set @start = now();
 				set @primary_table := "flat_labs_and_imaging";
-				select @table_version := 'flat_labs_and_imaging_v4.1';
+				SELECT @table_version:='flat_labs_and_imaging_v4.5';
 				set @total_rows_written = 0;
 				set @query_type = query_type;
                 set @queue_number = queue_number;
@@ -29,6 +29,25 @@ BEGIN
 				# 1271 = TESTS ORDERED
 				# 9239 = LABORATORY TEST WITH EXCEPTION
 				# 9020 = LAB ERROR
+                # 8731 = SERUM M PROTEIN
+                # 8595 = SPEP
+
+				# 1984 = PRESENCE OF PUS CELLS URINE
+				# 2339 = PRESENCE OF PROTEIN URINE
+				# 6337 = PRESENCE OF LEUCOCYTES
+				# 7276 = PRESENCE OF KETONE
+				# 2340 = PRESENCE OF SUGAR URINE
+				# 9307 = PRESENCE OF NITRITES
+				# 1327 = RETICULOCYTES
+				# 8732 = SERUM ALPHA-1 GLOBULIN
+				# 8733 = SERUM ALPHA-2 GLOBULIN
+				# 8734 = SERUM BETA GLOBULIN
+				# 8735 = SERUM GAMMA GLOBULIN
+				# 10195 = KAPPA LIGHT CHAINS
+				# 10196 = LAMBDA LIGHT CHAINS
+				# 10197 = RATIO OF KAPPA LAMBDA
+				# 6342 = ANTIBODY SCREEN
+
                 /*
 				679	RBC
 				21	HGB
@@ -38,12 +57,11 @@ BEGIN
 				1016	RDW
 				729	PLT
 				678	SERUM WBC
-				1330	ANC					
-				6134	Uric acid
+				1330	ANC
 				790	Creatinine
 				1132	Sodium
 				1133	Potassium
-				1134	Chloride					
+				1134	Chloride
 				655	Total Bili
 				1297	Direct Bili
 				6123	GGT
@@ -52,22 +70,26 @@ BEGIN
 				717	Total Protein
 				848	Albumin
 				785	ALP
-				1014	LDH					
-				10249	Total PSA					
-				10250	CEA					
-				10251	(CA 19-9)					
+				1014	LDH
+				10249	Total PSA
+				10250	CEA
+				10251	(CA 19-9)
 				9010	HBF
 				9011	HBA
 				9699	HbS
 				9012	HBA2
-                9812    SERUM CRAG
+        9812  SERUM CRAG
+        10304  GENEXPERT, IMAGE
+        10313  DRUG SENSITIVITY TEST, IMAGE
+				6342 = ANTIBODY SCREEN
 			*/
-            
+
                 set @concept_ids = '(1030, 1040, 856, 5497, 730, 21,653,790,12,6126,887,6252,1537,1271,9239,9020,857
-													679,21,851,1018,1017,1016,729,678,1330,6134,790,1132,1133,1134,655,1297,6123,
-                                                    653,654,717,848,785,1014,10249,10250,10251,9010,9011,9699,9012,9812                
+													679,21,851,1018,1017,1016,729,678,1330,790,1132,1133,1134,655,1297,6123,
+                                                    653,654,717,848,785,1014,10249,10250,10251,9010,9011,9699,9012,9812,10304,10313,8731,8595
+													1984,2339,6337,7276,2340,9307,1327,8732,8733,8734,8735,10195,10196,10197,6342
                 )';
-                
+
 #set @queue_number = 1;
 #set @queue_size = 10000;
 #set @cycle_size = 1000;
@@ -78,13 +100,14 @@ BEGIN
 				set @sep = " ## ";
 
 				SET @dyn_sql = CONCAT('create table if not exists ', @primary_table,
-						' (date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,						
+						' (date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 							person_id int,
 							uuid varchar(100),
 							encounter_id int,
 							test_datetime datetime,
 							encounter_type int,
 							hiv_dna_pcr int,
+							antibody_screen int,
 							hiv_rapid_test int,
 							hiv_viral_load int,
 							cd4_count int,
@@ -108,7 +131,6 @@ BEGIN
 							plt int,
 							wbc decimal,
 							anc decimal,
-							uric_acid decimal,
 							creatinine decimal,
 							na decimal,
 							k decimal,
@@ -130,6 +152,24 @@ BEGIN
 							hbs decimal,
 							hba2 decimal,
                             serum_crag decimal,
+                            gene_expert_image varchar(255),
+                            dst_image varchar(255),
+                            serum_m_protein int,
+                            spep int,
+							pus_c_urine int,
+							protein_urine int,
+							leuc int,
+							ketone int,
+							sugar_urine int,
+							nitrites int,
+							retic decimal,
+							a_1_glob decimal,
+							a_2_glob decimal,
+							beta_glob decimal,
+							gamma_glob decimal,
+							kappa_l_c decimal,
+							lambda_l_c decimal,
+							ratio_l_c decimal,
 							tests_ordered varchar(1000),
 							primary key encounter_id (encounter_id),
 							index person_date (person_id, test_datetime),
@@ -137,52 +177,63 @@ BEGIN
 					)');
 
 
-                PREPARE s1 from @dyn_sql; 
-				EXECUTE s1; 
-				DEALLOCATE PREPARE s1;  
+                PREPARE s1 from @dyn_sql;
+				EXECUTE s1;
+				DEALLOCATE PREPARE s1;
 
 				if(@query_type="build") then
 						select CONCAT('BUILDING ',@primary_table,'..........................................');
 						set @write_table = concat(@primary_table,"_temp_",@queue_number);
 #                        set @build_queue = concat(@primary_table,'_build_queue');
                         set @build_queue = concat('flat_labs_and_imaging_build_queue');
-						set @queue_table = concat(@build_queue,'_',@queue_number);                    												
+						set @queue_table = concat(@build_queue,'_',@queue_number);
 
 
 						SET @dyn_sql=CONCAT('Create table if not exists ',@write_table,' like ',@primary_table);
-						PREPARE s1 from @dyn_sql; 
-						EXECUTE s1; 
-						DEALLOCATE PREPARE s1;  
-                        
-						#create  table if not exists @queue_table (person_id int, primary key (person_id));
-						SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,'(person_id int primary key) (select * from ',@build_queue,' limit ', @queue_size, ');'); 
-						PREPARE s1 from @dyn_sql; 
-						EXECUTE s1; 
-						DEALLOCATE PREPARE s1;  
-						
-						#delete t1 from flat_obs_build_queue t1 join @queue_table t2 using (person_id)
-						SET @dyn_sql=CONCAT('delete t1 from ',@build_queue,' t1 join ',@queue_table, ' t2 using (person_id);'); 
-						PREPARE s1 from @dyn_sql; 
-						EXECUTE s1; 
-						DEALLOCATE PREPARE s1;  
+						PREPARE s1 from @dyn_sql;
+						EXECUTE s1;
+						DEALLOCATE PREPARE s1;
 
-						SET @dyn_sql=CONCAT('select count(*) into @queue_count from ',@queue_table); 
+						#create  table if not exists @queue_table (person_id int, primary key (person_id));
+						SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,'(person_id int primary key) (select * from ',@build_queue,' limit ', @queue_size, ');');
+						PREPARE s1 from @dyn_sql;
+						EXECUTE s1;
+						DEALLOCATE PREPARE s1;
+
+						#delete t1 from flat_obs_build_queue t1 join @queue_table t2 using (person_id)
+						SET @dyn_sql=CONCAT('delete t1 from ',@build_queue,' t1 join ',@queue_table, ' t2 using (person_id);');
+						PREPARE s1 from @dyn_sql;
+						EXECUTE s1;
+						DEALLOCATE PREPARE s1;
+
+						SET @dyn_sql=CONCAT('select count(*) into @queue_count from ',@queue_table);
 
 				end if;
-	
-					
+
+
 				if (@query_type="sync") then
 						select CONCAT('SYNCING ',@primary_table,'..........................................');
 						set @write_table = @primary_table;
 						set @queue_table = concat(@primary_table,'_sync_queue');
-						
-						select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;	
-#set @last_update = "2018-01-26";						
-						create table if not exists flat_labs_and_imaging_sync_queue (person_id int primary key);
-                                                
-                        
+
+						SELECT 
+    MAX(date_updated)
+INTO @last_update FROM
+    etl.flat_log
+WHERE
+    table_name = @table_version;
+CREATE TABLE IF NOT EXISTS flat_labs_and_imaging_sync_queue (
+    person_id INT PRIMARY KEY
+);
+
+
 						set @last_update = null;
-						select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;
+						SELECT 
+    MAX(date_updated)
+INTO @last_update FROM
+    etl.flat_log
+WHERE
+    table_name = @table_version;
 
 						replace into flat_labs_and_imaging_sync_queue
 						(select distinct patient_id
@@ -198,49 +249,49 @@ BEGIN
 
 
 						replace into flat_labs_and_imaging_sync_queue
-						(select person_id from 
-							amrs.person 
+						(select person_id from
+							amrs.person
 							where date_voided > @last_update);
 
 
 						replace into flat_labs_and_imaging_sync_queue
-						(select person_id from 
-							amrs.person 
+						(select person_id from
+							amrs.person
 							where date_changed > @last_update);
-                        												
+
 				end if;
 
 				# delete all rows in primary table in the queue
 				SET @dyn_sql=CONCAT('delete t1 from ',@primary_table,' t1 join ',@queue_table, ' t2 using (person_id)');
-				PREPARE s1 from @dyn_sql; 
-				EXECUTE s1; 
-				DEALLOCATE PREPARE s1;  
-															
-				SET @dyn_sql=CONCAT('select count(*) into @queue_count from ',@queue_table); 
-				PREPARE s1 from @dyn_sql; 
-				EXECUTE s1; 
-				DEALLOCATE PREPARE s1;                        
+				PREPARE s1 from @dyn_sql;
+				EXECUTE s1;
+				DEALLOCATE PREPARE s1;
+
+				SET @dyn_sql=CONCAT('select count(*) into @queue_count from ',@queue_table);
+				PREPARE s1 from @dyn_sql;
+				EXECUTE s1;
+				DEALLOCATE PREPARE s1;
 
 				set @total_time=0;
 				set @cycle_number = 0;
-				
+
 				while @queue_count > 0 do
 
 					set @loop_start_time = now();
-					
+
 					#create temp table with a set of person ids
 					drop temporary table if exists temp_queue_table;
 
                     SET @dyn_sql = CONCAT('create temporary table temp_queue_table like ',@queue_table);
-					PREPARE s1 from @dyn_sql; 
-					EXECUTE s1; 
-					DEALLOCATE PREPARE s1; 
-                    
+					PREPARE s1 from @dyn_sql;
+					EXECUTE s1;
+					DEALLOCATE PREPARE s1;
+
 					SET @dyn_sql= CONCAT('replace into temp_queue_table (select * from ',@queue_table,' limit ', @cycle_size,')');
-					PREPARE s1 from @dyn_sql; 
-					EXECUTE s1; 
-					DEALLOCATE PREPARE s1; 
-										                    
+					PREPARE s1 from @dyn_sql;
+					EXECUTE s1;
+					DEALLOCATE PREPARE s1;
+
 
 
 					drop table if exists flat_labs_and_imaging_0;
@@ -255,6 +306,7 @@ BEGIN
 										t1.obs,
 										t3.orders,
 										if(obs regexp "!!1030=",cast(replace(replace((substring_index(substring(obs,locate("1030=",obs)),@sep,1)),"1030=",""),"!!","") as unsigned),null) as hiv_dna_pcr,
+										if(obs regexp "!!6342=",cast(replace(replace((substring_index(substring(obs,locate("6342=",obs)),@sep,1)),"6342=",""),"!!","") as unsigned),null) as antibody_screen,
 										if(obs regexp "!!1040=",cast(replace(replace((substring_index(substring(obs,locate("1040=",obs)),@sep,1)),"1040=",""),"!!","") as unsigned),null) as hiv_rapid_test,
 										case
 											when obs regexp "!!856=" then cast(replace(replace((substring_index(substring(obs,locate("856=",obs)),@sep,1)),"856=",""),"!!","") as unsigned)
@@ -280,13 +332,10 @@ BEGIN
 										if(obs regexp "!!729=",cast(getValues(obs,729) as unsigned),null) as plt,
 										if(obs regexp "!!678=",cast(getValues(obs,678) as decimal(6,2)),null) as wbc,
 										if(obs regexp "!!1330=",cast(getValues(obs,1330) as decimal(6,2)),null) as anc,
-
-										if(obs regexp "!!6134=",cast(getValues(obs,6134) as decimal(6,2)),null) as uric_acid,
 										if(obs regexp "!!790=",cast(getValues(obs,790) as decimal(6,2)),null) as creatinine,
 										if(obs regexp "!!1132=",cast(getValues(obs,1132) as decimal(6,2)),null) as na,
 										if(obs regexp "!!1133=",cast(getValues(obs,1133) as decimal(6,2)),null) as k,
 										if(obs regexp "!!1134=",cast(getValues(obs,1134) as decimal(6,2)),null) as cl,
-
 										if(obs regexp "!!655=",cast(getValues(obs,655) as decimal(6,2)),null) as total_bili,
 										if(obs regexp "!!1297=",cast(getValues(obs,1297) as decimal(6,2)),null) as direct_bili,
 										if(obs regexp "!!6123=",cast(getValues(obs,6123) as decimal(6,2)),null) as ggt,
@@ -296,20 +345,32 @@ BEGIN
 										if(obs regexp "!!848=",cast(getValues(obs,848) as decimal(6,2)),null) as albumin,
 										if(obs regexp "!!785=",cast(getValues(obs,785) as decimal(6,2)),null) as alk_phos,
 										if(obs regexp "!!1014=",cast(getValues(obs,1014) as decimal(6,2)),null) as ldh,
-
 										if(obs regexp "!!10249=",cast(getValues(obs,10249) as decimal(6,2)),null) as total_psa,
-
 										if(obs regexp "!!10250=",cast(getValues(obs,10250) as decimal(6,2)),null) as cea,
-
 										if(obs regexp "!!10251=",cast(getValues(obs,10251) as decimal(6,2)),null) as ca_19_9,
-
 										if(obs regexp "!!9010=",cast(getValues(obs,9010) as decimal(6,2)),null) as hbf,
 										if(obs regexp "!!9011=",cast(getValues(obs,9011) as decimal(6,2)),null) as hba,
 										if(obs regexp "!!9699=",cast(getValues(obs,9699) as decimal(6,2)),null) as hbs,
 										if(obs regexp "!!9012=",cast(getValues(obs,9012) as decimal(6,2)),null) as hba2,
 										if(obs regexp "!!9812=",cast(getValues(obs,9812) as decimal(6,2)),null) as serum_crag,
- 
-                                       
+                                        if(obs regexp "!!10304=",getValues(obs,10304),null) as gene_expert_image,
+                                        if(obs regexp "!!10313=",getValues(obs,10313),null) as dst_image,
+                                        if(obs regexp "!!8595=",getValues(obs,8595),null) as serum_m_protein,
+                                        if(obs regexp "!!8731=",getValues(obs,8731),null) as spep,
+										if(obs regexp "!!1984=",getValues(obs,1984),null) as pus_c_urine,
+                                        if(obs regexp "!!2339=",cast(replace(replace((substring_index(substring(obs,locate("2339=",obs)),@sep,1)),"2339=",""),"!!","") as unsigned),null) as protein_urine,
+										if(obs regexp "!!6337=",getValues(obs,6337),null) as leuc,
+										if(obs regexp "!!7276=",getValues(obs,7276),null) as ketone,
+										if(obs regexp "!!2340=",getValues(obs,2340),null) as sugar_urine,
+										if(obs regexp "!!9307=",getValues(obs,9307),null) as nitrites,
+										if(obs regexp "!!1327=",cast(getValues(obs,1327) as decimal(5,2)),null) as retic,
+										if(obs regexp "!!8732=",cast(getValues(obs,8732) as decimal(5,2)),null) as a_1_glob,
+										if(obs regexp "!!8733=",cast(getValues(obs,8733) as decimal(5,2)),null) as a_2_glob,
+										if(obs regexp "!!8734=",cast(getValues(obs,8734) as decimal(5,2)),null) as beta_glob,
+										if(obs regexp "!!8735=",cast(getValues(obs,8735) as decimal(5,2)),null) as gamma_glob,
+										if(obs regexp "!!10195=",cast(getValues(obs,10195) as decimal(5,2)),null) as kappa_l_c,
+										if(obs regexp "!!10196=",cast(getValues(obs,10196) as decimal(5,2)),null) as lambda_l_c,
+										if(obs regexp "!!10197=",cast(getValues(obs,10197) as decimal(5,2)),null) as ratio_l_c,
 										CONCAT(
 											case
 												when obs regexp "!!1271=" then getValues(obs,1271)
@@ -318,17 +379,16 @@ BEGIN
 											end,
                                             ifnull(orders,"")
 										) as tests_ordered
-                                        
-										from flat_lab_obs t1  
+										from flat_lab_obs t1
 											join temp_queue_table t2 using(person_id)
-											left outer join flat_orders t3 using(encounter_id) 
+											left outer join flat_orders t3 using(encounter_id)
 									)'
 								);
-                                
-					
-					PREPARE s1 from @dyn_sql; 
-					EXECUTE s1; 
-					DEALLOCATE PREPARE s1; 	
+
+
+					PREPARE s1 from @dyn_sql;
+					EXECUTE s1;
+					DEALLOCATE PREPARE s1;
 
 
 /*
@@ -345,16 +405,16 @@ BEGIN
 										from flat_orders t1
 											join ', @queue_table,' t2 using(person_id)
                                             join amrs.encounter t2 using (encounter_id)
-											left outer join flat_lab_obs t3 ON t1.person_id = t3.person_id AND t1.encounter_datetime = t3.test_datetime 
-											where 
-												t3.person_id is null                                                
-                                                # and t1.encounter_datetime >= @last_update and 
+											left outer join flat_lab_obs t3 ON t1.person_id = t3.person_id AND t1.encounter_datetime = t3.test_datetime
+											where
+												t3.person_id is null
+                                                # and t1.encounter_datetime >= @last_update and
 									)'
 								);
 					PREPARE s1 from @dyn_sql;
 					EXECUTE s1;
 					DEALLOCATE PREPARE s1;
-*/				
+*/
 
                     SET @dyn_sql = CONCAT(
 						'insert into ',@write_table,
@@ -366,6 +426,7 @@ BEGIN
 							test_datetime,
 							encounter_type ,
 							hiv_dna_pcr,
+							antibody_screen,
 							hiv_rapid_test,
 							hiv_viral_load,
 							cd4_count,
@@ -389,7 +450,6 @@ BEGIN
 							plt,
 							wbc,
 							anc,
-							uric_acid,
 							creatinine,
 							na,
 							k,
@@ -411,37 +471,57 @@ BEGIN
 							hbs,
 							hba2,
                             serum_crag,
+                            gene_expert_image,
+                            dst_image,
+                            serum_m_protein,
+							spep,
+							pus_c_urine,
+							protein_urine,
+							leuc,
+							ketone,
+							sugar_urine,
+							nitrites,
+							retic,
+							a_1_glob,
+							a_2_glob,
+							beta_glob,
+							gamma_glob,
+							kappa_l_c,
+							lambda_l_c,
+							ratio_l_c,
 							tests_ordered
-						from flat_labs_and_imaging_0 t1
+							from flat_labs_and_imaging_0 t1
 							join amrs.person t2 using (person_id)
 						)'
 					);
-					PREPARE s1 from @dyn_sql; 
-                    EXECUTE s1; 
-					DEALLOCATE PREPARE s1;  
+					PREPARE s1 from @dyn_sql;
+                    EXECUTE s1;
+					DEALLOCATE PREPARE s1;
 
 
 
-					SET @dyn_sql=CONCAT('delete t1.* from ',@queue_table,' t1 join temp_queue_table t2 using (person_id);'); 
-					PREPARE s1 from @dyn_sql; 
-                    EXECUTE s1; 
-					DEALLOCATE PREPARE s1;  
-                    
-                    
-					SET @dyn_sql=CONCAT('select count(*) into @queue_count from ',@queue_table,';'); 
-					PREPARE s1 from @dyn_sql; 
-					EXECUTE s1; 
-					DEALLOCATE PREPARE s1;  
+					SET @dyn_sql=CONCAT('delete t1.* from ',@queue_table,' t1 join temp_queue_table t2 using (person_id);');
+					PREPARE s1 from @dyn_sql;
+                    EXECUTE s1;
+					DEALLOCATE PREPARE s1;
+
+
+					SET @dyn_sql=CONCAT('select count(*) into @queue_count from ',@queue_table,';');
+					PREPARE s1 from @dyn_sql;
+					EXECUTE s1;
+					DEALLOCATE PREPARE s1;
 
 					set @cycle_length = timestampdiff(second,@loop_start_time,now());
                     set @total_time = @total_time + @cycle_length;
                     set @cycle_number = @cycle_number + 1;
-                    
+
                     #select ceil(@person_ids_count / cycle_size) as remaining_cycles;
                     set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@queue_count / @cycle_size) / 60);
-                    #select concat("Estimated time remaining: ", @remaining_time,' minutes');
-
-					select @queue_count as '# in queue', @cycle_length as 'Cycle Time (s)', ceil(@queue_count / @cycle_size) as remaining_cycles, @remaining_time as 'Est time remaining (min)';
+SELECT 
+    @queue_count AS '# in queue',
+    @cycle_length AS 'Cycle Time (s)',
+    CEIL(@queue_count / @cycle_size) AS remaining_cycles,
+    @remaining_time AS 'Est time remaining (min)';
 
 			end while;
 
@@ -450,44 +530,57 @@ BEGIN
 					from ',@primary_table, ' t1
 					join amrs.person t2 using (person_id)
 					where t2.voided=1;');
-			PREPARE s1 from @dyn_sql; 
-			EXECUTE s1; 
-			DEALLOCATE PREPARE s1;  
-			
+			PREPARE s1 from @dyn_sql;
+			EXECUTE s1;
+			DEALLOCATE PREPARE s1;
+
 			if(@query_type="build") then
-						SET @dyn_sql=CONCAT('drop table ',@queue_table,';'); 
-						PREPARE s1 from @dyn_sql; 
-						EXECUTE s1; 
-						DEALLOCATE PREPARE s1;  
-                        
+						SET @dyn_sql=CONCAT('drop table ',@queue_table,';');
+						PREPARE s1 from @dyn_sql;
+						EXECUTE s1;
+						DEALLOCATE PREPARE s1;
+
                         SET @total_rows_to_write=0;
                         SET @dyn_sql=CONCAT("Select count(*) into @total_rows_to_write from ",@write_table);
-                        PREPARE s1 from @dyn_sql; 
-						EXECUTE s1; 
+                        PREPARE s1 from @dyn_sql;
+						EXECUTE s1;
 						DEALLOCATE PREPARE s1;
-                                                
+
 						set @start_write = now();
-						select concat(@start_write, " : Writing ",@total_rows_to_write, ' to ',@primary_table);
+						SELECT 
+    CONCAT(@start_write,
+            ' : Writing ',
+            @total_rows_to_write,
+            ' to ',
+            @primary_table);
 
 						SET @dyn_sql=CONCAT('replace into ', @primary_table,
 							'(select * from ',@write_table,');');
-                        PREPARE s1 from @dyn_sql; 
-						EXECUTE s1; 
+                        PREPARE s1 from @dyn_sql;
+						EXECUTE s1;
 						DEALLOCATE PREPARE s1;
-						
+
                         set @finish_write = now();
                         set @time_to_write = timestampdiff(second,@start_write,@finish_write);
-                        select concat(@finish_write, ' : Completed writing rows. Time to write to primary table: ', @time_to_write, ' seconds ');                        
-                        
-                        SET @dyn_sql=CONCAT('drop table ',@write_table,';'); 
-						PREPARE s1 from @dyn_sql; 
-						EXECUTE s1; 
-						DEALLOCATE PREPARE s1;  											
-				end if;
-				
-				select @end := now();
-				insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-				select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
+SELECT 
+    CONCAT(@finish_write,
+            ' : Completed writing rows. Time to write to primary table: ',
+            @time_to_write,
+            ' seconds ');
 
-	END$$
+                        SET @dyn_sql=CONCAT('drop table ',@write_table,';');
+						PREPARE s1 from @dyn_sql;
+						EXECUTE s1;
+						DEALLOCATE PREPARE s1;
+				end if;
+
+				SELECT @end:=NOW();
+				insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+				SELECT 
+    CONCAT(@table_version,
+            ' : Time to complete: ',
+            TIMESTAMPDIFF(MINUTE, @start, @end),
+            ' minutes');
+
+		END$$
 DELIMITER ;
