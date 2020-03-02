@@ -166,13 +166,13 @@ update_appointments = MySqlOperator(
     dag=dag
 )
 
-#update_onc_tables =  MySqlOperator(
-#    task_id='update_onc_tables',
-#    sql='sync_onc_tables.sql',
-#    mysql_conn_id=MYSQL_CONN_ID,
-#    database='etl',
-#    dag=dag
-#)
+update_onc_tables =  MySqlOperator(
+    task_id='update_onc_tables',
+    sql='sync_onc_tables.sql',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
 
 
 update_cdm_summary = MySqlOperator(
@@ -251,7 +251,7 @@ wait_for_base_tables >> update_flat_labs_and_imaging
 #wait_for_base_tables >> update_vitals
 
 
-update_hiv_summary >> update_appointments >> update_pep_summary >> cdm_branch
+update_hiv_summary >> update_appointments >> update_onc_tables >> update_pep_summary >> cdm_branch
 cdm_branch >> update_cdm_summary >> update_defaulters >> update_vitals >> finish
 cdm_branch >> finish
 update_flat_labs_and_imaging >> finish
