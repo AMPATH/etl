@@ -1170,6 +1170,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                                                                                     
                             
                             case
+                                when obs regexp "!!1190=" then @ipt_start_date:= GetValues(obs,'1190')
+                                when obs regexp "!!8603=" then @ipt_start_date:= GetValues(obs,'8603')
                                 when obs regexp "!!1265=(1256|1850)!!" then @ipt_start_date := encounter_datetime
                                 when obs regexp "!!1265=(1257|981|1406|1849)!!" and @ipt_start_date is null then @ipt_start_date := encounter_datetime
                                 when @cur_id != @prev_id then @ipt_start_date := null
