@@ -1172,6 +1172,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             case
                                 when obs regexp "!!1265=(1256|1850)!!" then @ipt_start_date := encounter_datetime
                                 when obs regexp "!!1265=(1257|981|1406|1849)!!" and @ipt_start_date is null then @ipt_start_date := encounter_datetime
+                                when obs regexp "!!10591=1065" and obs regexp "!!1190=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!","")
                                 when @cur_id != @prev_id then @ipt_start_date := null
                                 else @ipt_start_date
                             end as ipt_start_date,
@@ -1180,6 +1181,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!1266=" then @ipt_stop_date :=  encounter_datetime
+                                when obs regexp "!!10591=1065" and obs regexp "!!8603=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!8603=",obs)),@sep,1)),"!!8603=",""),"!!","")
                                 when @cur_id = @prev_id then @ipt_stop_date
                                 when @cur_id != @prev_id then @ipt_stop_date := null
                                 else @ipt_stop_date
