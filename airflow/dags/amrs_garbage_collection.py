@@ -5,6 +5,7 @@ import logging
 import math
 
 from airflow.operators.http_operator import SimpleHttpOperator
+from airflow.operators.dummy_operator import DummyOperator
 import airflow
 from airflow.models import DAG
 
@@ -29,14 +30,6 @@ dag = DAG(
     catchup=False
 )
 
-invalidate_http_sessions = SimpleHttpOperator(
-    task_id="invalidate_http_sessions",
-    endpoint="/amrs/monitoring?action=invalidate_sessions",
-    method="GET",
-    log_response=True,
-    http_conn_id='ngx',
-    dag=dag)
-
 garbage_collection = SimpleHttpOperator(
     task_id="garbage_collection",
     endpoint="/amrs/monitoring?action=gc",
@@ -45,4 +38,9 @@ garbage_collection = SimpleHttpOperator(
     http_conn_id='ngx',
     dag=dag)
 
-invalidate_http_sessions >> garbage_collection
+finish = DummyOperator(
+    task_id='finish',
+    dag=dag
+)
+
+garbage_collection >> finish
