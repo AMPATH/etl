@@ -119,6 +119,14 @@ update_hiv_summary = MySqlOperator(
     dag=dag
 )
 
+update_flat_covid = MySqlOperator(
+    task_id='update_flat_covid',
+    sql='CALL `etl`.`generate_flat_covid_screening_v1_0`();',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
+
 
 #update_hiv_summary = SSHOperator(
 #    task_id="update_hiv_summary",
@@ -252,6 +260,7 @@ wait_for_base_tables >> update_flat_labs_and_imaging
 
 
 update_hiv_summary >> update_appointments >> update_onc_tables >> update_pep_summary >> cdm_branch
+update_hiv_summary >> update_flat_covid >> cdm_branch
 cdm_branch >> update_cdm_summary >> update_defaulters >> update_vitals >> finish
 cdm_branch >> finish
 update_flat_labs_and_imaging >> finish
