@@ -1835,20 +1835,20 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
-                                when prev_clinical_location_id != location_id then @transfer_in := 1
+                                when prev_clinical_location_id != location_id and encounter_type != 186 then @transfer_in := 1
                                 else @transfer_in := null
                             end as transfer_in,
 
                             case 
                                 when obs regexp "!!7015=" then @transfer_in_date := date(encounter_datetime)
-                                when prev_clinical_location_id != location_id then @transfer_in_date := date(encounter_datetime)
+                                when prev_clinical_location_id != location_id and encounter_type != 186  then @transfer_in_date := date(encounter_datetime)
                                 when @cur_id = @prev_id then @transfer_in_date
                                 else @transfer_in_date := null
                             end transfer_in_date,
                             
                             case 
                                 when obs regexp "!!7015=1287" then @transfer_in_location_id := 9999
-                                when prev_clinical_location_id != location_id then @transfer_in_location_id := prev_clinical_location_id
+                                when prev_clinical_location_id != location_id and encounter_type != 186 then @transfer_in_location_id := prev_clinical_location_id
                                 when @cur_id = @prev_id then @transfer_in_location_id
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
@@ -1867,14 +1867,14 @@ SELECT @person_ids_count AS 'num patients to sync';
                                     when obs regexp "!!1285=!!" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
                                     when obs regexp "!!9082=(1287|1594|9068|9504|1285)!!" then @transfer_out := 1
-                                    when next_clinical_location_id != location_id then @transfer_out := 1
+                                    when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out := 1
                                     else @transfer_out := null
                             end as transfer_out,
 
                             case 
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
-                                when next_clinical_location_id != location_id then @transfer_out_location_id := next_clinical_location_id
+                                when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := next_clinical_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
 
