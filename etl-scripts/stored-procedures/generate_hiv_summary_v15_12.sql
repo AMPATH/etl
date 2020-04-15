@@ -294,8 +294,9 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             
                             case
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,162,163) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
+                                when t1.encounter_type in (158) AND v.visit_type_id not in (104) AND v.visit_type_id is NOT NULL then 1
                                 else null
                             end as is_clinical_encounter,
 
