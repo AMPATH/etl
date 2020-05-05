@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_summary_v15_8`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_hiv_summary_v15_12`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
                     set @primary_table := "flat_hiv_summary_v15b";
                     set @query_type = query_type;
@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.17";
+                    set @table_version = "flat_hiv_summary_v2.19";
 
                     set session sort_buffer_size=512000000;
 
@@ -18,124 +18,133 @@ BEGIN
 
                     
                     
-                    create table if not exists flat_hiv_summary_v15b (
-                        date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        person_id int,
-                        uuid varchar(100),
-                        visit_id int,
-                        encounter_id int,
-                        encounter_datetime datetime,
-                        encounter_type int,
-                        is_clinical_encounter int,
-                        location_id int,
-                        location_uuid varchar(100),
-                        visit_num int,                    
-                        enrollment_date datetime,                        
-                        enrollment_location_id int,                                                
-                        hiv_start_date datetime,
-                        death_date datetime,
-                        scheduled_visit int,                        
-                        transfer_in tinyint,
-                        transfer_in_location_id int,
-                        transfer_in_date datetime,
-                        transfer_out tinyint,
-                        transfer_out_location_id int,
-                        transfer_out_date datetime,
-                        patient_care_status int,
-                        out_of_care int,
-                        prev_rtc_date datetime,
-                        rtc_date datetime,                        
-                        arv_first_regimen varchar(500),
-                        arv_first_regimen_location_id int,
-                        arv_first_regimen_start_date datetime,
-                        arv_first_regimen_start_date_flex datetime,
-                        prev_arv_meds varchar(500),
-                        cur_arv_meds varchar(500),
-                        cur_arv_meds_strict varchar(500),                        
-                        arv_start_date datetime,                        
-                        arv_start_location_id int,
-                        prev_arv_start_date datetime,
-                        prev_arv_end_date datetime,                                                
-                        prev_arv_line int,
-                        cur_arv_line int,
-                        cur_arv_line_strict int,
-                        cur_arv_line_reported tinyint,
-                        prev_arv_adherence varchar(200),
-                        cur_arv_adherence varchar(200),
-                        hiv_status_disclosed int,
-                        is_pregnant boolean,
-                        edd datetime,
-                        tb_screen boolean,
-                        tb_screening_result int,
-                        tb_screening_datetime datetime,                        
-                        on_ipt boolean,
-                        ipt_start_date datetime,
-                        ipt_stop_date datetime,
-                        ipt_completion_date datetime,
-                        on_tb_tx boolean,
-                        tb_tx_start_date datetime,
-                        tb_tx_end_date datetime,                        
-                        pcp_prophylaxis_start_date datetime,                        
-                        condoms_provided_date datetime,
-                        modern_contraceptive_method_start_date datetime,
-                        contraceptive_method int,
-                        cur_who_stage int,
-                        discordant_status int,
-                        cd4_resulted double,
-                        cd4_resulted_date datetime,
-                        cd4_1 double,
-                        cd4_1_date datetime,
-                        cd4_2 double,
-                        cd4_2_date datetime,
-                        cd4_percent_1 double,
-                        cd4_percent_1_date datetime,
-                        cd4_percent_2 double,
-                        cd4_percent_2_date datetime,
-                        vl_resulted int,
-                        vl_resulted_date datetime,
-                        vl_1 int,
-                        vl_1_date datetime,
-                        vl_2 int,
-                        vl_2_date datetime,
-                        vl_order_date datetime,
-                        cd4_order_date datetime,
-                        hiv_dna_pcr_order_date datetime,
-                        hiv_dna_pcr_resulted int,
-                        hiv_dna_pcr_resulted_date datetime,
-                        hiv_dna_pcr_1 int,
-                        hiv_dna_pcr_1_date datetime,
-                        hiv_dna_pcr_2 int,
-                        hiv_dna_pcr_2_date datetime,
-                        hiv_rapid_test_resulted int,
-                        hiv_rapid_test_resulted_date datetime,
-                        prev_encounter_datetime_hiv datetime,
-                        next_encounter_datetime_hiv datetime,
-                        prev_encounter_type_hiv mediumint,
-                        next_encounter_type_hiv mediumint,
-                        prev_clinical_datetime_hiv datetime,
-                        next_clinical_datetime_hiv datetime,
-                        prev_clinical_location_id mediumint,
-                        next_clinical_location_id mediumint,
-                        prev_clinical_rtc_date_hiv datetime,
-                        next_clinical_rtc_date_hiv datetime,
-                        outreach_date_bncd datetime, 
-                        outreach_death_date_bncd datetime,
-                        outreach_patient_care_status_bncd int,
-                        transfer_date_bncd datetime,
-                        transfer_transfer_out_bncd datetime,
-
-                        primary key encounter_id (encounter_id),
-                        index person_date (person_id, encounter_datetime),
-                        index person_uuid (uuid),
-                        index location_enc_date (location_uuid,encounter_datetime),
-                        index enc_date_location (encounter_datetime, location_uuid),
-                        index location_id_rtc_date (location_id,rtc_date),
-                        index location_uuid_rtc_date (location_uuid,rtc_date),
-                        index loc_id_enc_date_next_clinical (location_id, encounter_datetime, next_clinical_datetime_hiv),
-                        index encounter_type (encounter_type),
-                        index date_created (date_created)
-                        
-                    );
+CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    person_id INT,
+    uuid VARCHAR(100),
+    visit_id INT,
+    visit_type SMALLINT,
+    encounter_id INT,
+    encounter_datetime DATETIME,
+    encounter_type INT,
+    is_transit INT,
+    is_clinical_encounter INT,
+    location_id INT,
+    location_uuid VARCHAR(100),
+    visit_num INT,
+    mdt_session_number INT,
+    enrollment_date DATETIME,
+    enrollment_location_id INT,
+    hiv_start_date DATETIME,
+    death_date DATETIME,
+    scheduled_visit INT,
+    transfer_in TINYINT,
+    transfer_in_location_id INT,
+    transfer_in_date DATETIME,
+    transfer_out TINYINT,
+    transfer_out_location_id INT,
+    transfer_out_date DATETIME,
+    patient_care_status INT,
+    out_of_care INT,
+    prev_rtc_date DATETIME,
+    rtc_date DATETIME,
+    med_pickup_rtc_date DATETIME,
+    arv_first_regimen VARCHAR(500),
+    arv_first_regimen_location_id INT,
+    arv_first_regimen_start_date DATETIME,
+    arv_first_regimen_start_date_flex DATETIME,
+    prev_arv_meds VARCHAR(500),
+    cur_arv_meds VARCHAR(500),
+    cur_arv_meds_strict VARCHAR(500),
+    cur_arv_drugs VARCHAR(500),
+    prev_arv_drugs VARCHAR(500),
+    arv_start_date DATETIME,
+    arv_start_location_id INT,
+    prev_arv_start_date DATETIME,
+    prev_arv_end_date DATETIME,
+    prev_arv_line INT,
+    cur_arv_line INT,
+    cur_arv_line_strict INT,
+    cur_arv_line_reported TINYINT,
+    prev_arv_adherence VARCHAR(200),
+    cur_arv_adherence VARCHAR(200),
+    hiv_status_disclosed INT,
+    is_pregnant BOOLEAN,
+    edd DATETIME,
+    tb_screen BOOLEAN,
+    tb_screening_result INT,
+    tb_screening_datetime DATETIME,
+    on_ipt BOOLEAN,
+    ipt_start_date DATETIME,
+    ipt_stop_date DATETIME,
+    ipt_completion_date DATETIME,
+    on_tb_tx BOOLEAN,
+    tb_tx_start_date DATETIME,
+    tb_tx_end_date DATETIME,
+    pcp_prophylaxis_start_date DATETIME,
+    condoms_provided_date DATETIME,
+    modern_contraceptive_method_start_date DATETIME,
+    contraceptive_method INT,
+    cur_who_stage INT,
+    discordant_status INT,
+    cd4_resulted DOUBLE,
+    cd4_resulted_date DATETIME,
+    cd4_1 DOUBLE,
+    cd4_1_date DATETIME,
+    cd4_2 DOUBLE,
+    cd4_2_date DATETIME,
+    cd4_percent_1 DOUBLE,
+    cd4_percent_1_date DATETIME,
+    cd4_percent_2 DOUBLE,
+    cd4_percent_2_date DATETIME,
+    vl_resulted INT,
+    vl_resulted_date DATETIME,
+    vl_1 INT,
+    vl_1_date DATETIME,
+    vl_2 INT,
+    vl_2_date DATETIME,
+    expected_vl_date SMALLINT,
+    vl_order_date DATETIME,
+    cd4_order_date DATETIME,
+    hiv_dna_pcr_order_date DATETIME,
+    hiv_dna_pcr_resulted INT,
+    hiv_dna_pcr_resulted_date DATETIME,
+    hiv_dna_pcr_1 INT,
+    hiv_dna_pcr_1_date DATETIME,
+    hiv_dna_pcr_2 INT,
+    hiv_dna_pcr_2_date DATETIME,
+    hiv_rapid_test_resulted INT,
+    hiv_rapid_test_resulted_date DATETIME,
+    prev_encounter_datetime_hiv DATETIME,
+    next_encounter_datetime_hiv DATETIME,
+    prev_encounter_type_hiv MEDIUMINT,
+    next_encounter_type_hiv MEDIUMINT,
+    prev_clinical_datetime_hiv DATETIME,
+    next_clinical_datetime_hiv DATETIME,
+    prev_clinical_location_id MEDIUMINT,
+    next_clinical_location_id MEDIUMINT,
+    prev_clinical_rtc_date_hiv DATETIME,
+    next_clinical_rtc_date_hiv DATETIME,
+    outreach_date_bncd DATETIME,
+    outreach_death_date_bncd DATETIME,
+    outreach_patient_care_status_bncd INT,
+    transfer_date_bncd DATETIME,
+    transfer_transfer_out_bncd DATETIME,
+    phone_outreach INT,
+    home_outreach INT,
+    outreach_attempts INT,
+    outreach_missed_visit_reason INT,
+    PRIMARY KEY encounter_id (encounter_id),
+    INDEX person_date (person_id , encounter_datetime),
+    INDEX person_uuid (uuid),
+    INDEX location_enc_date (location_uuid , encounter_datetime),
+    INDEX enc_date_location (encounter_datetime , location_uuid),
+    INDEX location_id_rtc_date (location_id , rtc_date),
+    INDEX location_uuid_rtc_date (location_uuid , rtc_date),
+    INDEX loc_id_enc_date_next_clinical (location_id , encounter_datetime , next_clinical_datetime_hiv),
+    INDEX encounter_type (encounter_type),
+    INDEX date_created (date_created)
+);
                     
                     
                                         
@@ -168,12 +177,19 @@ BEGIN
                             select 'SYNCING..........................................';
                             set @write_table = "flat_hiv_summary_v15b";
                             set @queue_table = "flat_hiv_summary_sync_queue";
-                            create table if not exists flat_hiv_summary_sync_queue (person_id int primary key);                            
+CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
+    person_id INT PRIMARY KEY
+);                            
                             
 
 
                             set @last_update = null;
-                            select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;
+SELECT 
+    MAX(date_updated)
+INTO @last_update FROM
+    etl.flat_log
+WHERE
+    table_name = @table_version;
 
                             replace into flat_hiv_summary_sync_queue
                             (select distinct patient_id
@@ -226,9 +242,9 @@ BEGIN
                     SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table); 
                     PREPARE s1 from @dyn_sql; 
                     EXECUTE s1; 
-                    DEALLOCATE PREPARE s1;  
+                    DEALLOCATE PREPARE s1;
 
-                    select @person_ids_count as 'num patients to sync';
+SELECT @person_ids_count AS 'num patients to sync';
 
 
 
@@ -262,16 +278,24 @@ BEGIN
                         (select
                             t1.person_id,
                             t1.visit_id,
+                            v.visit_type_id as visit_type,
                             t1.encounter_id,
                             t1.encounter_datetime,
                             t1.encounter_type,
+							case
+                              when v.visit_type_id IS NULL then NULL
+                              when v.visit_type_id = 24 then 1
+                              when v.visit_type_id IS NOT NULL AND v.visit_type_id != 24 THEN 0
+                              else null
+                            end as is_transit,
                             t1.location_id,
                             t1.obs,
                             t1.obs_datetimes,
 
                             
                             case
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,129,138,140,153,154,158,162,163) then 1
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
+                                when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
                                 else null
                             end as is_clinical_encounter,
 
@@ -286,6 +310,7 @@ BEGIN
                             from etl.flat_obs t1
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
+								left join amrs.visit v on (v.visit_id = t1.visit_id)
                             where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
@@ -295,9 +320,11 @@ BEGIN
                         (select
                             t1.person_id,
                             null,
+                            null,
                             t1.encounter_id,
                             t1.test_datetime,
                             t1.encounter_type,
+                            null,
                             null, 
                             t1.obs,
                             null, 
@@ -316,8 +343,8 @@ BEGIN
                         );
 
 
-                        set @prev_id = null;
-                        set @cur_id = null;
+                        set @prev_id = -1;
+                        set @cur_id = -1;
                         set @prev_encounter_date = null;
                         set @cur_encounter_date = null;
                         set @enrollment_date = null;
@@ -325,6 +352,7 @@ BEGIN
                         set @cur_location = null;
                         set @cur_rtc_date = null;
                         set @prev_rtc_date = null;
+                        set @med_pickup_rtc_date = null;
                         set @hiv_start_date = null;
                         set @prev_arv_start_date = null;
                         set @arv_start_date = null;
@@ -342,6 +370,8 @@ BEGIN
                         set @edd = null;
                         set @prev_arv_meds = null;
                         set @cur_arv_meds = null;
+                        set @cur_arv_drugs = null;
+                        set @prev_arv_drugs = null;
                         set @ipt_start_date = null;
                         set @ipt_end_date = null;
                         set @ipt_completion_date = null;
@@ -409,11 +439,13 @@ BEGIN
                             t1.person_id,
                             p.uuid,
                             t1.visit_id,
+                            t1.visit_type,
                             t1.encounter_id,
                             @prev_encounter_date := date(@cur_encounter_date) as prev_encounter_date,
                             @cur_encounter_date := date(encounter_datetime) as cur_encounter_date,
                             t1.encounter_datetime,                            
                             t1.encounter_type,
+                            t1.is_transit,
                             t1.is_clinical_encounter,                                                    
                             CASE
                                  WHEN
@@ -493,6 +525,18 @@ BEGIN
                                 when @prev_id=@cur_id and t1.encounter_type not in (5,6,7,8,9,21) then @visit_num:= @visit_num + 1
                                 when @prev_id != @cur_id then @visit_num := 1
                             end as visit_num,
+                            case
+                              when encounter_type=110 then
+                                case
+                                  when obs regexp "!!(10532)" then @mdt_session_number:= 4
+								  when obs regexp "!!(10527|10528|10529|10530|10531)" then @mdt_session_number:= 3
+								  when obs regexp "!!(10523|10524|10525|10526)" then @mdt_session_number:= 2
+								  when obs regexp "!!(10518|10519|10520|10521|10522)" then @mdt_session_number:= 1
+								  when @prev_id = @cur_id then @mdt_session_number
+								else null
+							  end
+							  else @mdt_session_number
+                            end as mdt_session_number,
 
                             case
                                 when @prev_id=@cur_id then @prev_rtc_date := @cur_rtc_date
@@ -505,6 +549,11 @@ BEGIN
                                 when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
                                 else @cur_rtc_date := null
                             end as cur_rtc_date,
+                            
+                            case
+									when obs regexp "!!9605=" then @med_pickup_rtc_date := replace(replace((substring_index(substring(obs,locate("!!9605=",obs)),@sep,1)),"!!9605=",""),"!!","")
+									else @med_pickup_rtc_date := null
+                            end as med_pickup_rtc_date,
                                                         
                             
                             
@@ -612,6 +661,31 @@ BEGIN
                                     
                                 else null
                             end as cur_arv_meds_strict,
+                            
+                             case
+                            
+                                when @prev_id=@cur_id and @prev_arv_drugs is not null then @prev_arv_drugs := @cur_arv_drugs
+                                when @prev_id=@cur_id then @prev_arv_drugs
+                                else @prev_arv_drugs := null
+                            
+                            end as prev_arv_drugs,
+                            
+                            case
+                            
+								when obs regexp "!!1255=(1107|1260)!!" then @cur_arv_drugs := null
+                                when obs regexp "!!1250=" then @cur_arv_drugs := normalizeArvsDrugFormulation(obs)
+                                    
+                                    
+                                when obs regexp "!!1088=" then @cur_arv_drugs := normalizeArvsDrugFormulation(obs)
+                                                                        
+                                when obs regexp "!!2154=" then @cur_arv_drugs := normalizeArvsDrugFormulation(obs)
+								
+                                when obs regexp "!!2157=" and not obs regexp "!!2157=1066" then @cur_arv_drugs := normalizeArvsDrugFormulation(obs)
+                                    
+                                when @prev_id = @cur_id then @cur_arv_drugs
+                                else @cur_arv_drugs:= null
+                            
+			               end as cur_arv_drugs,
 
 
 							case
@@ -1098,6 +1172,7 @@ BEGIN
                             case
                                 when obs regexp "!!1265=(1256|1850)!!" then @ipt_start_date := encounter_datetime
                                 when obs regexp "!!1265=(1257|981|1406|1849)!!" and @ipt_start_date is null then @ipt_start_date := encounter_datetime
+								when obs regexp "!!10591=1065" and obs regexp "!!1190=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!","")
                                 when @cur_id != @prev_id then @ipt_start_date := null
                                 else @ipt_start_date
                             end as ipt_start_date,
@@ -1106,6 +1181,7 @@ BEGIN
                             
                             case
                                 when obs regexp "!!1266=" then @ipt_stop_date :=  encounter_datetime
+                                when obs regexp "!!10591=1065" and obs regexp "!!8603=" then @ipt_stop_date := replace(replace((substring_index(substring(obs,locate("!!8603=",obs)),@sep,1)),"!!8603=",""),"!!","")
                                 when @cur_id = @prev_id then @ipt_stop_date
                                 when @cur_id != @prev_id then @ipt_stop_date := null
                                 else @ipt_stop_date
@@ -1113,6 +1189,7 @@ BEGIN
                             
                             case
                                 when obs regexp "!!1266=1267!!" then @ipt_completion_date :=  encounter_datetime
+                                when obs regexp "!!10591=1065" and obs regexp "!!8603=" then @ipt_completion_date := replace(replace((substring_index(substring(obs,locate("!!8603=",obs)),@sep,1)),"!!8603=",""),"!!","")
                                 when @cur_id = @prev_id then @ipt_completion_date
                                 when @cur_id != @prev_id then @ipt_completion_date := null
                                 else @ipt_completion_date
@@ -1188,14 +1265,14 @@ BEGIN
                             end as cd4_resulted_date,
 
                             case
-                                when t1.encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_resulted := cast(replace(replace((substring_index(substring(obs,locate("!!5497=",obs)),@sep,1)),"!!5497=",""),"!!","") as unsigned)
+                                when t1.encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_resulted := cast(replace(replace((substring_index(substring(obs,locate("!!5497=",obs)),@sep,1)),"!!5497=",""),"!!","") + 0 as unsigned)
                                 when @prev_id = @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_resulted
                             end as cd4_resulted,
 
 
 
                             case
-                                when t1.encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_1:= cast(replace(replace((substring_index(substring(obs,locate("!!5497=",obs)),@sep,1)),"!!5497=",""),"!!","") as unsigned)
+                                when t1.encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_1:= cast(replace(replace((substring_index(substring(obs,locate("!!5497=",obs)),@sep,1)),"!!5497=",""),"!!","") + 0 as unsigned)
                                 when @prev_id=@cur_id then @cd4_1
                                 else @cd4_1:=null
                             end as cd4_1,
@@ -1230,7 +1307,7 @@ BEGIN
 
                             case
                                 when t1.encounter_type = @lab_encounter_type and obs regexp "!!730=[0-9]"
-                                    then @cd4_percent_1:= cast(replace(replace((substring_index(substring(obs,locate("!!730=",obs)),@sep,1)),"!!730=",""),"!!","") as unsigned)
+                                    then @cd4_percent_1:= cast(replace(replace((substring_index(substring(obs,locate("!!730=",obs)),@sep,1)),"!!730=",""),"!!","") + 1 as unsigned)
                                 when @prev_id=@cur_id then @cd4_percent_1
                                 else @cd4_percent_1:=null
                             end as cd4_percent_1,
@@ -1273,12 +1350,12 @@ BEGIN
                             end as vl_resulted_date,
 
                             case
-                                when t1.encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_resulted := cast(replace(replace((substring_index(substring(obs,locate("!!856=",obs)),@sep,1)),"!!856=",""),"!!","") as unsigned)
+                                when t1.encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_resulted := cast(replace(replace((substring_index(substring(obs,locate("!!856=",obs)),@sep,1)),"!!856=",""),"!!","") + 0 as unsigned)
                                 when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_resulted
                             end as vl_resulted,
 
                             case
-                                    when obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type then @vl_1:=cast(replace(replace((substring_index(substring(obs,locate("!!856=",obs)),@sep,1)),"!!856=",""),"!!","") as unsigned)
+                                    when obs regexp "!!856=[0-9]" and t1.encounter_type = @lab_encounter_type then @vl_1:=cast(replace(replace((substring_index(substring(obs,locate("!!856=",obs)),@sep,1)),"!!856=",""),"!!","") + 0 as unsigned)
                                     when obs regexp "!!856=[0-9]"
                                             and (@vl_1_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!",""),@vl_1_date)) > 30)
                                             and (@vl_1_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!856=",obs_datetimes)),@sep,1)),"!!856=",""),"!!","")) > @vl_1_date)
@@ -1307,6 +1384,19 @@ BEGIN
                                 when @prev_id=@cur_id and (@vl_1_date is null or @vl_1_date < @vl_order_date) then @vl_order_date
                                 else @vl_order_date := null
                             end as vl_order_date,
+                            
+                            case
+                            
+                            WHEN (@cur_arv_meds IS NOT NULL AND @vl_1 > 1000) AND (TIMESTAMPDIFF(DAY, @vl_1_date,date(encounter_datetime)) >= 90) THEN 1
+
+                            WHEN (TIMESTAMPDIFF(MONTH,@arv_start_date,date(encounter_datetime)) <= 12) AND (@vl_1_date IS NULL OR TIMESTAMPDIFF(MONTH,@vl_1_date,date(encounter_datetime)) >= 6) AND (TIMESTAMPDIFF(MONTH,@arv_start_date,date(encounter_datetime)) >= 6) THEN 1
+
+                            WHEN (TIMESTAMPDIFF(MONTH,@arv_start_date, date(encounter_datetime)) >= 12) AND (@vl_1_date IS NULL OR TIMESTAMPDIFF(MONTH, @vl_1_date, date(encounter_datetime)) >= 12) THEN 1
+
+                            ELSE 0
+                            
+                            
+                            end as expected_vl_date,
 
                             
                             case
@@ -1427,11 +1517,6 @@ BEGIN
                                 else @contraceptive_method := null
                             end as contraceptive_method,
                             
-                            
-
-                            
-                            
-                            
                             case
                                 when obs regexp "!!5356=(1204|1220)!!" then @cur_who_stage := 1
                                 when obs regexp "!!5356=(1205|1221)!!" then @cur_who_stage := 2
@@ -1455,15 +1540,53 @@ BEGIN
                             
                             
                         case 
-                            when obs regexp "!!6096=1065" then @discordant_status :=  "Yes"
-                            when obs regexp "!!6096=1066" then @discordant_status := "No"
-                            when obs regexp "!!6096=1067" then @discordant_status := "Unknown"
-                            when obs regexp "!!6096=1175" then @discordant_status := "N/A"
-                            when obs regexp "!!6096=6826" then @discordant_status := "Concordant Couple Positive"
-                            when obs regexp "!!6096=6827" then @discordant_status :=  "Concordant Couple Negative"                                                       
+                            when obs regexp "!!6096=1065" then @discordant_status := 1
+                            when obs regexp "!!6096=1066" then @discordant_status := 2
+                            when obs regexp "!!6096=1067" then @discordant_status := 3
+                            when obs regexp "!!6096=1175" then @discordant_status := 4
+                            when obs regexp "!!6096=6826" then @discordant_status := 5
+                            when obs regexp "!!6096=6827" then @discordant_status := 6                                                    
                             when @prev_id = @cur_id then @discordant_status
                             else @discordant_status := null
-                        end as discordant_status
+                        end as discordant_status,
+                        
+                        
+                        case
+							when encounter_type=21 then
+										case
+											when obs regexp "!!9063=1065" AND obs regexp "!!9600=1065" then @phone_outreach:= 1
+											when obs regexp "!!1569=1555" AND obs regexp "!!9600=1065" then @phone_outreach:= 1
+											when obs regexp "!!1558=1555" AND obs regexp "!!9600=1065" then @phone_outreach:= 1
+                                            when obs regexp "!!1558=1555" AND obs regexp "!!1559=1065" then @phone_outreach:= 1
+											when obs regexp "!!9063=(1065|1560|9064|9065|9066|5622)" AND obs regexp "!!9600=1066" then @phone_outreach:= 2
+											when obs regexp "!!1558=1555" AND obs regexp "!!9600=1066" then @phone_outreach:= 2
+                                            when obs regexp "!!1558=1555" AND obs regexp "!!1559=1066" then @phone_outreach:= 2
+										else @phone_outreach:= null
+                                        end
+								else @phone_outreach := null
+						end as phone_outreach,
+                            case
+                                when encounter_type=21 then
+										case
+                                        when obs regexp "!!10085=1065" AND obs regexp "!!1558=(7066|6116|1556|1557)" AND obs regexp "!!1559=1065" then @home_outreach:= 1
+										when obs regexp "!!1558=7066" and obs regexp "!!1559=1065" then @home_outreach := 1
+                                        when obs regexp "!!1569=1567"  AND obs regexp "!!1559=1065" then @home_outreach := 1
+                                        when obs regexp "!!10085=1065" AND "!!1558=(7066|6116|1556|1557)" AND obs regexp "!!1559=1066" then @home_outreach := 2
+                                        when obs regexp "!!1569=1567"  AND obs regexp "!!1559=1066" then @home_outreach := 2
+										else @home_outreach:= null
+										end
+								else @home_outreach := null
+                            end as home_outreach,
+                            
+						 case when encounter_type = 21 then obs regexp 
+                           case
+								when obs regexp "!!1553=" then @outreach_attempts:= CAST(GetValues(obs,'1553') AS SIGNED)
+                                when obs regexp "!!9062=" then @outreach_attempts:= CAST(GetValues(obs,'9062') AS SIGNED)
+                           end
+                           else @outreach_attempts := null
+                         end as outreach_attempts,
+                            
+                         0 as outreach_missed_visit_reason
                             
                             
                             
@@ -1474,8 +1597,8 @@ BEGIN
                         
                 
 
-                        set @prev_id = null;
-                        set @cur_id = null;
+                        set @prev_id = -1;
+                        set @cur_id = -1;
                         set @prev_encounter_datetime = null;
                         set @cur_encounter_datetime = null;
 
@@ -1617,8 +1740,8 @@ BEGIN
                         alter table flat_hiv_summary_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime, drop cur_clinical_rtc_date;
 
 
-                        set @prev_id = null;
-                        set @cur_id = null;
+                        set @prev_id = -1;
+                        set @cur_id = -1;
                         set @prev_encounter_type = null;
                         set @cur_encounter_type = null;
                         set @prev_encounter_datetime = null;
@@ -1712,20 +1835,20 @@ BEGIN
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
-                                when prev_clinical_location_id != location_id then @transfer_in := 1
+                                when prev_clinical_location_id != location_id and encounter_type != 186 then @transfer_in := 1
                                 else @transfer_in := null
                             end as transfer_in,
 
                             case 
                                 when obs regexp "!!7015=" then @transfer_in_date := date(encounter_datetime)
-                                when prev_clinical_location_id != location_id then @transfer_in_date := date(encounter_datetime)
+                                when prev_clinical_location_id != location_id and encounter_type != 186  then @transfer_in_date := date(encounter_datetime)
                                 when @cur_id = @prev_id then @transfer_in_date
                                 else @transfer_in_date := null
                             end transfer_in_date,
                             
                             case 
                                 when obs regexp "!!7015=1287" then @transfer_in_location_id := 9999
-                                when prev_clinical_location_id != location_id then @transfer_in_location_id := prev_clinical_location_id
+                                when prev_clinical_location_id != location_id and encounter_type != 186 then @transfer_in_location_id := prev_clinical_location_id
                                 when @cur_id = @prev_id then @transfer_in_location_id
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
@@ -1744,14 +1867,14 @@ BEGIN
                                     when obs regexp "!!1285=!!" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
                                     when obs regexp "!!9082=(1287|1594|9068|9504|1285)!!" then @transfer_out := 1
-                                    when next_clinical_location_id != location_id then @transfer_out := 1
+                                    when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out := 1
                                     else @transfer_out := null
                             end as transfer_out,
 
                             case 
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
-                                when next_clinical_location_id != location_id then @transfer_out_location_id := next_clinical_location_id
+                                when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := next_clinical_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
 
@@ -1770,11 +1893,14 @@ BEGIN
                         );
 
 
-                    select count(*) into @new_encounter_rows from flat_hiv_summary_4;
+SELECT 
+    COUNT(*)
+INTO @new_encounter_rows FROM
+    flat_hiv_summary_4;
                     
-                    select @new_encounter_rows;                    
+SELECT @new_encounter_rows;                    
                     set @total_rows_written = @total_rows_written + @new_encounter_rows;
-                    select @total_rows_written;
+SELECT @total_rows_written;
     
                     
                     
@@ -1784,13 +1910,16 @@ BEGIN
                         person_id,
                         t1.uuid,
                         visit_id,
+                        visit_type,
                         encounter_id,
                         encounter_datetime,
                         encounter_type,
+                        is_transit,
                         is_clinical_encounter,
                         location_id,
                         t2.uuid as location_uuid,
-                        visit_num,                    
+                        visit_num,
+                        mdt_session_number,
                         enrollment_date,                        
                         enrollment_location_id,                                        
                         hiv_start_date,
@@ -1805,14 +1934,17 @@ BEGIN
                         patient_care_status,
                         out_of_care,
                         prev_rtc_date,
-                        cur_rtc_date as rtc_date,                        
+                        cur_rtc_date as rtc_date,
+                        med_pickup_rtc_date,
                         arv_first_regimen,
                         arv_first_regimen_location_id,
                         arv_first_regimen_start_date,
                         arv_first_regimen_start_date_flex,
                         prev_arv_meds,
                         cur_arv_meds,
-                        cur_arv_meds_strict,                        
+                        cur_arv_meds_strict,
+                        cur_arv_drugs,
+                        prev_arv_drugs,
                         arv_start_date,                        
                         arv_start_location_id,
                         prev_arv_start_date,
@@ -1858,6 +1990,7 @@ BEGIN
                         vl_1_date,
                         vl_2,
                         vl_2_date,
+                        expected_vl_date,
                         vl_order_date,
                         cd4_order_date,
                         hiv_dna_pcr_order_date,
@@ -1883,7 +2016,11 @@ BEGIN
                         outreach_death_date_bncd,
                         outreach_patient_care_status_bncd,
                         transfer_date_bncd,
-                        transfer_transfer_out_bncd
+                        transfer_transfer_out_bncd,
+                        phone_outreach,
+                        home_outreach,
+						outreach_attempts,
+                        outreach_missed_visit_reason
                         
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
@@ -1919,7 +2056,11 @@ BEGIN
                     set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
                     
 
-                    select @person_ids_count as 'persons remaining', @cycle_length as 'Cycle time (s)', ceil(@person_ids_count / cycle_size) as remaining_cycles, @remaining_time as 'Est time remaining (min)';
+SELECT 
+    @person_ids_count AS 'persons remaining',
+    @cycle_length AS 'Cycle time (s)',
+    CEIL(@person_ids_count / cycle_size) AS remaining_cycles,
+    @remaining_time AS 'Est time remaining (min)';
 
                  end while;
                  
@@ -1936,7 +2077,12 @@ BEGIN
                         DEALLOCATE PREPARE s1;
                                                 
                         set @start_write = now();
-                        select concat(@start_write, " : Writing ",@total_rows_to_write, ' to ',@primary_table);
+SELECT 
+    CONCAT(@start_write,
+            ' : Writing ',
+            @total_rows_to_write,
+            ' to ',
+            @primary_table);
 
                         SET @dyn_sql=CONCAT('replace into ', @primary_table,
                             '(select * from ',@write_table,');');
@@ -1946,7 +2092,11 @@ BEGIN
                         
                         set @finish_write = now();
                         set @time_to_write = timestampdiff(second,@start_write,@finish_write);
-                        select concat(@finish_write, ' : Completed writing rows. Time to write to primary table: ', @time_to_write, ' seconds ');                        
+SELECT 
+    CONCAT(@finish_write,
+            ' : Completed writing rows. Time to write to primary table: ',
+            @time_to_write,
+            ' seconds ');                        
                         
                         SET @dyn_sql=CONCAT('drop table ',@write_table,';'); 
                         PREPARE s1 from @dyn_sql; 
@@ -1958,11 +2108,20 @@ BEGIN
                 
                                     
                 set @ave_cycle_length = ceil(@total_time/@cycle_number);
-                select CONCAT('Average Cycle Length: ', @ave_cycle_length, ' second(s)');
+SELECT 
+    CONCAT('Average Cycle Length: ',
+            @ave_cycle_length,
+            ' second(s)');
                 
                  set @end = now();
+                 #if (@query_type="sync") then
                  insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-                 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
+                 #end if;
+SELECT 
+    CONCAT(@table_version,
+            ' : Time to complete: ',
+            TIMESTAMPDIFF(MINUTE, @start, @end),
+            ' minutes');
 
         END$$
 DELIMITER ;
