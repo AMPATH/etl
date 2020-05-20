@@ -938,12 +938,11 @@ while @person_ids_count > 0 do
                     WHEN
                         (@prev_id != @cur_id
                             OR @was_active_october_18 IS NULL)
-                            AND year_week > 201838
-                            AND year_week < 201918
+                            AND year_week < 201938
                             AND (@cur_status = 'active' OR @cur_status = 'missed'  OR @cur_status = 'defaulter')
-                            AND ((death_date IS NULL OR DATE(death_reporting_date) > '2019-05-11') AND fd_next_encounter_datetime IS NULL)
-                            AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > '2019-05-11'))
-                            AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > '2019-05-11') AND fe_next_encounter_datetime IS NULL)
+                            AND ((death_date IS NULL OR DATE(death_reporting_date) > '2019-09-30') AND fd_next_encounter_datetime IS NULL)
+                            AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > '2019-09-30'))
+                            AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > '2019-09-30') AND fe_next_encounter_datetime IS NULL)
                     
                 THEN
                         @was_active_october_18:=1
@@ -1052,10 +1051,7 @@ while @person_ids_count > 0 do
                 END AS is_ltfu_after_sep_19,   #is_ltfu_after_may_revised
 
                 IF((@is_ltfu_after_sep_19 = 1 OR 
-                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
-                AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
-                AND ((transfer_out_date IS NULL AND transfer_out_location_id IS NULL) OR (DATE(transfer_reporting_date) > end_date))
-                AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0)))),
                     1,
                     0) AS is_ltfu_after_sep_total,
 
@@ -1206,17 +1202,20 @@ while @person_ids_count > 0 do
 
                 
                 # OUTCOMES  cumulative outcomes
-                IF(@is_ltfu_after_sep_19 = 1
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND @cur_status = 'dead',
                     1,
                     0) AS ltfu_cumulative_outcomes_death,
                     
-                IF(@is_ltfu_after_sep_19 = 1
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND @cur_status = 'transfer_out',
                     1,
                     0) AS ltfu_cumulative_outcomes_transfer_out,
                     
-                IF(@is_ltfu_after_sep_19 = 1
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND (@cur_status = 'active'
                         OR @cur_status = 'transfer_in'
                         OR @cur_status = 'missed'
@@ -1224,7 +1223,8 @@ while @person_ids_count > 0 do
                     1,
                     0) AS ltfu_cumulative_outcomes_active,
                 
-                IF(@is_ltfu_after_sep_19 = 1
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND (@cur_status = 'active'
                         OR @cur_status = 'transfer_in'
                         OR @cur_status = 'missed'
@@ -1256,14 +1256,24 @@ while @person_ids_count > 0 do
                         OR @cur_status = 'transfer_in'),
                     1,
                     0) AS ltfu_active_this_week,
-
+                    
+				 IF(((@is_ltfu_after_sep_19 = 1 AND @prev_status = 'ltfu') 
+                        OR (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <= 0 )))) 
+                        AND (@cur_status = 'active'
+                        OR @cur_status = 'missed'
+                        OR @cur_status = 'defaulter'
+                        OR @cur_status = 'transfer_in'
+                        OR @cur_status = 'dead'
+                        OR @cur_status = 'transfer_out'),
+                    1,
+                    0) AS ltfu_cumulative_outcomes_this_week_total,
                 #OUTCOMES weekly outcomes
                     
                 CASE
                     WHEN
                         (@prev_id != @cur_id
                             OR @was_ltfu_before_october_2018 IS NULL)
-                            AND year_week = 201839
+                            AND year_week = 201938
                             AND @cur_status = 'ltfu'
                             AND @was_active_october_18 = 0
                 THEN
@@ -1736,7 +1746,7 @@ while @person_ids_count > 0 do
                         newly_med_ltfu_this_week,
                         med_surge_ltfus_outcomes,
                         med_surge_ltfus_outcomes_this_week,
-                        null as column_1,
+                        ltfu_cumulative_outcomes_this_week_total as column_1,
                         null as column_2,
                         null as column_3,
                         null as column_4,
