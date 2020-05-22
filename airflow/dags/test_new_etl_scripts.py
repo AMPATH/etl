@@ -199,6 +199,14 @@ update_defaulters =  MySqlOperator(
    dag=dag
 )
 
+update_case_management = MySqlOperator(
+    task_id='update_case_management',
+    sql='CALL `etl`.`generate_flat_case_manager`("sync",1,10000,10,1);',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
+
 
 
 finish = DummyOperator(
@@ -260,7 +268,7 @@ wait_for_base_tables >> update_flat_labs_and_imaging
 
 
 update_hiv_summary >> update_appointments >> update_onc_tables >> update_pep_summary >> cdm_branch
-update_hiv_summary >> update_flat_covid >> cdm_branch
+update_hiv_summary >> update_flat_covid >> update_case_management >> cdm_branch
 cdm_branch >> update_cdm_summary >> update_defaulters >> update_vitals >> finish
 cdm_branch >> finish
 update_flat_labs_and_imaging >> finish
