@@ -1,7 +1,6 @@
 use etl;
-drop procedure if exists generate_flat_case_manager;
 DELIMITER $$
-CREATE DEFINER=`etl_user`@`%` PROCEDURE `generate_flat_case_manager`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int,  IN person_ids varchar(500))
+CREATE  PROCEDURE `generate_flat_case_manager`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int,  IN person_ids varchar(500))
 BEGIN
                     set @primary_table := "flat_case_manager";
                     set @query_type = query_type;
@@ -16,59 +15,59 @@ BEGIN
 
                        -- drop TABLE IF EXISTS flat_case_manager;
 						CREATE TABLE IF NOT EXISTS flat_case_manager (
-							date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-							person_id INT,
-							uuid VARCHAR(100),
-							visit_id INT,
-							visit_type SMALLINT,
-							encounter_id INT,
-							encounter_datetime DATETIME,
-							encounter_type INT,
-							is_clinical_encounter INT,
-							location_id INT,
-							location_uuid VARCHAR(100),
-							enrollment_date DATETIME,
-							transfer_out TINYINT,
-							rtc_date DATETIME,
-							med_pickup_rtc_date DATETIME,
-							arv_first_regimen_start_date DATETIME,
-							arv_start_date DATETIME,
-							prev_arv_start_date DATETIME,
-							prev_arv_adherence VARCHAR(200),
-							cur_arv_adherence VARCHAR(200),
-							is_pregnant BOOLEAN,
-							edd DATETIME,
-							vl_resulted INT,
-							vl_resulted_date DATETIME,
-							vl_1 INT,
-							vl_1_date DATETIME,
-							vl_order_date DATETIME,
-                            effective_rtc DATETIME,
-                            phone_encounter_datetime DATETIME,
-                            next_phone_appointment DATETIME,
-							phone_planned_rtc DATETIME,
-                            gender varchar(50),
-                            birthdate DATETIME,
-                            case_manager_user_id INT,
-                            case_manager_person_id INT,
-                            case_manager_user_name varchar(100),
-                            case_manager_name varchar(250),
-                            person_name varchar(250),
-                            identifiers varchar(250),
-							PRIMARY KEY person_id (person_id),
-							INDEX person_uuid (uuid),
-							INDEX location_id (location_id),
-							INDEX encounter_datetime (encounter_datetime),
-							INDEX rtc_date (rtc_date),
-                            INDEX next_phone_appointment (location_id, next_phone_appointment),
-							INDEX med_pickup_rtc_date (med_pickup_rtc_date),
-							INDEX location_enc_date (location_id , encounter_datetime),
-							INDEX location_id_rtc_date (location_id , rtc_date),
-                            INDEX location_id_effective_rtc (location_id , effective_rtc),
-							INDEX location_id_med_rtc_date (location_id , med_pickup_rtc_date),
-							INDEX encounter_type (encounter_type),
-							INDEX date_created (date_created)
-						);
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    person_id INT,
+    uuid VARCHAR(100),
+    visit_id INT,
+    visit_type SMALLINT,
+    encounter_id INT,
+    encounter_datetime DATETIME,
+    encounter_type INT,
+    is_clinical_encounter INT,
+    location_id INT,
+    location_uuid VARCHAR(100),
+    enrollment_date DATETIME,
+    transfer_out TINYINT,
+    rtc_date DATETIME,
+    med_pickup_rtc_date DATETIME,
+    arv_first_regimen_start_date DATETIME,
+    arv_start_date DATETIME,
+    prev_arv_start_date DATETIME,
+    prev_arv_adherence VARCHAR(200),
+    cur_arv_adherence VARCHAR(200),
+    is_pregnant BOOLEAN,
+    edd DATETIME,
+    vl_resulted INT,
+    vl_resulted_date DATETIME,
+    vl_1 INT,
+    vl_1_date DATETIME,
+    vl_order_date DATETIME,
+    effective_rtc DATETIME,
+    phone_encounter_datetime DATETIME,
+    next_phone_appointment DATETIME,
+    phone_planned_rtc DATETIME,
+    gender VARCHAR(50),
+    birthdate DATETIME,
+    case_manager_user_id INT,
+    case_manager_person_id INT,
+    case_manager_user_name VARCHAR(100),
+    case_manager_name VARCHAR(250),
+    person_name VARCHAR(250),
+    identifiers VARCHAR(250),
+    PRIMARY KEY person_id (person_id),
+    INDEX person_uuid (uuid),
+    INDEX location_id (location_id),
+    INDEX encounter_datetime (encounter_datetime),
+    INDEX rtc_date (rtc_date),
+    INDEX next_phone_appointment (location_id , next_phone_appointment),
+    INDEX med_pickup_rtc_date (med_pickup_rtc_date),
+    INDEX location_enc_date (location_id , encounter_datetime),
+    INDEX location_id_rtc_date (location_id , rtc_date),
+    INDEX location_id_effective_rtc (location_id , effective_rtc),
+    INDEX location_id_med_rtc_date (location_id , med_pickup_rtc_date),
+    INDEX encounter_type (encounter_type),
+    INDEX date_created (date_created)
+);
                     
                     
                                         
@@ -78,21 +77,29 @@ BEGIN
                             set @queue_table = concat("flat_case_manager_build_queue_",queue_number);                                                                    
 
                             SET @dyn_sql=CONCAT('Create table if not exists ',@write_table,' like ',@primary_table);
+SELECT @dyn_sql;
                             PREPARE s1 from @dyn_sql; 
                             EXECUTE s1; 
-                            DEALLOCATE PREPARE s1;  
+                            DEALLOCATE PREPARE s1;
+                            
+SELECT 'write table created';
 
                             
-                            SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_case_manager_build_queue limit ', queue_size, ');'); 
+                            SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_case_manager_build_queue limit ', queue_size, ');');
+SELECT @dyn_sql;
                             PREPARE s1 from @dyn_sql; 
                             EXECUTE s1; 
-                            DEALLOCATE PREPARE s1;  
+                            DEALLOCATE PREPARE s1;
+                            
+SELECT 'queue table created';
                             
                             
-                            SET @dyn_sql=CONCAT('delete t1 from flat_case_manager_build_queue t1 join ',@queue_table, ' t2 using (person_id);'); 
+                            SET @dyn_sql=CONCAT('delete t1 from flat_case_manager_build_queue t1 join ',@queue_table, ' t2 using (person_id);');
+							SELECT @dyn_sql;
                             PREPARE s1 from @dyn_sql; 
                             EXECUTE s1; 
-                            DEALLOCATE PREPARE s1;  
+                            DEALLOCATE PREPARE s1;
+							SELECT 'patients removed from primary queue';
 
                     end if;
     
@@ -105,7 +112,7 @@ BEGIN
 							); 
                             
                             SET @sql = CONCAT('replace into flat_case_manager_sync_ids_queue(SELECT person_id FROM amrs.person WHERE person_id IN (', person_ids, '))');
-                            select @sql;
+SELECT @sql;
 							PREPARE stmt FROM @sql;
 							EXECUTE stmt;
 							DEALLOCATE PREPARE stmt;
@@ -117,16 +124,16 @@ BEGIN
                             set @write_table = "flat_case_manager";
                             set @queue_table = "flat_case_manager_sync_queue";
 							CREATE TABLE IF NOT EXISTS flat_case_manager_sync_queue (
-								person_id INT PRIMARY KEY
-							);                            
+    person_id INT PRIMARY KEY
+);                            
                             
                             set @last_update = null;
 							SELECT 
-								MAX(date_updated)
-							INTO @last_update FROM
-								etl.flat_log
-							WHERE
-								table_name = @table_version;
+    MAX(date_updated)
+INTO @last_update FROM
+    etl.flat_log
+WHERE
+    table_name = @table_version;
                             -- set @last_update = "1900-01-01";
                             replace into flat_case_manager_sync_queue
                             (select distinct person_id
@@ -188,7 +195,7 @@ BEGIN
                     PREPARE s1 from @dyn_sql; 
                     EXECUTE s1; 
                     DEALLOCATE PREPARE s1;
-                    SELECT @person_ids_count AS 'num patients to sync';
+SELECT @person_ids_count AS 'num patients to sync';
 
                     set @total_time=0;
                     set @cycle_number = 0;
@@ -325,7 +332,7 @@ BEGIN
                             telecare_encounters te on (h.person_id = te.person_id)
 								left outer join
 							amrs.person_attribute pa ON (h.person_id = pa.person_id
-								AND pa.person_attribute_type_id = 68)
+								AND pa.person_attribute_type_id = 68 AND pa.voided = 0)
 								left outer join
 							amrs.users u ON (u.user_id = pa.value)
 								JOIN
@@ -414,10 +421,10 @@ BEGIN
                     
 
 						SELECT 
-							@person_ids_count AS 'persons remaining',
-							@cycle_length AS 'Cycle time (s)',
-							CEIL(@person_ids_count / cycle_size) AS remaining_cycles,
-							@remaining_time AS 'Est time remaining (min)';
+    @person_ids_count AS 'persons remaining',
+    @cycle_length AS 'Cycle time (s)',
+    CEIL(@person_ids_count / cycle_size) AS remaining_cycles,
+    @remaining_time AS 'Est time remaining (min)';
 
                  end while;
                  
@@ -435,11 +442,11 @@ BEGIN
                                                 
                         set @start_write = now();
 						SELECT 
-							CONCAT(@start_write,
-									' : Writing ',
-									@total_rows_to_write,
-									' to ',
-									@primary_table);
+    CONCAT(@start_write,
+            ' : Writing ',
+            @total_rows_to_write,
+            ' to ',
+            @primary_table);
 
                         SET @dyn_sql=CONCAT('replace into ', @primary_table,
                             '(select * from ',@write_table,');');
@@ -450,10 +457,10 @@ BEGIN
                         set @finish_write = now();
                         set @time_to_write = timestampdiff(second,@start_write,@finish_write);
 						SELECT 
-							CONCAT(@finish_write,
-									' : Completed writing rows. Time to write to primary table: ',
-									@time_to_write,
-									' seconds ');                        
+    CONCAT(@finish_write,
+            ' : Completed writing rows. Time to write to primary table: ',
+            @time_to_write,
+            ' seconds ');                        
                         
                         SET @dyn_sql=CONCAT('drop table ',@write_table,';'); 
                         PREPARE s1 from @dyn_sql; 
@@ -464,19 +471,18 @@ BEGIN
                                     
                 set @ave_cycle_length = ceil(@total_time/@cycle_number);
 				SELECT 
-					CONCAT('Average Cycle Length: ',
-							@ave_cycle_length,
-							' second(s)');
+    CONCAT('Average Cycle Length: ',
+            @ave_cycle_length,
+            ' second(s)');
                 
                  set @end = now();
                  #if (@query_type="sync") then
                  insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-                 #end if;
-				SELECT 
-					CONCAT(@table_version,
-							' : Time to complete: ',
-							TIMESTAMPDIFF(MINUTE, @start, @end),
-							' minutes');
+SELECT 
+    CONCAT(@table_version,
+            ' : Time to complete: ',
+            TIMESTAMPDIFF(MINUTE, @start, @end),
+            ' minutes');
 
         END$$
 DELIMITER ;
