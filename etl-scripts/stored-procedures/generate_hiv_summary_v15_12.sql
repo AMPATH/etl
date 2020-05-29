@@ -756,6 +756,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen_start_date:='1900-01-01'
+                                WHEN @arv_first_regimen_start_date = "1900-01-01" AND obs regexp '!!1633=' AND obs regexp '!!1499=' then 
+                                     @arv_first_regimen_start_date := replace(replace((substring_index(substring(obs,locate("!!1499=",obs)),@sep,1)),"!!1499=",""),"!!","")
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
                                 WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
                                 ELSE @arv_first_regimen_start_date
@@ -874,6 +876,9 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen := "unknown"
+
+                                WHEN @arv_first_regimen = "unknown"  AND obs regexp '!!1633=1065!!' AND obs regexp '!!2157=' then 
+                                     @arv_first_regimen := normalize_arvs(obs,'2157')
                                     
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen
                                 WHEN @prev_id != @cur_id THEN @arv_first_regimen:=NULL
