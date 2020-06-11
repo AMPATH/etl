@@ -1,3 +1,5 @@
+use etl;
+drop procedure if exists generate_hiv_summary_v15_12;
 DELIMITER $$
 CREATE PROCEDURE `generate_hiv_summary_v15_12`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
@@ -1513,6 +1515,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             
                             case
+                                when obs regexp "!!9738=1066!!" then @contraceptive_method := null
                                 when obs regexp "!!7240=1107!!" then @contraceptive_method := null
                                 when obs regexp "!!7240="
                                     then @contraceptive_method := replace(replace((substring_index(substring(obs,locate("!!7240=",obs)),@sep,1)),"!!7240=",""),"!!","")
