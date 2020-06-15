@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_summary_v15_8`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_hiv_summary_v15_8`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
                     set @primary_table := "flat_hiv_summary_v15b";
                     set @query_type = query_type;
@@ -419,7 +419,7 @@ BEGIN
                                  WHEN
                                      (@enrollment_date IS NULL
                                          || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
+                                         AND !(@prev_id <=> @cur_id)))
                                          AND obs REGEXP '!!7013='
                                  THEN
                                      @enrollment_date:=REPLACE(REPLACE((SUBSTRING_INDEX(SUBSTRING(obs, LOCATE('!!7013=', obs)),
@@ -433,17 +433,17 @@ BEGIN
                                      obs REGEXP '!!7015='
                                          AND (@enrollment_date IS NULL
                                          || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
+                                         AND !(@prev_id <=> @cur_id)))
                                  THEN
                                      @enrollment_date:='1900-01-01'
                                  WHEN
                                      t1.encounter_type NOT IN (21 , @lab_encounter_type)
                                          AND (@enrollment_date IS NULL
                                          || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
+                                         AND !(@prev_id <=> @cur_id)))
                                  THEN
                                      @enrollment_date:=DATE(encounter_datetime)
-                                 WHEN @prev_id = @cur_id THEN @enrollment_date
+                                 WHEN @prev_id <=> @cur_id THEN @enrollment_date
                                  ELSE @enrollment_date:=NULL
                              END AS enrollment_date,               
                              
@@ -453,7 +453,7 @@ BEGIN
                              WHEN
                                  (@enrollment_location_id IS NULL
                                      || (@enrollment_location_id IS NOT NULL
-                                     AND @prev_id != @cur_id))
+                                     AND !(@prev_id <=> @cur_id)))
                                      AND obs REGEXP '!!7030=5622'
                              THEN
                                  @enrollment_location_id:=9999
@@ -461,17 +461,17 @@ BEGIN
                                  obs REGEXP '!!7015='
                                      AND (@enrollment_location_id IS NULL
                                      || (@enrollment_location_id IS NOT NULL
-                                     AND @prev_id != @cur_id))
+                                     AND !(@prev_id <=> @cur_id)))
                              THEN
                                  @enrollmen_location_id:=9999
                              WHEN
                                  encounter_type NOT IN (21 , @lab_encounter_type)
                                      AND (@enrollment_location_id IS NULL
                                      || (@enrollment_location_id IS NOT NULL
-                                     AND @prev_id != @cur_id))
+                                     AND !(@prev_id <=> @cur_id)))
                              THEN
                                  @enrollment_location_id:= location_id
-                             WHEN @prev_id = @cur_id THEN @enrollment_location_id
+                             WHEN @prev_id <=> @cur_id THEN @enrollment_location_id
                              ELSE @enrollment_location_id:=NULL
                          END AS enrollment_location_id,
 
@@ -485,13 +485,13 @@ BEGIN
 
                             case
                                 when location_id then @cur_location := location_id
-                                when @prev_id = @cur_id then @cur_location
+                                when @prev_id <=> @cur_id then @cur_location
                                 else null
                             end as location_id,
 
                             case
                                 when @prev_id=@cur_id and t1.encounter_type not in (5,6,7,8,9,21) then @visit_num:= @visit_num + 1
-                                when @prev_id != @cur_id then @visit_num := 1
+                                when !(@prev_id <=> @cur_id) then @visit_num := 1
                             end as visit_num,
 
                             case
@@ -502,7 +502,7 @@ BEGIN
                             
                             case
                                 when obs regexp "!!5096=" then @cur_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
-                                when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
+                                when @prev_id <=> @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
                                 else @cur_rtc_date := null
                             end as cur_rtc_date,
                                                         
@@ -529,7 +529,7 @@ BEGIN
                             case
                                 when p.dead or p.death_date then @death_date := p.death_date
                                 when obs regexp "!!1570=" then @death_date := replace(replace((substring_index(substring(obs,locate("!!1570=",obs)),@sep,1)),"!!1570=",""),"!!","")
-                                when @prev_id != @cur_id or @death_date is null then
+                                when !(@prev_id <=> @cur_id) or @death_date is null then
                                     case
                                         when obs regexp "!!(1734|1573)=" then @death_date := encounter_datetime
                                         when obs regexp "!!(1733|9082|6206)=159!!" or t1.encounter_type=31 then @death_date := encounter_datetime
@@ -559,15 +559,14 @@ BEGIN
                                 when obs regexp "!!9203=" then @hiv_start_date := replace(replace((substring_index(substring(obs,locate("!!9203=",obs)),@sep,1)),"!!9203=",""),"!!","")
                                 when obs regexp "!!7015=" then @hiv_start_date := "1900-01-01"
                                 when @hiv_start_date is null then @hiv_start_date := date(encounter_datetime)
-                                when @prev_id = @cur_id then @hiv_start_date
+                                when @prev_id <=> @cur_id then @hiv_start_date
                                 else @hiv_start_date := null
                             end as hiv_start_date,
 
                             case
                                 when obs regexp "!!1255=1256!!" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_location_id := location_id
-                                when @prev_id = @cur_id and obs regexp "!!(1250|1088|2154)=" and @arv_start_date is null then @arv_start_location_id := location_id
-                                when @prev_id != @cur_id then @arv_start_location_id := null
-                                else @arv_start_location_id
+                                when @prev_id <=> @cur_id and obs regexp "!!(1250|1088|2154)=" and @arv_start_date is null then @arv_start_location_id := location_id
+                                else @arv_start_location_id := null
                             end as arv_start_location_id,
 
 
@@ -593,7 +592,7 @@ BEGIN
 								
                                 when obs regexp "!!2157=" and not obs regexp "!!2157=1066" then @cur_arv_meds := normalize_arvs(obs,'2157')
                                     
-                                when @prev_id = @cur_id then @cur_arv_meds
+                                when @prev_id <=> @cur_id then @cur_arv_meds
                                 else @cur_arv_meds:= null
                             end as cur_arv_meds,
                             
@@ -615,51 +614,51 @@ BEGIN
 
 
 							case
-                                when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
+                                when @prev_id <=> @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
                                 else @prev_clinical_datetime := null
                             end as prev_clinical_datetime_hiv,
                             
                             case
                                 when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
-                                when @prev_id = @cur_id then @cur_clinical_datetime
+                                when @prev_id <=> @cur_id then @cur_clinical_datetime
                                 else @cur_clinical_datetime := null
                             end as cur_clinical_datetime,
                             
                             
 							case
-                                when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
+                                when @prev_id <=> @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
                                 else @prev_clinical_rtc_date := null
                             end as prev_clinical_rtc_date_hiv,
 
                             case
                                 when is_clinical_encounter then @cur_clinical_rtc_date := @cur_rtc_date
-                                when @prev_id = @cur_id then @cur_clinical_rtc_date
+                                when @prev_id <=> @cur_id then @cur_clinical_rtc_date
                                 else @cur_clinical_rtc_date:= null
                             end as cur_clinic_rtc_date,
 
                             
                             CASE                             
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date IS NULL || !(@prev_id <=> @cur_id))
 									AND obs REGEXP '!!1499='
                                 THEN
                                     @arv_first_regimen_start_date:=GetValues(obs,1499)                                        
 
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
                                 THEN
                                     @arv_first_regimen_start_date:='1900-01-01'
 
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date IS NULL || !(@prev_id <=> @cur_id))
 									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
                                 THEN
                                     @arv_first_regimen_start_date:=DATE(encounter_datetime)
 
                                     
 								WHEN
-                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'
 										AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -668,7 +667,7 @@ BEGIN
                                     @arv_first_regimen_start_date:= "1900-01-01" #DATE(encounter_datetime)
 
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
 										AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -677,13 +676,12 @@ BEGIN
                                     @arv_first_regimen_start_date:= "1900-01-01" # DATE(encounter_datetime)
 
                                 WHEN
-                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date IS NULL || !(@prev_id <=> @cur_id))
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen_start_date:='1900-01-01'
-                                WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
-                                WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
-                                ELSE @arv_first_regimen_start_date
+                                WHEN @prev_id <=> @cur_id THEN @arv_first_regimen_start_date
+                                ELSE @arv_first_regimen_start_date:=NULL
                             END AS arv_first_regimen_start_date,
                             
 
@@ -692,25 +690,25 @@ BEGIN
                             /*
 							CASE                             
                                 WHEN
-                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date_flex IS NULL || !(@prev_id <=> @cur_id))
 									AND obs REGEXP '!!1499='
                                 THEN
                                     @arv_first_regimen_start_date_flex := GetValues(obs,1499)                               
 								WHEN
-                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date_flex IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
                                 THEN
                                     @arv_first_regimen_start_date_flex :='1900-01-01'
 
                                 WHEN
-                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date_flex IS NULL || !(@prev_id <=> @cur_id))
 									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
                                 THEN
                                     @arv_first_regimen_start_date_flex:=DATE(encounter_datetime)
 
 
 								WHEN
-                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date_flex IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'                                        
                                         AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -720,7 +718,7 @@ BEGIN
                                     @arv_first_regimen_start_date_flex :=date(encounter_datetime)
 
                                 WHEN
-                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date_flex IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
                                         AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -730,12 +728,12 @@ BEGIN
                                     @arv_first_regimen_start_date_flex :=date(encounter_datetime)
 
                                 WHEN
-                                    (@arv_first_regimen_start_date_flex IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_start_date_flex IS NULL || !(@prev_id <=> @cur_id))
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen_start_date_flex:='1900-01-01'
-                                WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date_flex
-                                WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date_flex:=NULL
+                                WHEN @prev_id <=> @cur_id THEN @arv_first_regimen_start_date_flex
+                                WHEN !(@prev_id <=> @cur_id) THEN @arv_first_regimen_start_date_flex:=NULL
                                 ELSE @arv_first_regimen_start_date_flex
                             END 
                             */
@@ -748,34 +746,34 @@ BEGIN
                                 when @arv_first_regimen is null and obs regexp "!!2157=" and not obs regexp "!!2157=1066" then @arv_first_regimen := normalize_arvs(obs,'2157')
                                 when obs regexp "!!7015=" and @arv_first_regimen is null then @arv_first_regimen := "unknown"
                                 when @arv_first_regimen is null and @cur_arv_meds is not null then @arv_first_regimen := @cur_arv_meds
-                                when @prev_id = @cur_id then @arv_first_regimen
-                                when @prev_id != @cur_id then @arv_first_regimen := @cur_arv_meds
+                                when @prev_id <=> @cur_id then @arv_first_regimen
+                                when !(@prev_id <=> @cur_id) then @arv_first_regimen := @cur_arv_meds
                                 else "-1"
                             end as arv_first_regimen,
 */
 						
 							CASE                             
                                 WHEN
-                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen IS NULL || !(@prev_id <=> @cur_id))
 									AND obs REGEXP '!!1499='
                                 THEN
                                     @arv_first_regimen:= "unknown"
 
                                 WHEN
-                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
                                 THEN
                                     @arv_first_regimen:= "unknown"
 
                                 WHEN
-                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen IS NULL || !(@prev_id <=> @cur_id))
 									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
                                 THEN
                                     @arv_first_regimen := @cur_arv_meds
 
                                     
 								WHEN
-                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'
 										AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -785,7 +783,7 @@ BEGIN
                                     @arv_first_regimen:= "unknown" #@cur_arv_meds
 
                                 WHEN
-                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
 										AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -795,50 +793,49 @@ BEGIN
                                     @arv_first_regimen:= "unknown" #@cur_arv_meds
 
                                 WHEN
-                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen IS NULL || !(@prev_id <=> @cur_id))
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen := "unknown"
                                     
-                                WHEN @prev_id = @cur_id THEN @arv_first_regimen
-                                WHEN @prev_id != @cur_id THEN @arv_first_regimen:=NULL
-                                ELSE @arv_first_regimen
+                                WHEN @prev_id <=> @cur_id THEN @arv_first_regimen
+                                ELSE @arv_first_regimen:=NULL
                             END AS arv_first_regimen,
                                               
                                               
 /*						                            
                             case																	
                                 when @arv_first_regimen is null and obs regexp "!!1499=" then  @arv_first_regimen_location_id := 9999
-                                when @prev_id != @cur_id and @cur_arv_meds is not null then @arv_first_regimen_location_id := location_id                                
+                                when !(@prev_id <=> @cur_id) and @cur_arv_meds is not null then @arv_first_regimen_location_id := location_id                                
                                 when @arv_first_regimen_location_id is null and @cur_arv_meds is not null then @arv_first_regimen_location_id := location_id
-                                when @prev_id = @cur_id then @arv_first_regimen_location_id
-                                when @prev_id != @cur_id then @arv_first_regimen_location_id := null
+                                when @prev_id <=> @cur_id then @arv_first_regimen_location_id
+                                when !(@prev_id <=> @cur_id) then @arv_first_regimen_location_id := null
                                 else "-1"
                             end as arv_first_regimen_location_id,
 */
 
 							CASE                             
                                 WHEN
-                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_location_id IS NULL || !(@prev_id <=> @cur_id))
 									AND obs REGEXP '!!1499='
                                 THEN
                                     @arv_first_regimen_location_id := 9999                                         
 
                                 WHEN
-                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_location_id IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2157=' AND NOT obs regexp '!!2157=1066!!'                                        
                                 THEN
                                     @arv_first_regimen_location_id:=9999
 
                                 WHEN
-                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_location_id IS NULL || !(@prev_id <=> @cur_id))
 									AND (obs REGEXP '!!1255=(1256)!!' || obs REGEXP '!!1250=')
                                 THEN
                                     @arv_first_regimen_location_id:=location_id
 
                                     
 								WHEN
-                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_location_id IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!1088=' AND NOT obs regexp '!!1088=1107!!'
 										AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -847,7 +844,7 @@ BEGIN
                                     @arv_first_regimen_location_id:= 9999 #location_id
 
                                 WHEN
-                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_location_id IS NULL || !(@prev_id <=> @cur_id))
 										AND obs regexp '!!2154=' AND NOT obs regexp '!!2154=1066!!'
 										AND not obs regexp'!!7015='
 										AND (@prev_clinical_datetime is null 
@@ -856,13 +853,12 @@ BEGIN
                                     @arv_first_regimen_location_id:= 9999 #location_id
 
                                 WHEN
-                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                    (@arv_first_regimen_location_id IS NULL || !(@prev_id <=> @cur_id))
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen_location_id:=9999
-                                WHEN @prev_id = @cur_id THEN @arv_first_regimen_location_id
-                                WHEN @prev_id != @cur_id THEN @arv_first_regimen_location_id:=NULL
-                                ELSE @arv_first_regimen_location_id
+                                WHEN @prev_id <=> @cur_id THEN @arv_first_regimen_location_id
+                                ELSE @arv_first_regimen_location_id:=NULL
                             END AS arv_first_regimen_location_id,
 
 
@@ -883,7 +879,7 @@ BEGIN
                                 when obs regexp "!!2154=(6467|6964|792|633|631|9759)!!" then @cur_arv_line := 1
                                 when obs regexp "!!2154=(794|635|6160|6159)!!" then @cur_arv_line := 2
                                 when obs regexp "!!2154=(6156)!!" then @cur_arv_line := 3
-                                when @prev_id = @cur_id then @cur_arv_line
+                                when @prev_id <=> @cur_id then @cur_arv_line
                                 else @cur_arv_line := null
                             end as cur_arv_line,
                             
@@ -917,7 +913,7 @@ BEGIN
                                 when obs regexp "!!6744=6693!!" then @cur_arv_line_reported := 1
                                 when obs regexp "!!6744=6694!!" then @cur_arv_line_reported := 2
                                 when obs regexp "!!6744=6695!!" then @cur_arv_line_reported := 3
-                                when @prev_id = @cur_id then @cur_arv_line_reported
+                                when @prev_id <=> @cur_id then @cur_arv_line_reported
                                 else @cur_arv_line_reported := null
                             end as cur_arv_line_reported,
 
@@ -941,7 +937,7 @@ BEGIN
                                 
                                 when @cur_arv_meds != @prev_arv_meds then @arv_start_date := date(t1.encounter_datetime)
 
-                                when @prev_id != @cur_id then @arv_start_date := null
+                                when !(@prev_id <=> @cur_id) then @arv_start_date := null
                                 else @arv_start_date
                             end as arv_start_date,
 
@@ -964,14 +960,14 @@ BEGIN
                                 when obs regexp "!!8288=6343!!" then @cur_arv_adherence := 'GOOD'
                                 when obs regexp "!!8288=6655!!" then @cur_arv_adherence := 'FAIR'
                                 when obs regexp "!!8288=6656!!" then @cur_arv_adherence := 'POOR'
-                                when @prev_id = @cur_id then @cur_arv_adherence
+                                when @prev_id <=> @cur_id then @cur_arv_adherence
                                 else @cur_arv_adherence := null
                             end as cur_arv_adherence,
 
                             case
                                 when obs regexp "!!6596=(6594|1267|6595)!!" then  @hiv_status_disclosed := 1
                                 when obs regexp "!!6596=1118!!" then 0
-                                when @prev_id = @cur_id then @hiv_status_disclosed
+                                when @prev_id <=> @cur_id then @hiv_status_disclosed
                                 else @hiv_status_disclosed := null
                             end as hiv_status_disclosed,
 
@@ -993,7 +989,7 @@ BEGIN
                             
                             case
                                 when obs regexp "!!8351=(48|50|1066|1624|6971|9608)!!" then @is_pregnant := null
-                                when @prev_id != @cur_id then
+                                when !(@prev_id <=> @cur_id) then
                                     case
                                         when t1.encounter_type in (32,33,44,10) or obs regexp "!!(1279|5596)=" or obs regexp "!!8351=(1065|1484)!!" then @is_pregnant := true
                                         else @is_pregnant := null
@@ -1011,7 +1007,7 @@ BEGIN
                             
 
                             case
-                                when @prev_id != @cur_id then
+                                when !(@prev_id <=> @cur_id) then
                                     case
                                         when @is_pregnant and obs regexp "!!1836=" then @edd :=
                                             date_add(replace(replace((substring_index(substring(obs,locate("!!1836=",obs)),@sep,1)),"!!1836=",""),"!!",""),interval 280 day)
@@ -1059,7 +1055,7 @@ BEGIN
                             case
                                 when obs regexp "!!8292=" then @tb_screening_result := 
                                     replace(replace((substring_index(substring(obs,locate("!!8292=",obs)),@sep,1)),"!!8292=",""),"!!","")
-                                when @prev_id != @cur_id then @tb_screening_result := null
+                                when !(@prev_id <=> @cur_id) then @tb_screening_result := null
                                 else @tb_screening_result 
                             end as tb_screening_result,
 
@@ -1184,12 +1180,12 @@ BEGIN
 
                             case
                                 when t1.encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_date_resulted := date(encounter_datetime)
-                                when @prev_id = @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_date_resulted
+                                when @prev_id <=> @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_date_resulted
                             end as cd4_resulted_date,
 
                             case
                                 when t1.encounter_type = @lab_encounter_type and obs regexp "!!5497=[0-9]" then @cd4_resulted := cast(replace(replace((substring_index(substring(obs,locate("!!5497=",obs)),@sep,1)),"!!5497=",""),"!!","") as unsigned)
-                                when @prev_id = @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_resulted
+                                when @prev_id <=> @cur_id and date(encounter_datetime) = @cd4_date_resulted then @cd4_resulted
                             end as cd4_resulted,
 
 
@@ -1269,12 +1265,12 @@ BEGIN
 
                             case
                                 when t1.encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_date_resulted := date(encounter_datetime)
-                                when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_date_resulted
+                                when @prev_id <=> @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_date_resulted
                             end as vl_resulted_date,
 
                             case
                                 when t1.encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_resulted := cast(replace(replace((substring_index(substring(obs,locate("!!856=",obs)),@sep,1)),"!!856=",""),"!!","") as unsigned)
-                                when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_resulted
+                                when @prev_id <=> @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_resulted
                             end as vl_resulted,
 
                             case
@@ -1392,7 +1388,7 @@ BEGIN
                                 when obs regexp "!!8302=8305!!" then @condoms_provided_date := encounter_datetime
                                 when obs regexp "!!374=(190|6717|6718)!!" then @condoms_provided_date := encounter_datetime
                                 when obs regexp "!!6579=" then @condoms_provided_date := encounter_datetime
-                                when @prev_id = @cur_id then @condoms_provided_date
+                                when @prev_id <=> @cur_id then @condoms_provided_date
                                 else @condoms_provided_date := null
                             end as condoms_provided_date,
                                 
@@ -1412,7 +1408,7 @@ BEGIN
                                     then @modern_contraceptive_method_start_date :=  date(encounter_datetime)
                                 when obs regexp "!!374=!!"
                                     then @modern_contraceptive_method_start_date := null
-                                when @prev_id = @cur_id then @modern_contraceptive_method_start_date
+                                when @prev_id <=> @cur_id then @modern_contraceptive_method_start_date
                                 else @modern_contraceptive_method_start_date := null
                             end as modern_contraceptive_method_start_date,
                             
@@ -1423,7 +1419,7 @@ BEGIN
                                     then @contraceptive_method := replace(replace((substring_index(substring(obs,locate("!!7240=",obs)),@sep,1)),"!!7240=",""),"!!","")
                                 when obs regexp "!!374="
                                     then @contraceptive_method :=  replace(replace((substring_index(substring(obs,locate("!!374=",obs)),@sep,1)),"!!374=",""),"!!","")
-                                when @prev_id = @cur_id then @contraceptive_method
+                                when @prev_id <=> @cur_id then @contraceptive_method
                                 else @contraceptive_method := null
                             end as contraceptive_method,
                             
@@ -1449,7 +1445,7 @@ BEGIN
                                 when obs regexp "!!8307=(1205|1221)!!" then @cur_who_stage := 2
                                 when obs regexp "!!8307=(1206|1222)!!" then @cur_who_stage := 3
                                 when obs regexp "!!8307=(1207|1223)!!" then @cur_who_stage := 4
-                                when @prev_id = @cur_id then @cur_who_stage
+                                when @prev_id <=> @cur_id then @cur_who_stage
                                 else @cur_who_stage := null
                             end as cur_who_stage,
                             
@@ -1461,7 +1457,7 @@ BEGIN
                             when obs regexp "!!6096=1175" then @discordant_status := "N/A"
                             when obs regexp "!!6096=6826" then @discordant_status := "Concordant Couple Positive"
                             when obs regexp "!!6096=6827" then @discordant_status :=  "Concordant Couple Negative"                                                       
-                            when @prev_id = @cur_id then @discordant_status
+                            when @prev_id <=> @cur_id then @discordant_status
                             else @discordant_status := null
                         end as discordant_status
                             
@@ -1498,7 +1494,7 @@ BEGIN
                             @cur_id := person_id as cur_id,
 
                             case
-                                when @prev_id = @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
+                                when @prev_id <=> @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
                                 else @prev_encounter_datetime := null
                             end as next_encounter_datetime_hiv,
 
@@ -1512,40 +1508,40 @@ BEGIN
                             @cur_encounter_type := encounter_type as cur_encounter_type,
 
                             case
-                                when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
+                                when @prev_id <=> @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
                                 else @prev_clinical_datetime := null
                             end as next_clinical_datetime_hiv,
 
                             case
-                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
+                                when @prev_id <=> @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
                                 else @prev_clinical_location_id := null
                             end as next_clinical_location_id,
 
                             case
                                 when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
-                                when @prev_id = @cur_id then @cur_clinical_datetime
+                                when @prev_id <=> @cur_id then @cur_clinical_datetime
                                 else @cur_clinical_datetime := null
                             end as cur_clinic_datetime,
 
                             case
                                 when is_clinical_encounter then @cur_clinical_location_id := location_id
-                                when @prev_id = @cur_id then @cur_clinical_location_id
+                                when @prev_id <=> @cur_id then @cur_clinical_location_id
                                 else @cur_clinical_location_id := null
                             end as cur_clinic_location_id,
 
                             case
-                                when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
+                                when @prev_id <=> @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
                                 else @prev_clinical_rtc_date := null
                             end as next_clinical_rtc_date_hiv,
 
                             case
                                 when is_clinical_encounter then @cur_clinical_rtc_date := cur_rtc_date
-                                when @prev_id = @cur_id then @cur_clinical_rtc_date
+                                when @prev_id <=> @cur_id then @cur_clinical_rtc_date
                                 else @cur_clinical_rtc_date:= null
                             end as cur_clinical_rtc_date,
 
                             case
-                                when @prev_id != @cur_id then null
+                                when !(@prev_id <=> @cur_id) then null
                                 when is_clinical_encounter then @outreach_date_bncd
                                 else null
                             end as outreach_date_bncd,
@@ -1553,12 +1549,12 @@ BEGIN
                             case
                                 when encounter_type=21 and @outreach_date_bncd is null then @outreach_date_bncd := encounter_datetime
                                 when is_clinical_encounter then @outreach_date_bncd := null
-                                when @prev_id != @cur_id then @outreach_date_bncd := null
+                                when !(@prev_id <=> @cur_id) then @outreach_date_bncd := null
                                 else @outreach_date_bncd
                             end as next_outreach_date_bncd,
 
                             case
-                                when @prev_id != @cur_id then null
+                                when !(@prev_id <=> @cur_id) then null
                                 when is_clinical_encounter then @outreach_death_date_bncd
                                 else null
                             end as outreach_death_date_bncd,
@@ -1566,13 +1562,13 @@ BEGIN
                             case
                                 when encounter_type=21 and @outreach_death_date_bncd  is null then @outreach_death_date_bncd  := death_date
                                 when is_clinical_encounter then @outreach_death_date_bncd  := null
-                                when @prev_id != @cur_id then @outreach_death_date_bncd := null
+                                when !(@prev_id <=> @cur_id) then @outreach_death_date_bncd := null
                                 else @outreach_death_date_bncd
                             end as next_outreach_death_date_bncd,
 
 
                             case
-                                when @prev_id != @cur_id then null
+                                when !(@prev_id <=> @cur_id) then null
                                 when is_clinical_encounter then cast(@outreach_patient_care_status_bncd as unsigned)
                                 else null
                             end as outreach_patient_care_status_bncd,
@@ -1580,12 +1576,12 @@ BEGIN
                             case
                                 when encounter_type=21 and @outreach_patient_care_status_bncd is null then @outreach_patient_care_status_bncd := patient_care_status
                                 when is_clinical_encounter then @outreach_patient_care_status_bncd := null
-                                when @prev_id != @cur_id then @outreach_patient_care_status_bncd := null
+                                when !(@prev_id <=> @cur_id) then @outreach_patient_care_status_bncd := null
                                 else @outreach_patient_care_status_bncd
                             end as next_outreach_patient_care_status_bncd,
 
                             case
-                                when @prev_id != @cur_id then null
+                                when !(@prev_id <=> @cur_id) then null
                                 when is_clinical_encounter then @transfer_date_bncd
                                 else null
                             end as transfer_date_bncd,
@@ -1593,12 +1589,12 @@ BEGIN
                             case
                                 when encounter_type=116 and @transfer_date_bncd is null then @transfer_date_bncd := encounter_datetime
                                 when is_clinical_encounter then @transfer_date_bncd := null
-                                when @prev_id != @cur_id then @transfer_date_bncd := null
+                                when !(@prev_id <=> @cur_id) then @transfer_date_bncd := null
                                 else @transfer_date_bncd
                             end as next_transfer_date_bncd,
 
                             case
-                                when @prev_id != @cur_id then null
+                                when !(@prev_id <=> @cur_id) then null
                                 when is_clinical_encounter then @transfer_transfer_out_bncd
                                 else null
                             end as transfer_transfer_out_bncd,
@@ -1606,7 +1602,7 @@ BEGIN
                             case
                                 when encounter_type=116 and @transfer_transfer_out_bncd is null then @transfer_transfer_out_bncd := encounter_datetime
                                 when is_clinical_encounter then @transfer_transfer_out_bncd := null
-                                when @prev_id != @cur_id then @transfer_transfer_out_bncd := null
+                                when !(@prev_id <=> @cur_id) then @transfer_transfer_out_bncd := null
                                 else @transfer_transfer_out_bncd
                             end as next_transfer_transfer_out_bncd
 
@@ -1650,38 +1646,38 @@ BEGIN
 
 /* Moved to flat_hiv_summary_1
                             case
-                                when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
+                                when @prev_id <=> @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
                                 else @prev_clinical_datetime := null
                             end as prev_clinical_datetime_hiv,
 
                             case
                                 when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
-                                when @prev_id = @cur_id then @cur_clinical_datetime
+                                when @prev_id <=> @cur_id then @cur_clinical_datetime
                                 else @cur_clinical_datetime := null
                             end as cur_clinical_datetime,
 */
 
                             case
-                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
+                                when @prev_id <=> @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
                                 else @prev_clinical_location_id := null
                             end as prev_clinical_location_id,
 
 
                             case
                                 when is_clinical_encounter then @cur_clinical_location_id := location_id
-                                when @prev_id = @cur_id then @cur_clinical_location_id
+                                when @prev_id <=> @cur_id then @cur_clinical_location_id
                                 else @cur_clinical_location_id := null
                             end as cur_clinical_location_id
 
 /* MOVED to flat_hiv_summary_1
                             case
-                                when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
+                                when @prev_id <=> @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
                                 else @prev_clinical_rtc_date := null
                             end as prev_clinical_rtc_date_hiv,
 
                             case
                                 when is_clinical_encounter then @cur_clinical_rtc_date := cur_rtc_date
-                                when @prev_id = @cur_id then @cur_clinical_rtc_date
+                                when @prev_id <=> @cur_id then @cur_clinical_rtc_date
                                 else @cur_clinical_rtc_date:= null
                             end as cur_clinic_rtc_date
 */

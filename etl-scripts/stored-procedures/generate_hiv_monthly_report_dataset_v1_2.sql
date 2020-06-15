@@ -1,9 +1,9 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_monthly_report_dataset_v1_4`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
+CREATE PROCEDURE `generate_hiv_monthly_report_dataset_v1_2`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
 BEGIN
 
 			set @start = now();
-			set @table_version = "hiv_monthly_report_dataset_v1.4";
+			set @table_version = "hiv_monthly_report_dataset_v1.2";
 			set @last_date_created = (select max(date_created) from etl.flat_hiv_summary_v15b);
 
 			set @sep = " ## ";
@@ -11,7 +11,7 @@ BEGIN
 			set @death_encounter_type = 31;
             
 
-            #drop table if exists hiv_monthly_report_dataset_v1_3;
+            #drop table if exists hiv_monthly_report_dataset_v1_2;
 create table if not exists hiv_monthly_report_dataset_v1_2 (
 #            create table if not exists hiv_monthly_report_dataset (
 				date_created timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
@@ -24,17 +24,15 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				age double,
 				gender varchar(1),
 				encounter_date date,
-                visit_this_month tinyint,
+                visit_this_month boolean,
 				rtc_date date,
                 days_since_rtc_date int,
-                on_schedule tinyint,
-                scheduled_this_month tinyint,
-                unscheduled_this_month tinyint,
-                f_18_and_older_this_month tinyint,                
-				prev_location_id mediumint,
+                on_schedule boolean,
+                scheduled_this_month boolean,
+                unscheduled_this_month boolean,
+                f_18_and_older_this_month boolean,                
 				location_id mediumint,
                 location_uuid varchar(100),
-                next_location_id mediumint,
                 clinic_county varchar(250),
 				clinic varchar(250),
 				clinic_latitude double,
@@ -42,107 +40,85 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				encounter_type int,
 				death_date date,
 				enrollment_date date,
-				enrolled_this_month tinyint,
-				transfer_in_this_month tinyint,
+				enrolled_this_month boolean,
+				transfer_in_this_month boolean,
 				transfer_in_location_id mediumint,
 				transfer_in_date date,
-				transfer_out_this_month tinyint,
+				transfer_out_this_month boolean,
 				transfer_out_location_id mediumint,
 				transfer_out_date date,
 				prev_status varchar(250),
 				status varchar(250),
 				next_status varchar(250),
-                active_in_care_this_month tinyint,
-				is_pre_art_this_month tinyint,
+                active_in_care_this_month boolean,
+				is_pre_art_this_month boolean,
                 arv_first_regimen_location_id int,
 				arv_first_regimen varchar(250),
 				arv_first_regimen_names varchar(250),
 				arv_first_regimen_start_date date,
-				art_cohort_year date,
-                art_cohort_month date,
 				art_cohort_num smallint,
-                art_cohort_total_months smallint,
+                art_cohort_year smallint,
                 days_since_starting_arvs mediumint,
-				started_art_this_month tinyint,
-                art_revisit_this_month tinyint,
+				started_art_this_month boolean,
+                art_revisit_this_month boolean,
                 arv_start_date date,
                 prev_month_arvs varchar(250),
-                prev_month_arvs_names varchar(250),
                 cur_arv_meds varchar(250),
 				cur_arv_meds_names varchar(250),
                 cur_arv_meds_strict varchar(250),
 				cur_arv_line tinyint,
                 cur_arv_line_strict tinyint,
                 cur_arv_line_reported tinyint,
-				on_art_this_month tinyint,
-                on_original_first_line_this_month tinyint,
-                on_alt_first_line_this_month tinyint,
-                on_second_line_or_higher_this_month tinyint,
-				eligible_for_vl tinyint,
+				on_art_this_month boolean,
+                on_original_first_line_this_month boolean,
+                on_alt_first_line_this_month boolean,
+                on_second_line_or_higher_this_month boolean,
+				eligible_for_vl boolean,
                 days_since_last_vl int,
-				net_12_month_cohort_this_month tinyint,
-				active_on_art_12_month_cohort_this_month tinyint,
-                has_vl_12_month_cohort tinyint,
-                vl_suppressed_12_month_cohort tinyint,
-                has_vl_this_month tinyint, #patient has had VL in past year and is currently active on ART
-                is_suppressed_this_month tinyint, #patient has had VL in past year < 1000 and is currently active on ART
+				net_12_month_cohort_this_month boolean,
+				active_on_art_12_month_cohort_this_month boolean,
+                has_vl_12_month_cohort boolean,
+                vl_suppressed_12_month_cohort boolean,
+                has_vl_this_month boolean, #patient has had VL in past year and is currently active on ART
+                is_suppressed_this_month boolean, #patient has had VL in past year < 1000 and is currently active on ART
 				vl_1 int,
 				vl_1_date date,
-				vl_in_past_year tinyint,
+				vl_in_past_year boolean,
 				vl_2 int,
 				vl_2_date date,
-                qualifies_for_follow_up_vl tinyint,
-				got_follow_up_vl tinyint,
-				got_follow_up_vl_this_month tinyint,    
-				num_days_to_follow_vl tinyint,
-				follow_up_vl_suppressed tinyint,
-				follow_up_vl_suppressed_this_month tinyint,
-				follow_up_vl_unsuppressed tinyint,
-				follow_up_vl_unsuppressed_this_month tinyint,
-				due_for_vl_this_month tinyint,
-                reason_for_needing_vl_this_month varchar(250),
-                number_of_months_has_needed_vl smallint,
-				needs_follow_up_vl tinyint,
-				had_med_change_this_month tinyint,
-				had_med_change_this_month_after_2_unsuppressed_vls tinyint,
-				same_meds_this_month_after_2_unsuppressed_vls tinyint,                
-				tb_screen tinyint,
+				tb_screen boolean,
 				tb_screening_datetime datetime,
-				tb_screening_result int,  
-                tb_screened_this_visit_this_month tinyint,				
-                tb_screened_active_this_month tinyint,
-				presumed_tb_positive_this_month tinyint,
+				tb_screening_result int,    
+                tb_screened_this_month boolean,
+				presumed_tb_positive_this_month boolean,
 				tb_tx_start_date date,
-				started_tb_tx_this_month tinyint,
-                on_tb_tx_this_month tinyint,                
-				on_tb_tx_and_started_art_this_month tinyint,
+				started_tb_tx_this_month boolean,
+                on_tb_tx_this_month boolean,                
+				on_tb_tx_and_started_art_this_month boolean,
 				pcp_prophylaxis_start_date date,
-				started_pcp_prophylaxis_this_month tinyint,
-				on_pcp_prophylaxis_this_month tinyint,
+				started_pcp_prophylaxis_this_month boolean,
+				on_pcp_prophylaxis_this_month boolean,
 				ipt_start_date date,
 				ipt_stop_date date,
 				ipt_completion_date date,
-				started_ipt_this_month tinyint,
-				on_ipt_this_month tinyint,
-				completed_ipt_past_12_months tinyint,
-				pregnant_this_month tinyint,
-                is_pregnant_and_started_art_this_month tinyint,                
-				delivered_this_month tinyint,
-				condoms_provided_this_month tinyint,
-				condoms_provided_since_active tinyint,
-				started_modern_contraception_this_month tinyint,
-                modern_contraception_since_active tinyint,
-                on_modern_contraception_this_month tinyint,
+				started_ipt_this_month boolean,
+				on_ipt_this_month boolean,
+				completed_ipt_past_12_months boolean,
+				pregnant_this_month boolean,
+                is_pregnant_and_started_art_this_month boolean,                
+				delivered_this_month boolean,
+				condoms_provided_this_month boolean,
+				condoms_provided_since_active boolean,
+				started_modern_contraception_this_month boolean,
+                modern_contraception_since_active boolean,
+                on_modern_contraception_this_month boolean,
                 contraceptive_method int,
                 discordant_status int,
                                 
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
                 index person_report_date (person_id, endDate),
-                index endDate_location_id (endDate, location_id),
-                index date_created (date_created),
-                index status_change (location_id, endDate, status, prev_status)
-                
+                index endDate_location_id (endDate, location_id)
             );
             
             #create table if not exists hiv_monthly_report_dataset_build_queue (person_id int primary key);
@@ -267,7 +243,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 
 
 					case
-						when arv_first_regimen_location_id != 9999 
+						when arv_first_regimen_location_id != -1 
 							and arv_first_regimen_start_date between date_format(endDate,"%Y-%m-01")  and endDate then arv_first_regimen_location_id
                         else location_id
                     end as location_id,                  
@@ -303,9 +279,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when date_format(endDate, "%Y-%m-01") > t2.death_date then @status := "dead"
 #						when transfer_out_date < date_format(endDate,"%Y-%m-01") then @status := "transfer_out"
 						when date_format(endDate, "%Y-%m-01") > transfer_out_date then @status := "transfer_out"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 then @status := "active"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) between 29 and 90 then @status := "defaulter"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) > 90 then @status := "ltfu"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 90 then @status := "active"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) > 90 then @status := "ltfu"
 						else @status := "unknown"
 					end as status,
 					
@@ -318,22 +293,15 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     get_arv_names(arv_first_regimen) as arv_first_regimen_names,
 					date(arv_first_regimen_start_date) as arv_first_regimen_start_date,
 
-					date_format(arv_first_regimen_start_date, "%Y-01-01") as art_cohort_year,
-
-					date_format(arv_first_regimen_start_date,"%Y-%m-01") as art_cohort_month,
-                    
-                    timestampdiff(month,arv_first_regimen_start_date,endDate) as art_cohort_total_months,
-
-                    case
-						when @status != "transfer_out" and month(arv_first_regimen_start_date) = month(endDate) then @art_cohort_num := timestampdiff(year,arv_first_regimen_start_date,endDate)
-                        else @art_cohort_num := null 
-					end as art_cohort_num,
-
 					case
 						when @status="active" and arv_first_regimen_start_date between date_format(endDate,"%Y-%m-01")  and endDate then @started_art_this_month := 1
 						else @started_art_this_month :=0
 					end as started_art_this_month,
                     
+                    case
+						when @status != "transfer_out" and month(arv_first_regimen_start_date) = month(endDate) then @art_cohort_num := timestampdiff(year,arv_first_regimen_start_date,endDate)
+                        else @art_cohort_num := null 
+					end as art_cohort_num,
 
                     case
 						when @status != "transfer_out" AND @art_cohort_num = 1
@@ -347,7 +315,12 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                         else @active_on_art_12_month_cohort_this_month := 0
 					end as active_on_art_12_month_cohort_this_month,
 
-                                        
+                    
+					case
+						when @status != "transfer_out" and month(arv_first_regimen_start_date) = month(endDate) then year(endDate)
+                        else null
+					end as art_cohort_year,
+                    
                     case
 						when @status = "active" then 1
                         else 0
@@ -361,7 +334,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					case
 						when date_format(arv_first_regimen_start_date,"%Y-%m-01") != date_format(endDate,"%Y-%m-01") 
 								AND cur_arv_meds is not null
-							AND @status = "active"
+							AND @status = "active"   
 						THEN 1
 						else 0
 					end as art_revisit_this_month,
@@ -413,8 +386,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when timestampdiff(month, arv_start_date,endDate) > 6 then 1
 						else 0
 					end as eligible_for_vl,
-                    
-                    
+
 					timestampdiff(day,vl_1_date,endDate) as days_since_last_vl,
                                                             										
 					if(timestampdiff(year,vl_1_date,endDate) < 1,1,0) as vl_in_past_year,
@@ -446,156 +418,37 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 
 					vl_2,
 					date(vl_2_date) as vl_2_date,
-
-					case
-						when vl_1>=1000 and timestampdiff(month,vl_1_date,endDate) between 3 and 12 then @qualifies_for_follow_up_vl := 1
-						when vl_2>=1000 and timestampdiff(month,vl_2_date,endDate) between 3 and 12 then @qualifies_for_follow_up_vl := 1
-						else @qualifies_for_follow_up_vl := 0	
-					end as qualifies_for_follow_up_vl,
-
-					case
-						when @qualifies_for_follow_up_vl AND timestampdiff(month,vl_2_date,vl_1_date) < 12 
-							then @got_follow_up_vl := 1
-						else @got_follow_up_vl := 0
-					end as got_follow_up_vl,
-					
-					case
-						when @got_follow_up_vl and vl_1_date between date_format(endDate,"%Y-%m-01") and endDate then @got_follow_up_vl_this_month := 1
-						else @got_follow_up_vl_this_month := 0
-					end as got_follow_up_vl_this_month,    
-					
-					case
-						when @got_follow_up_vl then timestampdiff(day,vl_2_date, vl_1_date)
-						else null
-					end as num_days_to_follow_vl,
-						
-
-					case
-						when @got_follow_up_vl AND vl_1 < 1000 then @follow_up_vl_suppressed := 1
-						else @follow_up_vl_suppressed := 0
-					end as follow_up_vl_suppressed,
-					
-					case
-						when @got_follow_up_vl_this_month AND vl_1 < 1000 then @follow_up_vl_suppressed_this_month := 1
-						else @follow_up_vl_suppressed_this_month := 0
-					end as follow_up_vl_suppressed_this_month,
-
-					
-					case
-						when @got_follow_up_vl AND vl_1 >= 1000 then @follow_up_vl_unsuppressed := 1
-						else @follow_up_vl_unsuppressed := 0
-					end as follow_up_vl_unsuppressed,
-					
-					case
-						when @got_follow_up_vl_this_month AND vl_1 >= 1000 then @follow_up_vl_unsuppressed_this_month := 1
-						else @follow_up_vl_unsuppressed_this_month := 0
-					end as follow_up_vl_unsuppressed_this_month,
-											
-
-					case
-						when 
-								vl_1 > 1000 
-                                AND vl_1_date > arv_start_date
-								AND timestampdiff(month,vl_1_date,endDate) > 3 
-                                AND timestampdiff(year,vl_1_date,endDate) <= 1 
-							then @needs_follow_up_vl :=1                            
-						else @needs_follow_up_vl := 0
-					end as needs_follow_up_vl,
-
-
-    
-					case
-						when 
-								vl_1 > 1000 
-                                AND vl_1_date > arv_start_date 
-                                AND timestampdiff(month,vl_1_date,endDate) between 3 and 11 
-							THEN 1
-                        when timestampdiff(month,arv_start_date,endDate) between 6 and 11 AND vl_1 is null THEN 1                        						
-						when 
-								timestampdiff(month,arv_start_date,endDate) between 12 and 18 
-								AND vl_2 is null then 1
-						when 
-								timestampdiff(month,arv_start_date,endDate) >= 12 
-								AND ifnull(timestampdiff(month,vl_1_date,endDate) >= 12,1)
-							then 1
-                    end as due_for_vl_this_month,
-                    
-					case
-						when vl_1 > 1000 
-								AND vl_1_date > arv_start_date 
-								AND timestampdiff(month,vl_1_date,endDate) between 3 and 11 
-							THEN "Previous VL Unsuppressed"
-                        when timestampdiff(month,arv_start_date,endDate) between 6 and 11 AND vl_1 is null then "On ART for 6 months"	
-						when 
-								timestampdiff(month,arv_start_date,endDate) between 12 and 18
-								AND vl_2 is null 
-							THEN "On ART for 12 months"
-						when 
-								timestampdiff(month,arv_start_date,endDate) >= 12 
-								AND ifnull(timestampdiff(month,vl_1_date,endDate) >= 12,1) 
-							then "Annual VL"
-                                
-                    end as reason_for_needing_vl_this_month,
-			
-					
-
-					case
-						when vl_1 > 1000 
-								AND vl_1_date > arv_start_date 
-								AND timestampdiff(month,vl_1_date,endDate) between 3 and 11 
-							then timestampdiff(month,vl_1_date,endDate) - 3
-
-                        when timestampdiff(month,arv_start_date,endDate) between 6 and 11 AND vl_1 is null
-							then timestampdiff(month,arv_start_date,endDate) - 6
-
-						when 
-								timestampdiff(month,arv_start_date,endDate) between 12 and 18
-								AND vl_2 is null
-							then timestampdiff(month,arv_start_date,endDate) - 12
-
-						when                         
-								timestampdiff(month,arv_start_date,endDate) >= 12 
-								AND ifnull(timestampdiff(month,vl_1_date,endDate) >= 12,1) 
-							then timestampdiff(month,ifnull(vl_1_date,arv_start_date),endDate) - 12
-                    end as number_of_months_has_needed_vl,
-                    
-					@tb_tx_start_date :=  date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months
-
-					case
-						when tb_tx_start_date between date_format(endDate,"%Y-%m-01")  and endDate then @started_tb_tx_this_month :=  1
-						else @started_tb_tx_this_month :=  0
-					end as started_tb_tx_this_month,
-                    
-                    @on_tb_tx_this_month := on_tb_tx as on_tb_tx_this_month,
-                    
-                    case
-						when on_tb_tx =1 and @started_art_this_month then 1
-                        else 0
-					end as on_tb_tx_and_started_art_this_month,
-																			
+                    					
 					tb_screen,
                     tb_screening_datetime,
                     tb_screening_result,
                     
 					case
-						when tb_screening_datetime between date_format(endDate, "%Y-%m-01") and endDate
-							AND @status = "active" then 1
-						else 0
-					end as tb_screened_this_visit_this_month,
-
-					case
 						when tb_screening_datetime >= date(encounter_datetime) 
 							AND @status = "active" then 1
-						when tb_screening_datetime between DATE_SUB(endDate, INTERVAL 6 MONTH) and endDate
-							AND @status = "active" AND @started_tb_tx_this_month != 1 then 1
 						else 0
-					end as tb_screened_active_this_month,
+					end as tb_screened_this_month,
                     
 					case
 						when tb_screening_result = 6971
 							AND tb_screening_datetime between date_format(endDate,"%Y-%m-01")  and endDate then 1
                         else 0
                     end as presumed_tb_positive_this_month,
+
+					date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months
+
+					case
+						when tb_tx_start_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
+						else 0
+					end as started_tb_tx_this_month,
+                    
+                    on_tb_tx as on_tb_tx_this_month,
+                    
+                    
+                    case
+						when on_tb_tx =1 and @started_art_this_month then 1
+                        else 0
+					end as on_tb_tx_and_started_art_this_month,
 
 					date(pcp_prophylaxis_start_date) as pcp_prophylaxis_start_date,
 
@@ -648,7 +501,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					
 					case
 						when condoms_provided_date >= date(encounter_datetime)
-							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 then 1                            
+							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 90 then 1                            
 						else 0
 					end as condoms_provided_since_active,
 
@@ -660,7 +513,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     
 					case
 						when modern_contraceptive_method_start_date <= date(encounter_datetime)
-							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 
+							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 90 
                             then 1                            
 						else 0
 					end as modern_contraception_since_active,
@@ -686,22 +539,19 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     
 
 					where  
-							#t2.encounter_datetime <= t1.endDate
-                            t2.encounter_datetime < date_add(endDate, interval 1 day)
-							and (t2.next_clinical_datetime_hiv is null or t2.next_clinical_datetime_hiv >= date_add(t1.endDate, interval 1 day) )
+							t2.encounter_datetime <= t1.endDate
+							and (t2.next_clinical_datetime_hiv is null or t2.next_clinical_datetime_hiv > t1.endDate )
 							and t2.is_clinical_encounter=1 
-							and t1.endDate between start_date and date_add(now(),interval 2 year)
+							and t1.endDate between start_date and date_add(now(),interval 4 month)
 					order by person_id, endDate
 				);
                 
-               
+                
 
 				set @prev_id = null;
 				set @cur_id = null;
 				set @cur_status = null;
 				set @prev_status = null;
-                set @prev_location_id = null;
-                set @cur_location_id = null;
 
 				drop temporary table if exists hiv_monthly_report_dataset_1;
 				create temporary table hiv_monthly_report_dataset_1
@@ -709,14 +559,6 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					*,
 					@prev_id := @cur_id as prev_id,
 					@cur_id := person_id as cur_id,
-
-					case
-						when @prev_id=@cur_id then @prev_location_id := @cur_location_id
-                        else @prev_location_id := null
-					end as next_location_id,
-                    
-                    @cur_location_id := location_id as cur_location_id,
-
 					case
 						when @prev_id=@cur_id then @prev_status := @cur_status
 						else @prev_status := null
@@ -727,30 +569,19 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					order by person_id, endDate desc
 				);
 
-				alter table hiv_monthly_report_dataset_1 drop prev_id, drop cur_id, drop cur_status, drop cur_location_id;
+				alter table hiv_monthly_report_dataset_1 drop prev_id, drop cur_id, drop cur_status;
 
 				set @prev_id = null;
 				set @cur_id = null;
 				set @cur_status = null;
 				set @prev_status = null;
                 set @cur_arv_meds = null;
-                set @prev_arv_meds = null;
-                set @cur_location_id = null;
-                set @prev_location_id = null;
 				drop temporary table if exists hiv_monthly_report_dataset_2;
 				create temporary table hiv_monthly_report_dataset_2
 				(select
 					*,
 					@prev_id := @cur_id as prev_id,
 					@cur_id := person_id as cur_id,
-                    
-                    case
-						when @prev_id=@cur_id then @prev_location_id := @cur_location_id
-                        else @prev_location_id := null
-					end as prev_location_id,
-                    
-                    @cur_location_id := location_id as cur_location_id,
-                    
 					case
 						when @prev_id=@cur_id then @prev_status := @cur_status
 						else @prev_status := null
@@ -758,44 +589,14 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					@cur_status := status as cur_status,
 					
                     case
-						when @prev_id = @cur_id then @prev_month_arvs := @cur_arv_meds
-                        else @prev_month_arvs := null
+						when @prev_id = @cur_id then @cur_arv_meds
+                        else @cur_arv_meds := null
                     end as prev_month_arvs,
-
+                    
                     @cur_arv_meds := cur_arv_meds as cur_arv_meds_2,
-
-                    case
-						when @prev_id = @cur_id then @prev_month_arvs_names := @cur_arv_meds_names
-                        else @prev_month_arvs_names := null
-                    end as prev_month_arvs_names,
-
-                    @cur_arv_meds_names := cur_arv_meds_names as cur_arv_meds_names_2,
-
                     
-					days_since_starting_arvs - days_since_last_vl as days_between_arv_start_and_last_vl,
+                    days_since_starting_arvs - days_since_last_vl as days_between_arv_start_and_last_vl
 
-					case
-						when @prev_id != @cur_id then 0
-                        when cur_arv_meds != @prev_month_arvs then 1
-						when (@prev_month_arvs is not null and cur_arv_meds is null) then 1
-						else 0
-					end as had_med_change_this_month,
-					
-					case
-						when @prev_id != @cur_id then 0
-						when @follow_up_vl_unsuppressed AND cur_arv_meds != @prev_month_arvs then 1
-						when @follow_up_vl_unsuppressed AND (@prev_month_arvs is not null and cur_arv_meds is null) then 1
-						else 0
-					end as had_med_change_this_month_after_2_unsuppressed_vls,
-
-
-					case
-						when @prev_id != @cur_id then 0
-						when @follow_up_vl_unsuppressed AND cur_arv_meds = @prev_month_arvs then 1
-						else 0
-					end as same_meds_this_month_after_2_unsuppressed_vls
-                    
-				
 						
 					from hiv_monthly_report_dataset_1
 					order by person_id, endDate
@@ -825,10 +626,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                 scheduled_this_month,
                 unscheduled_this_month,
                 f_18_and_over_this_month,
-                prev_location_id,
 				location_id,
                 t2.uuid as location_uuid,
-                next_location_id,
 				t2.state_province as clinic_county,
 				t2.name as clinic,
 				t2.latitude as clinic_latitude,
@@ -852,16 +651,13 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                 arv_first_regimen,
 				arv_first_regimen_names,
 				arv_first_regimen_start_date,
-                art_cohort_year,
-				art_cohort_month,
 				art_cohort_num,
-                art_cohort_total_months,
+                art_cohort_year,
                 days_since_starting_arvs,
 				started_art_this_month,
                 art_revisit_this_month,
                 arv_start_date,
                 prev_month_arvs,
-                prev_month_arvs_names,
                 cur_arv_meds,
 				cur_arv_meds_names,
                 cur_arv_meds_strict,
@@ -885,26 +681,10 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				vl_in_past_year,
 				vl_2,
 				vl_2_date,
-                qualifies_for_follow_up_vl,
-				got_follow_up_vl,
-				got_follow_up_vl_this_month,    
-				num_days_to_follow_vl,
-				follow_up_vl_suppressed,
-				follow_up_vl_suppressed_this_month,
-				follow_up_vl_unsuppressed,
-				follow_up_vl_unsuppressed_this_month,
-                due_for_vl_this_month,
-                reason_for_needing_vl_this_month,
-                number_of_months_has_needed_vl,
-				needs_follow_up_vl,
-				had_med_change_this_month,
-				had_med_change_this_month_after_2_unsuppressed_vls,
-				same_meds_this_month_after_2_unsuppressed_vls,
 				tb_screen,
 				tb_screening_datetime,
 				tb_screening_result,  
-                tb_screened_this_visit_this_month,
-				tb_screened_active_this_month,
+                tb_screened_this_month,
 				presumed_tb_positive_this_month,
 				tb_tx_start_date,
 				started_tb_tx_this_month,
@@ -958,7 +738,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
 				#select concat("Estimated time remaining: ", @remaining_time,' minutes');
                 
-#                select count(*) into @num_in_hmrd from hiv_monthly_report_dataset_v1_2;
+                select count(*) into @num_in_hmrd from hiv_monthly_report_dataset_v1_2;
                 
                 select @num_in_hmrd as num_in_hmrd,
 					@person_ids_count as num_remaining, 
@@ -977,8 +757,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 			end if;            
 
 			set @end = now();
-            # not sure why we need last date_created, Ive replaced this with @start
-			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+            # not sure why we need last date_created, I've replaced this with @start
+			insert into etl.flat_log values (@start,@start,@table_version,timestampdiff(second,@start,@end));
 			select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
         END$$

@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE  PROCEDURE `generate_flat_labs_and_imaging_v4_2`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_flat_labs_and_imaging_v4_2`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 				set session sort_buffer_size=512000000;
 				set session group_concat_max_len=100000;
@@ -284,13 +284,11 @@ BEGIN
 										if(obs regexp "!!729=",cast(getValues(obs,729) as unsigned),null) as plt,
 										if(obs regexp "!!678=",cast(getValues(obs,678) as decimal(6,2)),null) as wbc,
 										if(obs regexp "!!1330=",cast(getValues(obs,1330) as decimal(6,2)),null) as anc,
-
 										if(obs regexp "!!6134=",cast(getValues(obs,6134) as decimal(6,2)),null) as uric_acid,
 										if(obs regexp "!!790=",cast(getValues(obs,790) as decimal(6,2)),null) as creatinine,
 										if(obs regexp "!!1132=",cast(getValues(obs,1132) as decimal(6,2)),null) as na,
 										if(obs regexp "!!1133=",cast(getValues(obs,1133) as decimal(6,2)),null) as k,
 										if(obs regexp "!!1134=",cast(getValues(obs,1134) as decimal(6,2)),null) as cl,
-
 										if(obs regexp "!!655=",cast(getValues(obs,655) as decimal(6,2)),null) as total_bili,
 										if(obs regexp "!!1297=",cast(getValues(obs,1297) as decimal(6,2)),null) as direct_bili,
 										if(obs regexp "!!6123=",cast(getValues(obs,6123) as decimal(6,2)),null) as ggt,
@@ -300,13 +298,9 @@ BEGIN
 										if(obs regexp "!!848=",cast(getValues(obs,848) as decimal(6,2)),null) as albumin,
 										if(obs regexp "!!785=",cast(getValues(obs,785) as decimal(6,2)),null) as alk_phos,
 										if(obs regexp "!!1014=",cast(getValues(obs,1014) as decimal(6,2)),null) as ldh,
-
 										if(obs regexp "!!10249=",cast(getValues(obs,10249) as decimal(6,2)),null) as total_psa,
-
 										if(obs regexp "!!10250=",cast(getValues(obs,10250) as decimal(6,2)),null) as cea,
-
 										if(obs regexp "!!10251=",cast(getValues(obs,10251) as decimal(6,2)),null) as ca_19_9,
-
 										if(obs regexp "!!9010=",cast(getValues(obs,9010) as decimal(6,2)),null) as hbf,
 										if(obs regexp "!!9011=",cast(getValues(obs,9011) as decimal(6,2)),null) as hba,
 										if(obs regexp "!!9699=",cast(getValues(obs,9699) as decimal(6,2)),null) as hbs,

@@ -558,7 +558,20 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 								AND ifnull(timestampdiff(month,vl_1_date,endDate) >= 12,1) 
 							then timestampdiff(month,ifnull(vl_1_date,arv_start_date),endDate) - 12
                     end as number_of_months_has_needed_vl,
+                    
+					@tb_tx_start_date :=  date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months
 
+					case
+						when tb_tx_start_date between date_format(endDate,"%Y-%m-01")  and endDate then @started_tb_tx_this_month :=  1
+						else @started_tb_tx_this_month :=  0
+					end as started_tb_tx_this_month,
+                    
+                    @on_tb_tx_this_month := on_tb_tx as on_tb_tx_this_month,
+                    
+                    case
+						when on_tb_tx =1 and @started_art_this_month then 1
+                        else 0
+					end as on_tb_tx_and_started_art_this_month,
 																			
 					tb_screen,
                     tb_screening_datetime,
@@ -573,6 +586,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					case
 						when tb_screening_datetime >= date(encounter_datetime) 
 							AND @status = "active" then 1
+						when tb_screening_datetime between DATE_SUB(endDate, INTERVAL 6 MONTH) and endDate
+							AND @status = "active" AND @started_tb_tx_this_month != 1 then 1
 						else 0
 					end as tb_screened_active_this_month,
                     
@@ -581,21 +596,6 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 							AND tb_screening_datetime between date_format(endDate,"%Y-%m-01")  and endDate then 1
                         else 0
                     end as presumed_tb_positive_this_month,
-
-					date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months
-
-					case
-						when tb_tx_start_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
-						else 0
-					end as started_tb_tx_this_month,
-                    
-                    on_tb_tx as on_tb_tx_this_month,
-                    
-                    
-                    case
-						when on_tb_tx =1 and @started_art_this_month then 1
-                        else 0
-					end as on_tb_tx_and_started_art_this_month,
 
 					date(pcp_prophylaxis_start_date) as pcp_prophylaxis_start_date,
 
@@ -977,7 +977,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 			end if;            
 
 			set @end = now();
-            # not sure why we need last date_created, I've replaced this with @start
+            # not sure why we need last date_created, Ive replaced this with @start
 			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 			select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 

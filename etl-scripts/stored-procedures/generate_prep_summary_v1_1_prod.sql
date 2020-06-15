@@ -1,4 +1,5 @@
-CREATE PROCEDURE `generate_prep_summary_v1_1_prod`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
+DELIMITER $$
+CREATE  PROCEDURE `generate_prep_summary_v1_1_prod`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
 BEGIN
 
 					select @start := now();
@@ -13,6 +14,8 @@ BEGIN
 					select @sep := " ## ";
 					select @last_date_created := (select max(max_date_created) from etl.flat_obs);
 
+					#drop table if exists flat_prep_summary;
+					#delete from flat_log where table_name="flat_pep_summary";
 					CREATE TABLE IF NOT EXISTS `flat_prep_summary_v1_1` (
 					  `date_created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 					  `prev_id` bigint(20) DEFAULT NULL,
@@ -631,7 +634,8 @@ BEGIN
 				 end while;
 
 				 select @end := now();
-				 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+				# insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
-		END
+		END$$
+DELIMITER ;

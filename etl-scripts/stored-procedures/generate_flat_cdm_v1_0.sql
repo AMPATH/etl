@@ -1,5 +1,5 @@
 DELIMITER $$
-PROCEDURE `generate_flat_cdm_v1_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_flat_cdm_v1_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					set @primary_table := "flat_cdm";
 					set @query_type = query_type;
@@ -45,6 +45,7 @@ BEGIN
                         dbp smallint,
                         pulse smallint,
                         
+						fbs decimal,
                         rbs decimal,
                         hb_a1c decimal,
                         hb_a1c_date datetime,
@@ -61,7 +62,7 @@ BEGIN
                         dm_status mediumint,
                         htn_status mediumint,
                         dm_meds varchar(500),
-                        htn_med varchar(500),
+                        htn_meds varchar(500),
                         prescriptions text,
                         
                         problems text,                        
@@ -227,7 +228,7 @@ BEGIN
 								) as obs
 																
 							from amrs.obs o
-							join (select encounter_id, obs_id, concept_id as grouping_concept from amrs.obs where concept_id=7307) t2 on o.obs_group_id = t2.obs_id
+							join (select encounter_id, obs_id, concept_id as grouping_concept from amrs.obs where concept_id in (7307,7334)) t2 on o.obs_group_id = t2.obs_id
 							group by obs_group_id
 						) t
 						group by encounter_id
@@ -380,6 +381,7 @@ BEGIN
 
 							@pulse := GetValues(obs,5087) as pulse,
 
+							@fbs := GetValues(obs,6252) as fbs,
 							@rbs := GetValues(obs,887) as rbs,
 
                             case
@@ -441,7 +443,7 @@ BEGIN
 							@dm_status := GetValues(obs,7287) as dm_status,
                             @htn_status := GetValues(obs,7288) as htn_status,
                             @dm_meds := GetValues(obs,7290) as dm_meds,
-							@htn_med := GetValues(obs,7332) as htn_med,
+							@htn_meds := GetValues(obs,10241) as htn_meds,
                             t2.prescriptions as prescriptions,
 
                             @problems := GetValues(obs,6042 ) as problems
@@ -627,6 +629,7 @@ BEGIN
 						sbp,
                         dbp,
                         pulse,
+                        fbs,
                         rbs,
                         hb_a1c,
                         hb_a1c_date,
@@ -640,7 +643,7 @@ BEGIN
                         dm_status,
                         htn_status,
                         dm_meds,
-                        htn_med,
+                        htn_meds,
                         prescriptions,
                         problems,
                         

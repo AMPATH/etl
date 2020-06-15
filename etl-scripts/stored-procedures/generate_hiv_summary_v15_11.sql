@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE DEFINER=`fmaiko`@`%` PROCEDURE `generate_hiv_summary_v15_11`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_hiv_summary_v15_11`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
                     set @primary_table := "flat_hiv_summary_v15b";
                     set @query_type = query_type;
@@ -289,7 +289,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
-                                when t1.encounter_type in (186) AND (v.visit_type_id != 24 AND v.visit_type_id != 80 aND v.visit_type_id is NOT NULL) then 1
+                                when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80) AND v.visit_type_id is NOT NULL then 1
                                 else null
                             end as is_clinical_encounter,
 

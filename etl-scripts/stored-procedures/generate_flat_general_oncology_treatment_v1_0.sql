@@ -43,24 +43,24 @@ BEGIN
 							heent INT,
 							breast_findings INT,
 							breast_finding_location INT,
-							breast_findingquadrant INT,
+							breast_finding_quadrant INT,
 							chest INT,
 							heart INT,
-							abdomenexam INT,
-							urogenital INT,
-							extremities INT,
+							abdomen_exam INT,
+							urogenital_exam INT,
+							extremity_exam INT,
 							testicular_exam INT,
 							nodal_survey INT,
-							musculoskeletal INT,
+							musculoskeletal_exam INT,
 							skin_exam_findings INT,
 							body_part INT,
 							laterality INT,
-							measure_first_direction INT,
-							measure_second_direction INT,
-							neurologic INT,
-							bnody_part INT,
+							mass_measurement_first_direction INT,
+							mass_measurement_second_direction INT,
+							neurologic_exam INT,
+							condition_causing_focal_weakness INT,
 							patient_on_chemo INT,
-							echo INT,
+							echocardiography INT,
 							ct_head INT,
 							ct_neck INT,
 							ct_chest INT,
@@ -77,7 +77,7 @@ BEGIN
 							ultrasound_renal INT,
 							ultrasound_hepatic INT,
 							obstetric_ultrasound INT,
-							abonimal_ultrasound INT,
+							abdominal_ultrasound INT,
 							breast_ultrasound INT,
                             x_ray_shoulder INT,
 							x_ray_pelvis INT,
@@ -100,14 +100,14 @@ BEGIN
 							type_of_gi_cancer INT,
 							head_and_neck_cancer INT,
 							gynecologic_cancer INT,
-							lympoma_cancer INT,
+							lymphoma_cancer INT,
 							skin_cancer INT,
 							breast_cancer INT,
 							other_solid_cancer INT,
 							type_of_leukemeia INT,
 							non_cancer INT,
 							diagnosis_date datetime,
-							new_or_recurrence_cancer INT,
+							cancer_diagnosis_status INT,
 							cancer_stage INT,
                             overall_cancer_staging INT,
 							test_ordered INT,
@@ -367,24 +367,24 @@ BEGIN
 						set @heent = null;
 						set @breast_findings = null;
 						set @breast_finding_location = null;
-						set @breast_findingquadrant = null;
+						set @breast_finding_quadrant = null;
 						set @chest = null;
 						set @heart = null;
-						set @abdomenexam = null;
-						set @urogenital = null;
-						set @extremities = null;
+						set @abdomen_exam = null;
+						set @urogenital_exam = null;
+						set @extremity_exam = null;
 						set @testicular_exam = null;
 						set @nodal_survey = null;
-						set @musculoskeletal = null;
+						set @musculoskeletal_exam = null;
 						set @skin_exam_findings = null;
 						set @body_part = null;
 						set @laterality = null;
-						set @measure_first_direction = null;
-						set @measure_first_direction = null;
-						set @neurologic = null;
-						set @bnody_part = null;
+						set @mass_measurement_first_direction = null;
+						set @mass_measurement_first_direction = null;
+						set @neurologic_exam = null;
+						set @condition_causing_focal_weakness = null;
 						set @patient_on_chemo = null;
-						set @echo = null;
+						set @echocardiography = null;
 						set @ct_head = null;
 						set @ct_neck = null;
 						set @ct_chest = null;
@@ -401,7 +401,7 @@ BEGIN
 						set @ultrasound_renal= null;
 						set @ultrasound_hepatic = null;
 						set @obstetric_ultrasound = null;
-						set @abonimal_ultrasound = null;
+						set @abdominal_ultrasound = null;
 						set @breast_ultrasound = null;
                         set @x_ray_shoulder= null;
 							set @x_ray_pelvis= null;
@@ -424,14 +424,14 @@ BEGIN
 							set @type_of_gi_cancer= null;
 							set @head_and_neck_cancer= null;
 							set @gynecologic_cancer= null;
-							set @lympoma_cancer= null;
+							set @lymphoma_cancer= null;
 							set @skin_cancer= null;
 							set @breast_cancer= null;
 							set @other_solid_cancer= null;
 							set @type_of_leukemeia= null;
 							set @non_cancer= null;
 							set @diagnosis_date= null;
-							set @new_or_recurrence_cancer= null;
+							set @cancer_diagnosis_status= null;
 							set @cancer_stage= null;
 
                                                 
@@ -478,6 +478,8 @@ BEGIN
                                 when obs regexp "!!1119=5245!!" then @general_exam := 3
                                 when obs regexp "!!1119=215!!" then @general_exam := 4
                                 when obs regexp "!!1119=589!!" then @general_exam := 5
+                                when obs regexp "!!1119=8999!!" then @general_exam := 6
+                                when obs regexp "!!1119=991!!" then @general_exam := 7
 								else @general_exam := null
 							end as general_exam,
                             case
@@ -505,69 +507,72 @@ BEGIN
                             case
 								when obs regexp "!!9696=5141!!" then @breast_finding_location := 1
 								when obs regexp "!!9696=5139!!" then @breast_finding_location := 2
+								when obs regexp "!!9696=9625!!" then @breast_finding_location := 3
 								else @breast_finding_location := null
 							end as breast_finding_location,
                             case
-								when obs regexp "!!8268=5107!!" then @breast_findingquadrant := 1
-								when obs regexp "!!8268=1883!!" then @breast_findingquadrant := 2
-                                when obs regexp "!!8268=1882!!" then @breast_findingquadrant := 3
-								when obs regexp "!!8268=5104!!" then @breast_findingquadrant := 4
-                                when obs regexp "!!8268=9695!!" then @breast_findingquadrant := 5
-								else @breast_findingquadrant := null
-							end as breast_findingquadrant,
+								when obs regexp "!!8268=5107!!" then @breast_finding_quadrant := 1
+								when obs regexp "!!8268=1883!!" then @breast_finding_quadrant := 2
+                                when obs regexp "!!8268=1882!!" then @breast_finding_quadrant := 3
+								when obs regexp "!!8268=5104!!" then @breast_finding_quadrant := 4
+                                when obs regexp "!!8268=9695!!" then @breast_finding_quadrant := 5
+								else @breast_finding_quadrant := null
+							end as breast_finding_quadrant,
                             case
 								when obs regexp "!!1123=1118!!" then @chest := 1
 								when obs regexp "!!1123=1115!!" then @chest := 2
-                                when obs regexp "!!1123=5138!!" then @chest := 3
+                when obs regexp "!!1123=5138!!" then @chest := 3
 								when obs regexp "!!1123=5115!!" then @chest := 4
-                                when obs regexp "!!1123=5116!!" then @chest := 5
-                                when obs regexp "!!1123=5181!!" then @chest := 6
-                                when obs regexp "!!1123=5127!!" then @chest := 7
+                when obs regexp "!!1123=5116!!" then @chest := 5
+                when obs regexp "!!1123=5181!!" then @chest := 6
+                when obs regexp "!!1123=5127!!" then @chest := 7
+                when obs regexp "!!1123=5209!!" then @chest := 8
 								else @chest := null
 							end as chest,
                              case
 								when obs regexp "!!1124=1118!!" then @heart := 1
 								when obs regexp "!!1124=1115!!" then @heart := 2
-                                when obs regexp "!!1124=1117!!" then @heart := 3
+                when obs regexp "!!1124=1117!!" then @heart := 3
 								when obs regexp "!!1124=550!!" then @heart := 4
-                                when obs regexp "!!1124=5176!!" then @heart := 5
-                                when obs regexp "!!1124=5162!!" then @heart := 6
-                                when obs regexp "!!1124=5164!!" then @heart := 7
+                when obs regexp "!!1124=5176!!" then @heart := 5
+                when obs regexp "!!1124=5162!!" then @heart := 6
+                when obs regexp "!!1124=5164!!" then @heart := 7
 								else @heart := null
 							end as heart,
                              case
-								when obs regexp "!!1125=1118!!" then @abdomenexam := 1
-								when obs regexp "!!1125=1115!!" then @abdomenexam := 2
-                                when obs regexp "!!1125=5105!!" then @abdomenexam := 3
-								when obs regexp "!!1125=5008!!" then @abdomenexam := 4
-                                when obs regexp "!!1125=5009!!" then @abdomenexam := 5
-                                when obs regexp "!!1125=581!!" then @abdomenexam := 6
-                                when obs regexp "!!1125=5103!!" then @abdomenexam := 7
-								else @abdomenexam := null
-							end as abdomenexam,
+								when obs regexp "!!1125=1118!!" then @abdomen_exam := 1
+								when obs regexp "!!1125=1115!!" then @abdomen_exam := 2
+                                when obs regexp "!!1125=5105!!" then @abdomen_exam := 3
+								when obs regexp "!!1125=5008!!" then @abdomen_exam := 4
+                                when obs regexp "!!1125=5009!!" then @abdomen_exam := 5
+                                when obs regexp "!!1125=581!!" then @abdomen_exam := 6
+                                when obs regexp "!!1125=5103!!" then @abdomen_exam := 7
+								else @abdomen_exam := null
+							end as abdomen_exam,
                             case
-								when obs regexp "!!1126=1118!!" then @urogenital := 1
-								when obs regexp "!!1126=1115!!" then @urogenital := 2
-                                when obs regexp "!!1126=1116!!" then @urogenital := 3
-								when obs regexp "!!1126=2186!!" then @urogenital := 4
-                                when obs regexp "!!1126=864!!" then @urogenital := 5
-                                when obs regexp "!!1126=6334!!" then @urogenital := 6
-                                when obs regexp "!!1126=1447!!" then @urogenital := 7
-                                 when obs regexp "!!1126=5993!!" then @urogenital := 8
-								when obs regexp "!!1126=8998!!" then @urogenital := 9
-                                when obs regexp "!!1126=1489!!" then @urogenital := 10
-                                when obs regexp "!!1126=8417!!" then @urogenital := 11
-                                when obs regexp "!!1126=8261!!" then @urogenital := 12
-								else @urogenital := null
-							end as urogenital,
+								when obs regexp "!!1126=1118!!" then @urogenital_exam := 1
+								when obs regexp "!!1126=1115!!" then @urogenital_exam := 2
+                                when obs regexp "!!1126=1116!!" then @urogenital_exam := 3
+								when obs regexp "!!1126=2186!!" then @urogenital_exam := 4
+                                when obs regexp "!!1126=864!!" then @urogenital_exam := 5
+                                when obs regexp "!!1126=6334!!" then @urogenital_exam := 6
+                                when obs regexp "!!1126=1447!!" then @urogenital_exam := 7
+                                 when obs regexp "!!1126=5993!!" then @urogenital_exam := 8
+								when obs regexp "!!1126=8998!!" then @urogenital_exam := 9
+                                when obs regexp "!!1126=1489!!" then @urogenital_exam := 10
+                                when obs regexp "!!1126=8417!!" then @urogenital_exam := 11
+                                when obs regexp "!!1126=6261!!" then @urogenital_exam := 12
+								else @urogenital_exam := null
+							end as urogenital_exam,
                             case
-								when obs regexp "!!1127=1118!!" then @extremities := 1
-								when obs regexp "!!1127=1115!!" then @extremities := 2
-                                when obs regexp "!!1127=590!!" then @extremities := 3
-								when obs regexp "!!1127=7293!!" then @extremities := 4
-                                when obs regexp "!!1127=134!!" then @extremities := 5
-								else @extremities := null
-							end as extremities,
+								when obs regexp "!!1127=1118!!" then @extremity_exam := 1
+								when obs regexp "!!1127=1115!!" then @extremity_exam := 2
+                                when obs regexp "!!1127=590!!" then @extremity_exam := 3
+								when obs regexp "!!1127=7293!!" then @extremity_exam := 4
+                                when obs regexp "!!1127=134!!" then @extremity_exam := 5
+                                when obs regexp "!!1127=582!!" then @extremity_exam := 6
+								else @extremity_exam := null
+							end as extremity_exam,
                             case
 								when obs regexp "!!8420=1118!!" then @testicular_exam := 1
 								when obs regexp "!!8420=1115!!" then @testicular_exam := 2
@@ -575,22 +580,24 @@ BEGIN
 								else @testicular_exam := null
 							end as testicular_exam,
                             case
-								when obs regexp "!!8420=1118!!" then @nodal_survey := 1
-								when obs regexp "!!8420=1115!!" then @nodal_survey := 2
-                                when obs regexp "!!8420=1116!!" then @nodal_survey := 3
-                                when obs regexp "!!8420=8261!!" then @nodal_survey := 4
+								when obs regexp "!!1121=1118!!" then @nodal_survey := 1
+								when obs regexp "!!1121=1115!!" then @nodal_survey := 2
+                when obs regexp "!!1121=1116!!" then @nodal_survey := 3
+                when obs regexp "!!1121=161!!" then @nodal_survey := 4
 								else @nodal_survey := null
 							end as nodal_survey,
                             case
-								when obs regexp "!!1128=1118!!" then @musculoskeletal := 1
-								when obs regexp "!!1128=1115!!" then @musculoskeletal := 2
-                                when obs regexp "!!1128=1116!!" then @musculoskeletal := 3
-								else @musculoskeletal := null
-							end as musculoskeletal,
+								when obs regexp "!!1128=1118!!" then @musculoskeletal_exam := 1
+								when obs regexp "!!1128=1115!!" then @musculoskeletal_exam := 2
+                                when obs regexp "!!1128=1116!!" then @musculoskeletal_exam := 3
+								else @musculoskeletal_exam := null
+							end as musculoskeletal_exam,
                             case
 								when obs regexp "!!1120=1107!!" then @skin_exam_findings := 1
 								when obs regexp "!!1120=1118!!" then @skin_exam_findings := 2
-                                when obs regexp "!!1120=582!!" then @skin_exam_findings := 3
+                when obs regexp "!!1120=582!!" then @skin_exam_findings := 3
+                when obs regexp "!!1120=1115!!" then @skin_exam_findings := 4
+                when obs regexp "!!1120=1116!!" then @skin_exam_findings := 5
 								else @skin_exam_findings := null
 							end as skin_exam_findings,
                             case
@@ -608,45 +615,47 @@ BEGIN
                             case
 								when obs regexp "!!8264=5139!!" then @laterality := 1
 								when obs regexp "!!8264=5141!!" then @laterality := 2
+								when obs regexp "!!8264=2399!!" then @laterality := 3
+								when obs regexp "!!8264=1175!!" then @laterality := 4
 								else @laterality := null
 							end as laterality,
                             case
-								when obs regexp "!!8270=" then @measure_first_direction := GetValues(obs,8270) 
-								else @measure_first_direction := null
-							end as measure_first_direction,
+								when obs regexp "!!8270=" then @mass_measurement_first_direction := GetValues(obs,8270) 
+								else @mass_measurement_first_direction := null
+							end as mass_measurement_first_direction,
                             case
-								when obs regexp "!!8271=" then @measure_second_direction := GetValues(obs,8271) 
-								else @measure_second_direction := null
-							end as measure_second_direction,
+								when obs regexp "!!8271=" then @mass_measurement_second_direction := GetValues(obs,8271) 
+								else @mass_measurement_second_direction := null
+							end as mass_measurement_second_direction,
                             case
-								when obs regexp "!!1129=1118!!" then @neurologic := 1
-								when obs regexp "!!1129=1115!!" then @neurologic := 2
-                                when obs regexp "!!1129=599!!" then @neurologic := 3
-								when obs regexp "!!1129=497!!" then @neurologic := 4
-                                when obs regexp "!!1129=5108!!" then @neurologic := 5
-                                when obs regexp "!!1129=6005!!" then @neurologic := 6
-								else @neurologic := null
-							end as neurologic,
+								when obs regexp "!!1129=1118!!" then @neurologic_exam := 1
+								when obs regexp "!!1129=1115!!" then @neurologic_exam := 2
+                                when obs regexp "!!1129=599!!" then @neurologic_exam := 3
+								when obs regexp "!!1129=497!!" then @neurologic_exam := 4
+                                when obs regexp "!!1129=5108!!" then @neurologic_exam := 5
+                                when obs regexp "!!1129=6005!!" then @neurologic_exam := 6
+								else @neurologic_exam := null
+							end as neurologic_exam,
                             case
-								when obs regexp "!!10071=10072!!" then @bnody_part := 1
-								when obs regexp "!!10071=10073!!" then @bnody_part := 2
-                                when obs regexp "!!10071=10074!!" then @bnody_part := 3
-								else @bnody_part := null
-							end as bnody_part,
+								when obs regexp "!!10071=10072!!" then @condition_causing_focal_weakness := 1
+								when obs regexp "!!10071=10073!!" then @condition_causing_focal_weakness := 2
+                                when obs regexp "!!10071=10074!!" then @condition_causing_focal_weakness := 3
+								else @condition_causing_focal_weakness := null
+							end as condition_causing_focal_weakness,
                             case
 								when obs regexp "!!6575=1065!!" then @patient_on_chemo := 1
-								when obs regexp "!!6575=1066!!" then @patient_on_chemo := 2
+								when obs regexp "!!6575=1107!!" then @patient_on_chemo := 2
 								else @patient_on_chemo := null
 							end as patient_on_chemo,
                             case
-								when obs regexp "!!1536=1115!!" then @echo := 1
-								when obs regexp "!!1536=1116!!" then @echo := 2
-                                when obs regexp "!!1536=1532!!" then @echo := 3
-								when obs regexp "!!1536=1533!!" then @echo := 4
-                                when obs regexp "!!1536=1538!!" then @echo := 5
-                                when obs regexp "!!1536=5622!!" then @echo := 6
-								else @echo := null
-							end as echo,
+								when obs regexp "!!1536=1115!!" then @echocardiography := 1
+								when obs regexp "!!1536=1116!!" then @echocardiography := 2
+                                when obs regexp "!!1536=1532!!" then @echocardiography := 3
+								when obs regexp "!!1536=1533!!" then @echocardiography := 4
+                                when obs regexp "!!1536=1538!!" then @echocardiography := 5
+                                when obs regexp "!!1536=5622!!" then @echocardiography := 6
+								else @echocardiography := null
+							end as echocardiography,
                             case
 								when obs regexp "!!846=1115!!" then @ct_head := 1
 								when obs regexp "!!846=1116!!" then @ct_head := 2
@@ -728,10 +737,10 @@ BEGIN
 								else @obstetric_ultrasound := null
 							end as obstetric_ultrasound,
                             case
-								when obs regexp "!!845=1115!!" then @abonimal_ultrasound := 1
-								when obs regexp "!!845=1116!!" then @abonimal_ultrasound := 2
-								else @abonimal_ultrasound := null
-							end as abonimal_ultrasound,
+								when obs regexp "!!845=1115!!" then @abdominal_ultrasound := 1
+								when obs regexp "!!845=1116!!" then @abdominal_ultrasound := 2
+								else @abdominal_ultrasound := null
+							end as abdominal_ultrasound,
                             case
 								when obs regexp "!!9596=1115!!" then @breast_ultrasound := 1
 								when obs regexp "!!9596=1116!!" then @breast_ultrasound := 2
@@ -826,7 +835,9 @@ BEGIN
                                 when obs regexp "!!7176=6544!!" then @cancer_type := 8
                                 when obs regexp "!!7176=216!!" then @cancer_type := 9
                                 when obs regexp "!!7176=9846!!" then @cancer_type := 10
-                                when obs regexp "!!7176=5622!!" then @cancer_type := 11
+                                when obs regexp "!!7176=10129!!" then @cancer_type := 11
+                                when obs regexp "!!7176=7175!!" then @cancer_type := 12
+                                when obs regexp "!!7176=5622!!" then @cancer_type := 13
 								else @cancer_type := null
 							end as cancer_type,
                             case
@@ -849,6 +860,7 @@ BEGIN
 								when obs regexp "!!6514=6518!!" then @type_of_gu := 4
                                 when obs regexp "!!6514=6519!!" then @type_of_gu := 5
 								when obs regexp "!!6514=5622!!" then @type_of_gu := 6
+								when obs regexp "!!6514=8521!!" then @type_of_gu := 7
 								else @type_of_gu := null
 							end as type_of_gu,
                             case
@@ -871,6 +883,7 @@ BEGIN
                                 when obs regexp "!!6528=6533!!" then @head_and_neck_cancer := 5
 								when obs regexp "!!6528=6534!!" then @head_and_neck_cancer := 6
                                 when obs regexp "!!6528=5622!!" then @head_and_neck_cancer := 7
+                                when obs regexp "!!6528=7421!!" then @head_and_neck_cancer := 8
 								else @head_and_neck_cancer := null
 							end as head_and_neck_cancer,
                             case
@@ -878,15 +891,16 @@ BEGIN
 								when obs regexp "!!6536=6538!!" then @gynecologic_cancer := 2
                                 when obs regexp "!!6536=6539!!" then @gynecologic_cancer := 3
 								when obs regexp "!!6536=5622!!" then @gynecologic_cancer := 4
+								when obs regexp "!!6536=8422!!" then @gynecologic_cancer := 5
 								else @gynecologic_cancer := null
 							end as gynecologic_cancer,
                             case
-								when obs regexp "!!6551=6553!!" then @lympoma_cancer := 1
-								when obs regexp "!!6551=6552!!" then @lympoma_cancer := 2
-                                when obs regexp "!!6551=8423!!" then @lympoma_cancer := 3
-								when obs regexp "!!6551=5622!!" then @lympoma_cancer := 4
-								else @lympoma_cancer := null
-							end as lympoma_cancer,
+								when obs regexp "!!6551=6553!!" then @lymphoma_cancer := 1
+								when obs regexp "!!6551=6552!!" then @lymphoma_cancer := 2
+                                when obs regexp "!!6551=8423!!" then @lymphoma_cancer := 3
+								when obs regexp "!!6551=5622!!" then @lymphoma_cancer := 4
+								else @lymphoma_cancer := null
+							end as lymphoma_cancer,
                             case
 								when obs regexp "!!6540=6541!!" then @skin_cancer := 1
 								when obs regexp "!!6540=6542!!" then @skin_cancer := 2
@@ -929,10 +943,10 @@ BEGIN
 								else @diagnosis_date := null
 							end as diagnosis_date,
 							case
-								when obs regexp "!!9848=9849!!" then @new_or_recurrence_cancer := 1
-								when obs regexp "!!9848=9850!!" then @new_or_recurrence_cancer := 2
-								else @new_or_recurrence_cancer := null
-							end as new_or_recurrence_cancer,
+								when obs regexp "!!9848=9849!!" then @cancer_diagnosis_status := 1
+								when obs regexp "!!9848=9850!!" then @cancer_diagnosis_status := 2
+								else @cancer_diagnosis_status := null
+							end as cancer_diagnosis_status,
                             case
 								when obs regexp "!!6582=1067!!" then @cancer_stage := 1
 								when obs regexp "!!6582=6566!!" then @cancer_stage := 2
@@ -1148,7 +1162,6 @@ BEGIN
                                 when obs regexp "!!9918=8511!!" then @chemo_drug := 22
 								when obs regexp "!!9918=9919!!" then @chemo_drug := 23
                                 when obs regexp "!!9918=8518!!" then @chemo_drug := 24
-                                
                                 when obs regexp "!!9918=8516!!" then @chemo_drug := 25
                                 when obs regexp "!!9918=8481!!" then @chemo_drug := 26
 								when obs regexp "!!9918=7207!!" then @chemo_drug := 27
@@ -1384,24 +1397,24 @@ BEGIN
 								heent,
 								breast_findings,
 								breast_finding_location,
-								breast_findingquadrant,
+								breast_finding_quadrant,
 								chest,
 								heart,
-								abdomenexam,
-								urogenital,
-								extremities,
+								abdomen_exam,
+								urogenital_exam,
+								extremity_exam,
 								testicular_exam,
 								nodal_survey,
-								musculoskeletal,
+								musculoskeletal_exam,
 								skin_exam_findings,
 								body_part,
 								laterality,
-								measure_first_direction,
-								measure_second_direction,
-								neurologic,
-								bnody_part,
+								mass_measurement_first_direction,
+								mass_measurement_second_direction,
+								neurologic_exam,
+								condition_causing_focal_weakness,
 								patient_on_chemo,
-								echo,
+								echocardiography,
 								ct_head,
 								ct_neck,
 								ct_chest,
@@ -1418,7 +1431,7 @@ BEGIN
 								ultrasound_renal,
 								ultrasound_hepatic,
 								obstetric_ultrasound,
-								abonimal_ultrasound,
+								abdominal_ultrasound,
 								breast_ultrasound,
                                 x_ray_shoulder,
 								x_ray_pelvis,
@@ -1441,14 +1454,14 @@ BEGIN
 								type_of_gi_cancer,
 								head_and_neck_cancer,
 								gynecologic_cancer,
-								lympoma_cancer,
+								lymphoma_cancer,
 								skin_cancer,
 								breast_cancer,
 								other_solid_cancer,
 								type_of_leukemeia,
 								non_cancer,
 								diagnosis_date,
-								new_or_recurrence_cancer,
+								cancer_diagnosis_status,
 								cancer_stage,
                                 overall_cancer_staging,
 								test_ordered,
@@ -1571,7 +1584,5 @@ BEGIN
 				 #insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
-		END$$
-
+END$$
 DELIMITER ;
-

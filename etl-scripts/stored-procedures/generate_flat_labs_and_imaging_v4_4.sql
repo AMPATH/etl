@@ -1,11 +1,11 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_flat_labs_and_imaging_v4_3`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_flat_labs_and_imaging_v4_4`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 				set session sort_buffer_size=512000000;
 				set session group_concat_max_len=100000;
 				set @start = now();
 				set @primary_table := "flat_labs_and_imaging";
-				select @table_version := 'flat_labs_and_imaging_v4.3';
+				SELECT @table_version:='flat_labs_and_imaging_v4.4';
 				set @total_rows_written = 0;
 				set @query_type = query_type;
                 set @queue_number = queue_number;
@@ -32,6 +32,21 @@ BEGIN
                 # 8731 = SERUM M PROTEIN
                 # 8595 = SPEP
 
+				# 1984 = PRESENCE OF PUS CELLS URINE
+				# 2339 = PRESENCE OF PROTEIN URINE
+				# 6337 = PRESENCE OF LEUCOCYTES
+				# 7276 = PRESENCE OF KETONE
+				# 2340 = PRESENCE OF SUGAR URINE
+				# 9307 = PRESENCE OF NITRITES
+				# 1327 = RETICULOCYTES
+				# 8732 = SERUM ALPHA-1 GLOBULIN
+				# 8733 = SERUM ALPHA-2 GLOBULIN
+				# 8734 = SERUM BETA GLOBULIN
+				# 8735 = SERUM GAMMA GLOBULIN
+				# 10195 = KAPPA LIGHT CHAINS
+				# 10196 = LAMBDA LIGHT CHAINS
+				# 10197 = RATIO OF KAPPA LAMBDA
+
                 /*
 				679	RBC
 				21	HGB
@@ -42,7 +57,6 @@ BEGIN
 				729	PLT
 				678	SERUM WBC
 				1330	ANC
-				6134	Uric acid
 				790	Creatinine
 				1132	Sodium
 				1133	Potassium
@@ -69,8 +83,9 @@ BEGIN
 			*/
 
                 set @concept_ids = '(1030, 1040, 856, 5497, 730, 21,653,790,12,6126,887,6252,1537,1271,9239,9020,857
-													679,21,851,1018,1017,1016,729,678,1330,6134,790,1132,1133,1134,655,1297,6123,
+													679,21,851,1018,1017,1016,729,678,1330,790,1132,1133,1134,655,1297,6123,
                                                     653,654,717,848,785,1014,10249,10250,10251,9010,9011,9699,9012,9812,10304,10313,8731,8595
+													1984,2339,6337,7276,2340,9307,1327,8732,8733,8734,8735,10195,10196,10197
                 )';
 
 #set @queue_number = 1;
@@ -113,7 +128,6 @@ BEGIN
 							plt int,
 							wbc decimal,
 							anc decimal,
-							uric_acid decimal,
 							creatinine decimal,
 							na decimal,
 							k decimal,
@@ -139,6 +153,20 @@ BEGIN
                             dst_image varchar(255),
                             serum_m_protein int,
                             spep int,
+							pus_c_urine int,
+							protein_urine int,
+							leuc int,
+							ketone int,
+							sugar_urine int,
+							nitrites int,
+							retic decimal,
+							a_1_glob decimal,
+							a_2_glob decimal,
+							beta_glob decimal,
+							gamma_glob decimal,
+							kappa_l_c decimal,
+							lambda_l_c decimal,
+							ratio_l_c decimal,
 							tests_ordered varchar(1000),
 							primary key encounter_id (encounter_id),
 							index person_date (person_id, test_datetime),
@@ -185,13 +213,24 @@ BEGIN
 						set @write_table = @primary_table;
 						set @queue_table = concat(@primary_table,'_sync_queue');
 
-						select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;
-#set @last_update = "2018-01-26";
-						create table if not exists flat_labs_and_imaging_sync_queue (person_id int primary key);
+						SELECT 
+    MAX(date_updated)
+INTO @last_update FROM
+    etl.flat_log
+WHERE
+    table_name = @table_version;
+CREATE TABLE IF NOT EXISTS flat_labs_and_imaging_sync_queue (
+    person_id INT PRIMARY KEY
+);
 
 
 						set @last_update = null;
-						select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;
+						SELECT 
+    MAX(date_updated)
+INTO @last_update FROM
+    etl.flat_log
+WHERE
+    table_name = @table_version;
 
 						replace into flat_labs_and_imaging_sync_queue
 						(select distinct patient_id
@@ -289,7 +328,6 @@ BEGIN
 										if(obs regexp "!!729=",cast(getValues(obs,729) as unsigned),null) as plt,
 										if(obs regexp "!!678=",cast(getValues(obs,678) as decimal(6,2)),null) as wbc,
 										if(obs regexp "!!1330=",cast(getValues(obs,1330) as decimal(6,2)),null) as anc,
-										if(obs regexp "!!6134=",cast(getValues(obs,6134) as decimal(6,2)),null) as uric_acid,
 										if(obs regexp "!!790=",cast(getValues(obs,790) as decimal(6,2)),null) as creatinine,
 										if(obs regexp "!!1132=",cast(getValues(obs,1132) as decimal(6,2)),null) as na,
 										if(obs regexp "!!1133=",cast(getValues(obs,1133) as decimal(6,2)),null) as k,
@@ -315,10 +353,20 @@ BEGIN
                                         if(obs regexp "!!10313=",getValues(obs,10313),null) as dst_image,
                                         if(obs regexp "!!8595=",getValues(obs,8595),null) as serum_m_protein,
                                         if(obs regexp "!!8731=",getValues(obs,8731),null) as spep,
-
-
-
-
+										if(obs regexp "!!1984=",getValues(obs,1984),null) as pus_c_urine,
+                                        if(obs regexp "!!2339=",cast(replace(replace((substring_index(substring(obs,locate("2339=",obs)),@sep,1)),"2339=",""),"!!","") as unsigned),null) as protein_urine,
+										if(obs regexp "!!6337=",getValues(obs,6337),null) as leuc,
+										if(obs regexp "!!7276=",getValues(obs,7276),null) as ketone,
+										if(obs regexp "!!2340=",getValues(obs,2340),null) as sugar_urine,
+										if(obs regexp "!!9307=",getValues(obs,9307),null) as nitrites,
+										if(obs regexp "!!1327=",cast(getValues(obs,1327) as decimal(5,2)),null) as retic,
+										if(obs regexp "!!8732=",cast(getValues(obs,8732) as decimal(5,2)),null) as a_1_glob,
+										if(obs regexp "!!8733=",cast(getValues(obs,8733) as decimal(5,2)),null) as a_2_glob,
+										if(obs regexp "!!8734=",cast(getValues(obs,8734) as decimal(5,2)),null) as beta_glob,
+										if(obs regexp "!!8735=",cast(getValues(obs,8735) as decimal(5,2)),null) as gamma_glob,
+										if(obs regexp "!!10195=",cast(getValues(obs,10195) as decimal(5,2)),null) as kappa_l_c,
+										if(obs regexp "!!10196=",cast(getValues(obs,10196) as decimal(5,2)),null) as lambda_l_c,
+										if(obs regexp "!!10197=",cast(getValues(obs,10197) as decimal(5,2)),null) as ratio_l_c,
 										CONCAT(
 											case
 												when obs regexp "!!1271=" then getValues(obs,1271)
@@ -327,7 +375,6 @@ BEGIN
 											end,
                                             ifnull(orders,"")
 										) as tests_ordered
-
 										from flat_lab_obs t1
 											join temp_queue_table t2 using(person_id)
 											left outer join flat_orders t3 using(encounter_id)
@@ -398,7 +445,6 @@ BEGIN
 							plt,
 							wbc,
 							anc,
-							uric_acid,
 							creatinine,
 							na,
 							k,
@@ -423,9 +469,23 @@ BEGIN
                             gene_expert_image,
                             dst_image,
                             serum_m_protein,
-                            spep,
+							spep,
+							pus_c_urine,
+							protein_urine,
+							leuc,
+							ketone,
+							sugar_urine,
+							nitrites,
+							retic,
+							a_1_glob,
+							a_2_glob,
+							beta_glob,
+							gamma_glob,
+							kappa_l_c,
+							lambda_l_c,
+							ratio_l_c,
 							tests_ordered
-						from flat_labs_and_imaging_0 t1
+							from flat_labs_and_imaging_0 t1
 							join amrs.person t2 using (person_id)
 						)'
 					);
@@ -452,9 +512,11 @@ BEGIN
 
                     #select ceil(@person_ids_count / cycle_size) as remaining_cycles;
                     set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@queue_count / @cycle_size) / 60);
-                    #select concat("Estimated time remaining: ", @remaining_time,' minutes');
-
-					select @queue_count as '# in queue', @cycle_length as 'Cycle Time (s)', ceil(@queue_count / @cycle_size) as remaining_cycles, @remaining_time as 'Est time remaining (min)';
+SELECT 
+    @queue_count AS '# in queue',
+    @cycle_length AS 'Cycle Time (s)',
+    CEIL(@queue_count / @cycle_size) AS remaining_cycles,
+    @remaining_time AS 'Est time remaining (min)';
 
 			end while;
 
@@ -480,7 +542,12 @@ BEGIN
 						DEALLOCATE PREPARE s1;
 
 						set @start_write = now();
-						select concat(@start_write, " : Writing ",@total_rows_to_write, ' to ',@primary_table);
+						SELECT 
+    CONCAT(@start_write,
+            ' : Writing ',
+            @total_rows_to_write,
+            ' to ',
+            @primary_table);
 
 						SET @dyn_sql=CONCAT('replace into ', @primary_table,
 							'(select * from ',@write_table,');');
@@ -490,7 +557,11 @@ BEGIN
 
                         set @finish_write = now();
                         set @time_to_write = timestampdiff(second,@start_write,@finish_write);
-                        select concat(@finish_write, ' : Completed writing rows. Time to write to primary table: ', @time_to_write, ' seconds ');
+SELECT 
+    CONCAT(@finish_write,
+            ' : Completed writing rows. Time to write to primary table: ',
+            @time_to_write,
+            ' seconds ');
 
                         SET @dyn_sql=CONCAT('drop table ',@write_table,';');
 						PREPARE s1 from @dyn_sql;
@@ -498,9 +569,13 @@ BEGIN
 						DEALLOCATE PREPARE s1;
 				end if;
 
-				select @end := now();
+				SELECT @end:=NOW();
 				insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-				select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
+				SELECT 
+    CONCAT(@table_version,
+            ' : Time to complete: ',
+            TIMESTAMPDIFF(MINUTE, @start, @end),
+            ' minutes');
 
 		END$$
 DELIMITER ;

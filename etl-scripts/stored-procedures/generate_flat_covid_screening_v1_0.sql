@@ -1,7 +1,6 @@
 use etl;
-drop procedure if exists generate_flat_covid_screening_v1_0;
 DELIMITER $$
-CREATE DEFINER=`etl_user`@`%` PROCEDURE `generate_flat_covid_screening_v1_0`()
+CREATE PROCEDURE `generate_flat_covid_screening_v1_0`()
 BEGIN
 
 select @start:= now();
