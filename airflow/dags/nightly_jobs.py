@@ -30,7 +30,7 @@ default_args = {
     'email': ['jwangare@ampath.or.ke'],
     'email_on_failure': True,
     'email_on_retry': True,
-    'start_date': '2020-01-01',
+    'start_date': '2020-01-20',
     'retries': 0,
     'retry_delay': timedelta(minutes=30),
     'max_active_runs':1
@@ -52,7 +52,7 @@ dag = DAG(
 #update_surge_weekly
 update_surge_weekly = MySqlOperator(
    task_id='update_surge_weekly',
-   sql='generate_surge_weekly_report_dataset_v2.sql("sync",1,15000,20,true);',
+   sql='generate_surge_weekly_report_dataset_v2("sync",1,15000,20,true);',
    mysql_conn_id=MYSQL_CONN_ID,
    database='etl',
    dag=dag
@@ -64,6 +64,8 @@ finish = DummyOperator(
 )
 
 update_surge_weekly >> finish
+#update_vitals >> finish
 
 if __name__ == "__main__":
     dag.cli()
+    

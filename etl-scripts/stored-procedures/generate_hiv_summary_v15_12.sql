@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_summary_v15_12`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_hiv_summary_v15_12`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
                     set @primary_table := "flat_hiv_summary_v15b";
                     set @query_type = query_type;
@@ -294,9 +294,8 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             
                             case
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,162,163) then 1
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
-                                when t1.encounter_type in (158) AND v.visit_type_id not in (104) AND v.visit_type_id is NOT NULL then 1
                                 else null
                             end as is_clinical_encounter,
 
@@ -756,7 +755,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen_start_date:='1900-01-01'
-                                WHEN @arv_first_regimen_start_date = "1900-01-01" AND obs regexp '!!1633=' AND obs regexp '!!1499=' then 
+								WHEN @arv_first_regimen_start_date = "1900-01-01" AND obs regexp '!!1633=' AND obs regexp '!!1499=' then 
                                      @arv_first_regimen_start_date := replace(replace((substring_index(substring(obs,locate("!!1499=",obs)),@sep,1)),"!!1499=",""),"!!","")
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
                                 WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
@@ -876,8 +875,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen := "unknown"
-
-                                WHEN @arv_first_regimen = "unknown"  AND obs regexp '!!1633=1065!!' AND obs regexp '!!2157=' then 
+                                    
+								 WHEN @arv_first_regimen = "unknown"  AND obs regexp '!!1633=1065!!' AND obs regexp '!!2157=' then 
                                      @arv_first_regimen := normalize_arvs(obs,'2157')
                                     
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen
@@ -1178,7 +1177,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             case
                                 when obs regexp "!!1265=(1256|1850)!!" then @ipt_start_date := encounter_datetime
                                 when obs regexp "!!1265=(1257|981|1406|1849)!!" and @ipt_start_date is null then @ipt_start_date := encounter_datetime
-                                when obs regexp "!!10591=1065" and obs regexp "!!1190=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!","")
+								when obs regexp "!!10591=1065" and obs regexp "!!1190=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!","")
                                 when @cur_id != @prev_id then @ipt_start_date := null
                                 else @ipt_start_date
                             end as ipt_start_date,
@@ -1187,7 +1186,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!1266=" then @ipt_stop_date :=  encounter_datetime
-                                when obs regexp "!!10591=1065" and obs regexp "!!8603=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!8603=",obs)),@sep,1)),"!!8603=",""),"!!","")
+                                when obs regexp "!!10591=1065" and obs regexp "!!8603=" then @ipt_stop_date := replace(replace((substring_index(substring(obs,locate("!!8603=",obs)),@sep,1)),"!!8603=",""),"!!","")
                                 when @cur_id = @prev_id then @ipt_stop_date
                                 when @cur_id != @prev_id then @ipt_stop_date := null
                                 else @ipt_stop_date
@@ -1195,6 +1194,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!1266=1267!!" then @ipt_completion_date :=  encounter_datetime
+                                when obs regexp "!!10591=1065" and obs regexp "!!8603=" then @ipt_completion_date := replace(replace((substring_index(substring(obs,locate("!!8603=",obs)),@sep,1)),"!!8603=",""),"!!","")
                                 when @cur_id = @prev_id then @ipt_completion_date
                                 when @cur_id != @prev_id then @ipt_completion_date := null
                                 else @ipt_completion_date
@@ -1513,6 +1513,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             
                             case
+                                when obs regexp "!!9738=1066!!" then @contraceptive_method := null
                                 when obs regexp "!!7240=1107!!" then @contraceptive_method := null
                                 when obs regexp "!!7240="
                                     then @contraceptive_method := replace(replace((substring_index(substring(obs,locate("!!7240=",obs)),@sep,1)),"!!7240=",""),"!!","")
@@ -1846,14 +1847,14 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case 
                                 when obs regexp "!!7015=" then @transfer_in_date := date(encounter_datetime)
-                                when prev_clinical_location_id != location_id then @transfer_in_date := date(encounter_datetime)
+                                when prev_clinical_location_id != location_id and encounter_type != 186  then @transfer_in_date := date(encounter_datetime)
                                 when @cur_id = @prev_id then @transfer_in_date
                                 else @transfer_in_date := null
                             end transfer_in_date,
                             
                             case 
                                 when obs regexp "!!7015=1287" then @transfer_in_location_id := 9999
-                                when prev_clinical_location_id != location_id then @transfer_in_location_id := prev_clinical_location_id
+                                when prev_clinical_location_id != location_id and encounter_type != 186 then @transfer_in_location_id := prev_clinical_location_id
                                 when @cur_id = @prev_id then @transfer_in_location_id
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
@@ -1872,14 +1873,14 @@ SELECT @person_ids_count AS 'num patients to sync';
                                     when obs regexp "!!1285=!!" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
                                     when obs regexp "!!9082=(1287|1594|9068|9504|1285)!!" then @transfer_out := 1
-                                    when next_clinical_location_id != location_id then @transfer_out := 1
+                                    when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out := 1
                                     else @transfer_out := null
                             end as transfer_out,
 
                             case 
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
-                                when next_clinical_location_id != location_id then @transfer_out_location_id := next_clinical_location_id
+                                when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := next_clinical_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
 

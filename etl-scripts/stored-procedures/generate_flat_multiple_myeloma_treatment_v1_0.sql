@@ -1,3 +1,4 @@
+DELIMITER $$
 CREATE PROCEDURE `generate_flat_multiple_myeloma_treatment_v1_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					set @primary_table := "flat_multiple_myeloma_treatment";
@@ -887,4 +888,5 @@ SELECT
             TIMESTAMPDIFF(MINUTE, @start, @end),
             ' minutes');
 
-		END
+END$$
+DELIMITER ;

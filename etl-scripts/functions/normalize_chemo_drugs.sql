@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE FUNCTION `normalize_chemo_drugs`(obs varchar(10000), question_concept_ids varchar(250)) RETURNS varchar(100) CHARSET latin1
+CREATE  FUNCTION `normalize_chemo_drugs`(obs varchar(10000), question_concept_ids varchar(250)) RETURNS varchar(100) CHARSET latin1
     DETERMINISTIC
 BEGIN
     DECLARE e varchar(500);

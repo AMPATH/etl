@@ -1,8 +1,8 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_flat_appointment_v1_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_flat_appointment_v1_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					select @start := now();
-					select @table_version := "flat_appointment_v1.1";
+					SELECT @table_version:='flat_appointment_v1.1';
 					set @primary_table := "flat_appointment";
 					set @query_type = query_type;
                     set @queue_table = "";
@@ -10,82 +10,66 @@ BEGIN
 
 
 					set session sort_buffer_size=512000000;
-					select @sep := " ## ";
-					select @last_date_created := (select max(max_date_created) from etl.flat_obs);
+					SELECT @sep:=' ## ';
+					SELECT 
+    @last_date_created:=(SELECT 
+            MAX(max_date_created)
+        FROM
+            etl.flat_obs);
         
-					#drop table if exists etl.appointment_2;
-					create table if not exists etl.flat_appointment
-							(
-                            date_created timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            person_id int,
-							encounter_id int primary key,
-							encounter_datetime datetime,
-							visit_id int,
-							visit_type_id smallint,
-                            location_id smallint,
-							program_id smallint,
-                            department_id smallint,
-							visit_start_datetime datetime,
-							is_clinical boolean,
-
-							prev_encounter_datetime datetime,
-							next_encounter_datetime datetime,
-
-							prev_encounter_type smallint,
-							encounter_type smallint,
-							next_encounter_type smallint,
-
-							prev_rtc_date datetime,
-							rtc_date datetime,
-							next_rtc_date datetime,
-
-							prev_clinical_encounter_datetime datetime,
-							next_clinical_encounter_datetime datetime,
-
-							prev_clinical_rtc_date datetime,
-							next_clinical_rtc_date datetime,
-
-							prev_clinical_encounter_type smallint,
-							next_clinical_encounter_type smallint,
-
-							prev_program_encounter_datetime datetime,
-							next_program_encounter_datetime datetime,
-
-							prev_program_rtc_date datetime,
-							next_program_rtc_date datetime,
-
-							prev_program_encounter_type datetime,
-							next_program_encounter_type smallint,
-                            
-                            prev_program_clinical_datetime datetime,
-							next_program_clinical_datetime datetime,
-
-							prev_program_clinical_rtc_date datetime,
-							next_program_clinical_rtc_date datetime,
-                            
-                            prev_department_encounter_datetime datetime,
-							next_department_encounter_datetime datetime,
-
-							prev_department_rtc_date datetime,
-							next_department_rtc_date datetime,
-
-							prev_department_encounter_type datetime,
-							next_department_encounter_type smallint,
-                            
-                            prev_department_clinical_datetime datetime,
-							next_department_clinical_datetime datetime,
-
-							prev_department_clinical_rtc_date datetime,
-							next_department_clinical_rtc_date datetime,
-                            
-                            
-                            index person_date (person_id, encounter_datetime),
-							index location_rtc (location_id,rtc_date),
-							index location_enc_date (location_id,encounter_datetime),
-							index enc_date_location (encounter_datetime, location_id),
-							index loc_id_enc_date_next_clinical (location_id, program_id, encounter_datetime, next_program_encounter_datetime),
-							index encounter_type (encounter_type)
-							);
+					CREATE TABLE IF NOT EXISTS etl.flat_appointment (
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    person_id INT,
+    encounter_id INT PRIMARY KEY,
+    encounter_datetime DATETIME,
+    visit_id INT,
+    visit_type_id SMALLINT,
+    location_id SMALLINT,
+    program_id SMALLINT,
+    department_id SMALLINT,
+    visit_start_datetime DATETIME,
+    is_clinical BOOLEAN,
+    prev_encounter_datetime DATETIME,
+    next_encounter_datetime DATETIME,
+    prev_encounter_type SMALLINT,
+    encounter_type SMALLINT,
+    next_encounter_type SMALLINT,
+    prev_rtc_date DATETIME,
+    rtc_date DATETIME,
+    next_rtc_date DATETIME,
+    prev_clinical_encounter_datetime DATETIME,
+    next_clinical_encounter_datetime DATETIME,
+    prev_clinical_rtc_date DATETIME,
+    next_clinical_rtc_date DATETIME,
+    prev_clinical_encounter_type SMALLINT,
+    next_clinical_encounter_type SMALLINT,
+    prev_program_encounter_datetime DATETIME,
+    next_program_encounter_datetime DATETIME,
+    prev_program_rtc_date DATETIME,
+    next_program_rtc_date DATETIME,
+    prev_program_encounter_type DATETIME,
+    next_program_encounter_type SMALLINT,
+    prev_program_clinical_datetime DATETIME,
+    next_program_clinical_datetime DATETIME,
+    prev_program_clinical_rtc_date DATETIME,
+    next_program_clinical_rtc_date DATETIME,
+    prev_department_encounter_datetime DATETIME,
+    next_department_encounter_datetime DATETIME,
+    prev_department_rtc_date DATETIME,
+    next_department_rtc_date DATETIME,
+    prev_department_encounter_type DATETIME,
+    next_department_encounter_type SMALLINT,
+    prev_department_clinical_datetime DATETIME,
+    next_department_clinical_datetime DATETIME,
+    prev_department_clinical_rtc_date DATETIME,
+    next_department_clinical_rtc_date DATETIME,
+    INDEX person_date (person_id , encounter_datetime),
+    INDEX location_rtc (location_id , rtc_date),
+    INDEX location_enc_date (location_id , encounter_datetime),
+    INDEX enc_date_location (encounter_datetime , location_id),
+    INDEX loc_id_enc_date_next_clinical (location_id , program_id , encounter_datetime , next_program_encounter_datetime),
+    INDEX encounter_type (encounter_type)
+);
                             
 					if(query_type="build") then
 							select 'BUILDING..........................................';
@@ -117,18 +101,32 @@ BEGIN
 							set @primary_queue_table = "flat_appointment_sync_queue";
                             set @write_table = concat("flat_appointment");
                             set @queue_table = "flat_appointment_sync_queue";
-                            create table if not exists flat_hiv_summary_sync_queue (person_id int primary key);  
+CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
+    person_id INT PRIMARY KEY
+);
                             
-							select @last_update := (select max(date_updated) from etl.flat_log where table_name=@table_version);
+							SELECT 
+    @last_update:=(SELECT 
+            MAX(date_updated)
+        FROM
+            etl.flat_log
+        WHERE
+            table_name = @table_version);
 
-							# then use the max_date_created from amrs.encounter. This takes about 10 seconds and is better to avoid.
-							select @last_update :=
-								if(@last_update is null,
-									(select max(e.date_created) from amrs.encounter e join etl.flat_appointment using (encounter_id)),
-									@last_update);
+							SELECT 
+    @last_update:=IF(@last_update IS NULL,
+        (SELECT 
+                MAX(e.date_created)
+            FROM
+                amrs.encounter e
+                    JOIN
+                etl.flat_appointment USING (encounter_id)),
+        @last_update);
 
-							#otherwise set to a date before any encounters had been created (i.g. we will get all encounters)
-							select @last_update := if(@last_update,@last_update,'1900-01-01');
+							SELECT 
+    @last_update:=IF(@last_update,
+        @last_update,
+        '1900-01-01');
                             
                             
                             replace into etl.flat_appointment_sync_queue
@@ -147,7 +145,10 @@ BEGIN
 
 					end if;
 						
-					create table if not exists flat_appointment_queue(person_id int, primary key (person_id));
+					CREATE TABLE IF NOT EXISTS flat_appointment_queue (
+    person_id INT,
+    PRIMARY KEY (person_id)
+);
                     
 					# Remove test patients
 					SET @dyn_sql=CONCAT('delete t1 FROM ',@queue_table,' t1
@@ -209,7 +210,11 @@ BEGIN
 							drop temporary table if exists etl.mapping_data;
 							create temporary table etl.mapping_data
 							(select t1.*,
-									t5.is_clinical,
+									 case
+                                      when t1.encounter_type in (186) AND (t1.visit_type_id = 24 OR t1.visit_type_id IS NULL) then 0
+                                      when t1.encounter_type in (186) AND t1.visit_type_id IS NOT NULL then 1
+                                      else t5.is_clinical
+                                     end as is_clinical,
 									IF(t1.visit_type_id IS NOT NULL,t8.program_type_id,t7.program_id) as `program_id`,
                                     t7.department_id
 								from etl.mapping_data_0 t1
@@ -990,18 +995,24 @@ BEGIN
 								SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table,';'); 
 								PREPARE s1 from @dyn_sql; 
 								EXECUTE s1; 
-								DEALLOCATE PREPARE s1;  
+								DEALLOCATE PREPARE s1;
 								
-								select @person_ids_count as remaining_in_build_queue;
+								SELECT @person_ids_count AS remaining_in_build_queue;
 
 								set @cycle_length = timestampdiff(second,@loop_start_time,now());
-								select concat('Cycle time: ',@cycle_length,' seconds');                    
+								SELECT 
+    CONCAT('Cycle time: ',
+            @cycle_length,
+            ' seconds');                    
 								set @total_time = @total_time + @cycle_length;
 								set @cycle_number = @cycle_number + 1;
 								
-								select ceil(@person_ids_count / cycle_size) as remaining_cycles;
+								SELECT CEIL(@person_ids_count / cycle_size) AS remaining_cycles;
 								set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
-								select concat("Estimated time remaining: ", @remaining_time,' minutes');
+								SELECT 
+    CONCAT('Estimated time remaining: ',
+            @remaining_time,
+            ' minutes');
 
 				 end while;
                  
@@ -1018,7 +1029,12 @@ BEGIN
 						DEALLOCATE PREPARE s1;
                                                 
 						set @start_write = now();
-						select concat(@start_write, " : Writing ",@total_rows_to_write, ' to ',@primary_table);
+						SELECT 
+    CONCAT(@start_write,
+            ' : Writing ',
+            @total_rows_to_write,
+            ' to ',
+            @primary_table);
 
 						SET @dyn_sql=CONCAT('replace into ', @primary_table,
 							'(select * from ',@write_table,');');
@@ -1028,7 +1044,11 @@ BEGIN
 						
                         set @finish_write = now();
                         set @time_to_write = timestampdiff(second,@start_write,@finish_write);
-                        select concat(@finish_write, ' : Completed writing rows. Time to write to primary table: ', @time_to_write, ' seconds ');                        
+SELECT 
+    CONCAT(@finish_write,
+            ' : Completed writing rows. Time to write to primary table: ',
+            @time_to_write,
+            ' seconds ');                        
                         
                         SET @dyn_sql=CONCAT('drop table ',@write_table,';'); 
 						PREPARE s1 from @dyn_sql; 
@@ -1039,11 +1059,19 @@ BEGIN
 				end if;
                 				
 				set @ave_cycle_length = ceil(@total_time/@cycle_number);
-                select CONCAT('Average Cycle Length: ', @ave_cycle_length, ' second(s)');
+SELECT 
+    CONCAT('Average Cycle Length: ',
+            @ave_cycle_length,
+            ' second(s)');
                 
-				select @end := now();
-				insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-				select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
+				SELECT @end:=NOW();
+                
+					insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+SELECT 
+    CONCAT(@table_version,
+            ' : Time to complete: ',
+            TIMESTAMPDIFF(MINUTE, @start, @end),
+            ' minutes');
 
 		END$$
 DELIMITER ;

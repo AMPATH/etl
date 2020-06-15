@@ -1,3 +1,4 @@
+DELIMITER $$
 CREATE PROCEDURE `generate_flat_sickle_cell_treatment_v1_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					set @primary_table := "flat_sickle_cell_treatment";
@@ -1266,4 +1267,5 @@ select "Finding patients in flat_orders...";
 				 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
-		END
+END$$
+DELIMITER ;

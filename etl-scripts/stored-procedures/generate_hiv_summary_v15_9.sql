@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_summary_v15_9`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_hiv_summary_v15_9`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 /**/
 set @primary_table := "foo_flat_hiv_summary";

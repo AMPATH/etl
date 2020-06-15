@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE FUNCTION `GetValues`(obs varchar(10000), concept_id int) RETURNS varchar(1000) CHARSET latin1
+CREATE  FUNCTION `GetValues`(obs varchar(10000), concept_id int) RETURNS varchar(1000) CHARSET latin1
     DETERMINISTIC
 BEGIN
 	DECLARE e varchar(100);	

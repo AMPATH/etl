@@ -1,42 +1,37 @@
+DELIMITER $$
 CREATE PROCEDURE `generate_flat_lung_cancer_screening_v1_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
-					set @primary_table := "flat_lung_cancer_screening";
-					set @query_type = query_type;
-                     
-                    set @total_rows_written = 0;
+          set @primary_table := "flat_lung_cancer_screening";
+          set @query_type = query_type;
+                      
+          set @total_rows_written = 0;
+
+          set @encounter_types = "(177,185)";
+          set @clinical_encounter_types = "(-1)";
+          set @non_clinical_encounter_types = "(-1)";
+          set @other_encounter_types = "(-1)";
                     
-                    set @encounter_types = "(177,185)";
-                    set @clinical_encounter_types = "(-1)";
-                    set @non_clinical_encounter_types = "(-1)";
-                    set @other_encounter_types = "(-1)";
-                    
-					set @start = now();
-					set @table_version = "flat_lung_cancer_screening_v1.0";
+          set @start = now();
+          set @table_version = "flat_lung_cancer_screening_v1.0";
 
-					set session sort_buffer_size=512000000;
+          set session sort_buffer_size = 512000000;
 
-					set @sep = " ## ";
-                    set @boundary = "!!";
-					set @last_date_created = (select max(max_date_created) from etl.flat_obs);
+          set @sep = " ## ";
+          set @boundary = "!!";
+          set @last_date_created = (select max(max_date_created) from etl.flat_obs);
 
-					#delete from etl.flat_log where table_name like "%flat_lung_cancer_screening%";
-					#drop table etl.flat_lung_cancer_screening;
-
-
-					#drop table if exists flat_lung_cancer_screening;
-					create table if not exists flat_lung_cancer_screening (
+				  create table if not exists flat_lung_cancer_screening (
 							date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            person_id int,
+              person_id int,
 							encounter_id int,
 							encounter_type int,
 							encounter_datetime datetime,
 							visit_id int,
 							location_id int,
 							location_uuid varchar (100),
-							#location_name char (100),
 							gender char (100),
 							age int,
-                            cur_visit_type INT,
+              cur_visit_type INT,
 							referral_from INT,
 							chief_complains INT,
 							complain_duration INT,
@@ -68,11 +63,11 @@ BEGIN
 							rtc_date DATETIME,
 							imaging_results INT,
 							ct_findings INT,
-                            Imaging_results_description varchar(500),
+              Imaging_results_description varchar(500),
 							biospy_procedure_done INT,
-                            biopsy_workup_date DATETIME,
+              biopsy_workup_date DATETIME,
 							biospy_results INT,
-                            other_condition varchar(500),
+              other_condition varchar(500),
 							type_of_malignancy INT,
 							other_malignancy VARCHAR(1000),
 							lung_cancer_type INT,
@@ -81,7 +76,6 @@ BEGIN
 							diagnosis_date DATETIME,
 							referral_ordered INT,
 							return_date DATETIME,
-                            
 							prev_encounter_datetime_lung_cancer_screening datetime,
 							next_encounter_datetime_lung_cancer_screening datetime,
 							prev_encounter_type_lung_cancer_screening mediumint,
@@ -92,7 +86,6 @@ BEGIN
 							next_clinical_location_id_lung_cancer_screening mediumint,
 							prev_clinical_rtc_date_lung_cancer_screening datetime,
 							next_clinical_rtc_date_lung_cancer_screening datetime,
-
 							primary key encounter_id (encounter_id),
 							index person_date (person_id, encounter_datetime),
 							index location_enc_date (location_uuid,encounter_datetime),
@@ -100,7 +93,6 @@ BEGIN
 							index loc_id_enc_date_next_clinical (location_id, encounter_datetime, next_clinical_datetime_lung_cancer_screening),
 							index encounter_type (encounter_type),
 							index date_created (date_created)
-							
 						);
                         
 							
@@ -978,4 +970,5 @@ select "Finding patients in flat_orders...";
 				 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
-		END
+		END$$
+DELIMITER ;

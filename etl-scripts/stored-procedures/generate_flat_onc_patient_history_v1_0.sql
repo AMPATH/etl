@@ -42,7 +42,10 @@ BEGIN
             result_of_diagnosis INT,
             diagnosis_date DATETIME,
             breast_exam_findings INT,
+            prior_via_test_result INT,
+            prior_via_test_result_date DATETIME,
             via_test_result INT,
+            hiv_status INT,
             cancer_type INT,
             cancer_subtype INT,
             breast_cancer_type INT,
@@ -272,7 +275,10 @@ BEGIN
           SET @result_of_diagnosis := NULL;
           SET @diagnosis_date := NULL;
           SET @breast_exam_findings := NULL;
+          SET @prior_via_test_result := NULL;
+          SET @prior_via_test_result_date := NULL;
           SET @via_test_result := NULL;
+          SET @hiv_status := NULL; 
           SET @cancer_type := NULL;
           SET @cancer_subtype := NULL;
           SET @breast_cancer_type := NULL;
@@ -352,11 +358,23 @@ BEGIN
                 ELSE @breast_exam_findings := NULL
             END AS breast_exam_findings,
             CASE
-                WHEN obs regexp "!!9590=" THEN @breast_exam_findings := GetValues(obs, 9590)
+                WHEN obs regexp "!!7381=" THEN @prior_via_test_result := GetValues(obs, 7381)
+				ELSE @prior_via_test_result := NULL
+			END AS prior_via_test_result,
+            CASE
+                WHEN obs regexp "!!7381=" THEN @prior_via_test_result_date := GetValues(obs_datetimes, 7381)
+				ELSE @prior_via_test_result_date := NULL
+			END AS prior_via_test_result_date,
+            CASE
+                WHEN obs regexp "!!9590=" THEN @via_test_result := GetValues(obs, 9590)
                 ELSE @via_test_result := NULL
             END AS via_test_result, 
             CASE
-				WHEN obs regexp "!!6042=6555!!" THEN @cancer_type := 6555
+                WHEN obs regexp "!!6709=" THEN @hiv_status :=  GetValues(obs, 6709)
+                ELSE @hiv_status := NULL
+            END AS hiv_status,
+            CASE
+				        WHEN obs regexp "!!6042=6555!!" THEN @cancer_type := 6555
                 WHEN obs regexp "!!7176=" THEN @cancer_type := GetValues(obs, 7176)
                 ELSE @cancer_type := NULL
             END AS cancer_type,
@@ -509,7 +527,10 @@ BEGIN
               result_of_diagnosis,
               diagnosis_date,
               breast_exam_findings,
+              prior_via_test_result,
+              prior_via_test_result_date,
               via_test_result,
+              hiv_status,
               cancer_type,
               cancer_subtype,
               breast_cancer_type,

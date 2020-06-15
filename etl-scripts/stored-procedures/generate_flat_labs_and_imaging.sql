@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE  PROCEDURE `generate_flat_labs_and_imaging`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_flat_labs_and_imaging`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 				set session sort_buffer_size=512000000;
 				set session group_concat_max_len=100000;
