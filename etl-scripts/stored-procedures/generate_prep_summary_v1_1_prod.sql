@@ -220,7 +220,7 @@ BEGIN
 							where t0.encounter_type in (133,134)
                         );
                         
-						drop table if exists flat_prep_summary_0a;
+						drop temporary table if exists flat_prep_summary_0a;
 						create temporary table flat_prep_summary_0a
 						(select
 							t1.person_id,
@@ -250,10 +250,40 @@ BEGIN
 							from etl.flat_obs t1
 								join prep_patients_temp_queue t0 using (person_id)
 						);
+                        
+						select @prev_id := -1;
+						select @cur_id := -1;
+						select @enrollment_date := null;
+						drop temporary table if exists flat_prep_summary_00;
+						create temporary table flat_prep_summary_00(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+						(select *,
+							@prev_id := @cur_id as prev_id,
+							@cur_id := t1.person_id as cur_id,
+                            CASE
+                                 WHEN
+                                     obs REGEXP '!!7015='
+                                         AND (@enrollment_date IS NULL
+                                         || (@enrollment_date IS NOT NULL
+                                         AND @prev_id != @cur_id))
+                                 THEN
+                                     @enrollment_date:='1900-01-01'
+                                 WHEN
+										(@enrollment_date IS NULL
+                                         || (@enrollment_date IS NOT NULL
+                                         AND @prev_id != @cur_id))
+                                 THEN
+                                     @enrollment_date:=DATE(encounter_datetime)
+                                 WHEN @prev_id = @cur_id THEN @enrollment_date
+                                 ELSE @enrollment_date:=NULL
+                             END AS enrollment_date 
+                        
+                        from flat_prep_summary_0a t1
+						order by person_id, encounter_type_sort_index desc, encounter_datetime 
+						);
 
-						drop table if exists flat_prep_summary_0;
+						drop temporary table if exists flat_prep_summary_0;
 						create temporary table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
-						(select * from flat_prep_summary_0a
+						(select * from flat_prep_summary_00
 						order by person_id, encounter_datetime, 
                         encounter_type_sort_index
 						);
@@ -291,23 +321,7 @@ BEGIN
 							t1.encounter_datetime,
 							t1.encounter_type,
                             is_prep_clinical_encounter,
-                            CASE
-                                 WHEN
-                                     obs REGEXP '!!7015='
-                                         AND (@enrollment_date IS NULL
-                                         || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
-                                 THEN
-                                     @enrollment_date:='1900-01-01'
-                                 WHEN
-										(@enrollment_date IS NULL
-                                         || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
-                                 THEN
-                                     @enrollment_date:=DATE(encounter_datetime)
-                                 WHEN @prev_id = @cur_id THEN @enrollment_date
-                                 ELSE @enrollment_date:=NULL
-                             END AS enrollment_date, 
+                            t1.enrollment_date,
                              
 							case 
 								when @prev_id != @cur_id then @prev_discontinued_prep := null
