@@ -34,6 +34,10 @@ BEGIN
 		`cur_prep_meds_names` text,
 		`first_prep_regimen` longtext,
 		`prep_start_date` varbinary(10) DEFAULT NULL,
+		`is_breastfeeding` INT DEFAULT NULL,
+		`is_pregnant` INT DEFAULT NULL,
+		`population_type` INT  DEFAULT NULL,
+		`key_population_type` INT DEFAULT NULL,
 		`visit_this_month` int(3) DEFAULT NULL,
 		`appointment_this_month` int(3) DEFAULT NULL,
 		`scheduled_visit_this_month` int(1) NOT NULL DEFAULT '0',
@@ -206,6 +210,10 @@ BEGIN
 			cur_prep_meds_names,
 			first_prep_regimen,
 			prep_start_date,
+			is_breastfeeding,
+			is_pregnant,
+			population_type,
+			key_population_type,
 			
 			CASE 
 				WHEN  encounter_datetime between date_format(endDate,"%Y-%m-01")  and endDate THEN @visit_this_month := 1
