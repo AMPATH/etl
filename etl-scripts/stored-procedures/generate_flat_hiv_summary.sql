@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_summary_v15_12`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_flat_hiv_summary`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
                     set @primary_table := "flat_hiv_summary_v15b";
                     set @query_type = query_type;
@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.19";
+                    set @table_version = "flat_hiv_summary_v2.20";
 
                     set session sort_buffer_size=512000000;
 
@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     mdt_session_number INT,
     enrollment_date DATETIME,
     enrollment_location_id INT,
+    ovc_non_enrollment_reason INT,
+    ovc_non_enrollment_date DATETIME,
     hiv_start_date DATETIME,
     death_date DATETIME,
     scheduled_visit INT,
@@ -85,6 +87,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     condoms_provided_date DATETIME,
     modern_contraceptive_method_start_date DATETIME,
     contraceptive_method INT,
+    menstruation_status INT,
+    is_mother_breastfeeding BOOLEAN,
     cur_who_stage INT,
     discordant_status INT,
     cd4_resulted DOUBLE,
@@ -301,7 +305,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186) then 10
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -311,7 +315,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
 								left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186)
+                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -348,6 +352,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @prev_encounter_date = null;
                         set @cur_encounter_date = null;
                         set @enrollment_date = null;
+                        set @ovc_non_enrollment_reason = null;
+                        set @ovc_non_enrollment_date = null;
                         set @hiv_start_date = null;
                         set @cur_location = null;
                         set @cur_rtc_date = null;
@@ -391,7 +397,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @condoms_provided_date = null;
                         set @modern_contraceptive_method_start_date = null;
                         set @contraceptive_method = null;
-
+                        set @menstruation_status = null;
+                        set @is_mother_breastfeeding = null;
                         
                         set @cur_who_stage = null;
 
@@ -506,6 +513,9 @@ SELECT @person_ids_count AS 'num patients to sync';
                              WHEN @prev_id = @cur_id THEN @enrollment_location_id
                              ELSE @enrollment_location_id:=NULL
                          END AS enrollment_location_id,
+
+                         null as ovc_non_enrollment_reason,
+                         null as ovc_non_enrollment_date,
 
                             
                             
@@ -755,6 +765,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen_start_date:='1900-01-01'
+								WHEN @arv_first_regimen_start_date = "1900-01-01" AND obs regexp '!!1633=' AND obs regexp '!!1499=' then 
+                                     @arv_first_regimen_start_date := replace(replace((substring_index(substring(obs,locate("!!1499=",obs)),@sep,1)),"!!1499=",""),"!!","")
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
                                 WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
                                 ELSE @arv_first_regimen_start_date
@@ -873,6 +885,9 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen := "unknown"
+                                    
+								 WHEN @arv_first_regimen = "unknown"  AND obs regexp '!!1633=1065!!' AND obs regexp '!!2157=' then 
+                                     @arv_first_regimen := normalize_arvs(obs,'2157')
                                     
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen
                                 WHEN @prev_id != @cur_id THEN @arv_first_regimen:=NULL
@@ -1508,6 +1523,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             
                             case
+                                when obs regexp "!!9738=1066!!" then @contraceptive_method := null
                                 when obs regexp "!!7240=1107!!" then @contraceptive_method := null
                                 when obs regexp "!!7240="
                                     then @contraceptive_method := replace(replace((substring_index(substring(obs,locate("!!7240=",obs)),@sep,1)),"!!7240=",""),"!!","")
@@ -1516,6 +1532,9 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @prev_id = @cur_id then @contraceptive_method
                                 else @contraceptive_method := null
                             end as contraceptive_method,
+
+                            null as menstruation_status,
+                            0 as is_mother_breastfeeding,
                             
                             case
                                 when obs regexp "!!5356=(1204|1220)!!" then @cur_who_stage := 1
@@ -1835,7 +1854,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
-                                when prev_clinical_location_id != location_id and encounter_type != 186 then @transfer_in := 1
+                                when prev_clinical_location_id != location_id then @transfer_in := 1
                                 else @transfer_in := null
                             end as transfer_in,
 
@@ -1921,7 +1940,9 @@ SELECT @total_rows_written;
                         visit_num,
                         mdt_session_number,
                         enrollment_date,                        
-                        enrollment_location_id,                                        
+                        enrollment_location_id,
+                        ovc_non_enrollment_reason,
+                        ovc_non_enrollment_date,                                      
                         hiv_start_date,
                         death_date,
                         scheduled_visit,                        
@@ -1972,6 +1993,8 @@ SELECT @total_rows_written;
                         condoms_provided_date,
                         modern_contraceptive_method_start_date,
                         contraceptive_method,
+                        menstruation_status,
+                        is_mother_breastfeeding,
                         cur_who_stage,
                         discordant_status,
                         cd4_resulted,
