@@ -48,6 +48,7 @@ BEGIN
 		`status` varchar(12) CHARACTER SET utf8 DEFAULT NULL,
 		`active_on_prep_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_defaulter_this_month` int(1) NOT NULL DEFAULT '0',
+		`cumulative_prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_discontinued_this_month` int(1) NOT NULL DEFAULT '0',
 		`enrolled_in_prep_this_month` int(1) NOT NULL DEFAULT '0',
@@ -263,7 +264,8 @@ BEGIN
 			
 			if( @status = 'active', 1, 0) as active_on_prep_this_month,
 			if( @status = 'defaulter', 1, 0) as prep_defaulter_this_month,
-			if( @status = 'ltfu', 1, 0) as prep_ltfu_this_month,
+			if( @status = 'ltfu', 1, 0) as cumulative_prep_ltfu_this_month,
+			if( @status = 'ltfu' AND timestampdiff(day,rtc_date, endDate) <= 30, 1, 0) as prep_ltfu_this_month,
 			if( @status = 'discontinued', 1, 0) as prep_discontinued_this_month,
 			
 			if(enrollment_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as enrolled_in_prep_this_month,
