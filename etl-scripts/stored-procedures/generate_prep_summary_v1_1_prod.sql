@@ -47,6 +47,10 @@ BEGIN
 					  `first_prep_regimen_names` text,
 					  `birthdate` date DEFAULT NULL,
 					  `gender` varchar(50) CHARACTER SET utf8 DEFAULT '',
+					  `is_breastfeeding` INT DEFAULT NULL,
+					  `is_pregnant` INT DEFAULT NULL,
+					  `population_type` INT  DEFAULT NULL,
+					  `key_population_type` INT DEFAULT NULL,
 					  PRIMARY KEY (`encounter_id`),
 					  KEY `person_date` (`person_id`,`encounter_datetime`),
 					  KEY `location_rtc` (`location_id`,`rtc_date`),
@@ -456,8 +460,35 @@ BEGIN
                             
                             etl.get_arv_names(@cur_prep_meds) as cur_prep_meds_names,  
 							etl.get_arv_names(@first_prep_regimen) AS first_prep_regimen_names,
-                             p.birthdate, 
-                             p.gender
+                            p.birthdate, 
+                            p.gender,
+							case
+								when obs regexp "!!5632=1065!!" then @is_breastfeeding:=1
+								when obs regexp "!!5632=1066!!" then @is_breastfeeding:=0
+								else null
+							end as is_breastfeeding,
+							case
+								when obs regexp "!!9753=1484!!" and p.gender='F' then @is_pregnant:=1
+								when  @is_pregnant is not null and obs regexp "!!1846=(1843|6648|50|9910|1993)!!" then @is_pregnant:=0
+								when @prev_id = @cur_id then @is_pregnant
+                                else @is_pregnant := null
+							end as is_pregnant,
+							case
+								when (obs regexp "!!9782=6096!!") or (obs regexp "!!6096=1065!!" and encounter_type=2) then @population_type := '1'
+								when obs regexp "!!9782=9784!!" then @population_type := '2'
+								when obs regexp "!!9782=9783!!" then @population_type := '3'
+								when obs regexp "!!9782=6578!!" then @population_type := '4'
+								when @prev_id = @cur_id then @population_type
+								else @population_type := null
+							end as population_type,
+							case
+								when @population_type = 4 and obs regexp "!!6578=8291!!" then @key_population_type := '1'
+								when @population_type = 4 and obs regexp "!!6578=9785!!" then @key_population_type := '2'
+								when @population_type = 4 and obs regexp "!!6578=9786!!" then @key_population_type := '3'
+								when @population_type = 4 and obs regexp "!!6578=105!!" then @key_population_type := '4'
+								when @population_type = 4 and @prev_id = @cur_id  then @key_population_type
+								else @key_population_type := null
+							end as key_population_type
                           
 
 						from flat_prep_summary_0 t1
