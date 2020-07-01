@@ -1533,7 +1533,26 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @contraceptive_method := null
                             end as contraceptive_method,
 
-                            null as menstruation_status,
+                            case
+                                when obs regexp "!!2061=1115!!" then @menstruation_status := 1115
+                                when obs regexp "!!2061=2060!!" then @menstruation_status := 2060
+                                when obs regexp "!!2061=1116!!" then @menstruation_status := 1116
+                                when obs regexp "!!2061=5990!!" then @menstruation_status := 5990
+                                when obs regexp "!!2061=6496!!" then @menstruation_status := 6496
+                                when obs regexp "!!2061=6497!!" then @menstruation_status := 6497
+                                when obs regexp "!!2061=5993!!" then @menstruation_status := 5993
+                                when obs regexp "!!2061=2416!!" then @menstruation_status := 2416
+                                when obs regexp "!!2061=2415!!" then @menstruation_status := 2415
+                                when obs regexp "!!2061=7023!!" then @menstruation_status := 7023
+                                when obs regexp "!!2061=127!!" then @menstruation_status := 127
+                                when obs regexp "!!2061=162!!" then @menstruation_status := 162
+                                when obs regexp "!!2061=1461!!" then @menstruation_status := 1461
+                                when obs regexp "!!2061=5622!!" then @menstruation_status := 5622
+                                when obs regexp "!!2061=5989!!" then @menstruation_status := 5989
+                                when @prev_id = @cur_id then @menstruation_status
+                                else @menstruation_status := null
+                            end as menstruation_status,
+
                             0 as is_mother_breastfeeding,
                             
                             case
