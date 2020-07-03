@@ -1,12 +1,13 @@
-CREATE  PROCEDURE `etl`.`generate_surge_weekly_report_dataset_v2`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
+DELIMITER $$
+CREATE PROCEDURE `generate_surge_weekly_report_dataset`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
 BEGIN
-            set @primary_table := "surge_weekly_report_dataset_v7";
+            set @primary_table := "surge_weekly_report_dataset";
             set @query_type = query_type;
             set @queue_table = "";
 
             set @total_rows_written = 0;
   			set @start = now();
-  			set @table_version = "surge_weekly_report_dataset_v7";
+  			set @table_version = "surge_weekly_report_dataset";
 
             set @last_update = null;
   			set @last_date_created = (select max(max_date_created) from etl.flat_obs);
@@ -16,7 +17,7 @@ BEGIN
 
              
              
-CREATE TABLE IF NOT EXISTS surge_weekly_report_dataset_v7 (
+CREATE TABLE IF NOT EXISTS surge_weekly_report_dataset(
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
     elastic_id BIGINT,
     person_uuid CHAR(38),
@@ -154,9 +155,8 @@ CREATE TABLE IF NOT EXISTS surge_weekly_report_dataset_v7 (
     ltfu_transfer_out_this_week INT(0),
     ltfu_death_this_week INT(0),
     ltfu_active_this_week INT(0),
+    
     is_ltfu_after_may INT(0),
-    
-    
     is_ltfu_after_may_total INT(0),
     
     
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS surge_weekly_report_dataset_v7 (
 
   if (query_type = "build") then
         SELECT 'BUILDING.......................';
-        set @write_table = concat("surge_weekly_report_dataset_v7_temp",queue_number);
+        set @write_table = concat("surge_weekly_report_dataset_temp",queue_number);
         set @queue_table = concat("surge_weekly_report_dataset_build_queue_",queue_number);   
 
         SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,'(person_id int primary key) (select * from surge_weekly_report_dataset_build_queue limit ',queue_size, ');'); 
@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS surge_weekly_report_dataset_v7 (
 
   if (@query_type="sync") then
         SELECT 'SYNCING.......................';
-        set @write_table = concat("surge_weekly_report_dataset_v7");
+        set @write_table = concat("surge_weekly_report_dataset");
         set @queue_table = "surge_weekly_report_dataset_sync_queue";                                       				
         create table if not exists surge_weekly_report_dataset_sync_queue (person_id int primary key);
 
@@ -939,12 +939,11 @@ while @person_ids_count > 0 do
                     WHEN
                         (@prev_id != @cur_id
                             OR @was_active_october_18 IS NULL)
-                            AND year_week > 201838
-                            AND year_week < 201918
+                            AND year_week < 201938
                             AND (@cur_status = 'active' OR @cur_status = 'missed'  OR @cur_status = 'defaulter')
-                            AND ((death_date IS NULL OR DATE(death_reporting_date) > '2019-05-11') AND fd_next_encounter_datetime IS NULL)
-                            AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > '2019-05-11'))
-                            AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > '2019-05-11') AND fe_next_encounter_datetime IS NULL)
+                            AND ((death_date IS NULL OR DATE(death_reporting_date) > '2019-09-30') AND fd_next_encounter_datetime IS NULL)
+                            AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > '2019-09-30'))
+                            AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > '2019-09-30') AND fe_next_encounter_datetime IS NULL)
                     
                 THEN
                         @was_active_october_18:=1
@@ -1014,110 +1013,92 @@ while @person_ids_count > 0 do
                     
                     ELSE @baseline_location:= null
                 END as  baseline_location,
-                
+
                 CASE
                     WHEN
                         (@prev_id != @cur_id
-                            OR @active_after_may_19 IS NULL)
-                            AND year_week >=201918
+                            OR @ever_active_after_sep_19 IS NULL)
+                            AND year_week >=201938
                             AND (@cur_status = 'active' OR @cur_status = 'missed' OR @cur_status = 'defaulter')
-                            AND ((death_date IS NULL OR DATE(death_reporting_date) > '2019-05-11') AND fd_next_encounter_datetime IS NULL)
-                            AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > '2019-05-11'))
-                            AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > '2019-05-11') AND fe_next_encounter_datetime IS NULL)
+                            AND ((death_date IS NULL OR DATE(death_reporting_date) > '2019-09-22') AND fd_next_encounter_datetime IS NULL)
+                            AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > '2019-09-22'))
+                            AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > '2019-09-22') AND fe_next_encounter_datetime IS NULL)
                             
                     THEN
-                        @active_after_may_19:=1
-                    WHEN @prev_id != @cur_id THEN @active_after_may_19:=NULL
-                    ELSE @active_after_may_19
-                END AS active_after_may_19,
-                
+                        @ever_active_after_sep_19:=1
+                    WHEN @prev_id != @cur_id THEN @ever_active_after_sep_19:=NULL
+                    ELSE @ever_active_after_sep_19
+                END AS ever_active_after_sep_19,  #active_after_may_19
+
                 CASE
                     WHEN
                         (@prev_id != @cur_id
-                            OR @is_ltfu_after_may_revised IS NULL) 
-                            AND @active_after_may_19 = 1
+                            OR @is_ltfu_after_sep_19 IS NULL) 
+                            AND @ever_active_after_sep_19 = 1
                             AND @cur_status = 'ltfu'
-                            AND year_week > 201918
+                            AND year_week > 201938
                     THEN
-                        @is_ltfu_after_may_revised:=1
+                        @is_ltfu_after_sep_19:=1
                     WHEN
                         (@prev_id != @cur_id
-                            OR @is_ltfu_after_may_revised IS NULL)
-                            AND NOT (@active_after_may_19 = NULL)
-                            AND year_week > 201918
+                            OR @is_ltfu_after_sep_19 IS NULL)
+                            AND NOT (@ever_active_after_sep_19 = NULL)
+                            AND year_week > 201938
                             
                     THEN
-                        @is_ltfu_after_may_revised:=0
-                    WHEN @prev_id != @cur_id THEN @is_ltfu_after_may_revised:=NULL
-                    ELSE @is_ltfu_after_may_revised
-                END AS is_ltfu_after_may_revised,
-                
-                
+                        @is_ltfu_after_sep_19:=0
+                    WHEN @prev_id != @cur_id THEN @is_ltfu_after_sep_19:=NULL
+                    ELSE @is_ltfu_after_sep_19
+                END AS is_ltfu_after_sep_19,   #is_ltfu_after_may_revised
 
-                
-                CASE
-                    WHEN
-                        (@prev_id != @cur_id
-                            OR @is_med_ltfu_after_may_revised IS NULL)
-                            AND @active_after_may_19 = 1
-                            AND @cur_med_status = 'ltfu'
-                            AND year_week > 201918
-                    THEN
-                        @is_med_ltfu_after_may_revised:=1
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0)))),
+                    1,
+                    0) AS is_ltfu_after_sep_total,
 
-                    WHEN @prev_id != @cur_id THEN @is_med_ltfu_after_may_revised:=NULL
-                    ELSE @is_med_ltfu_after_may_revised
-                END AS is_med_ltfu_after_may_revised,
-                
-                
-                CASE
-                    WHEN
-                        (@prev_id != @cur_id
-                            OR @was_med_ltfu_may_19 IS NULL)
-                            AND year_week = 201918
-                            AND @cur_med_status = 'ltfu'
-                            AND ((death_date IS NULL OR DATE(death_reporting_date) > '2019-05-11') AND fd_next_encounter_datetime IS NULL)
-                            AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > '2019-05-11'))
-                            AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > '2019-05-11') AND fe_next_encounter_datetime IS NULL)
-                            THEN
-                        @was_med_ltfu_may_19:=1
-                    WHEN @prev_id != @cur_id THEN @was_med_ltfu_may_19:=NULL
-                    ELSE @was_med_ltfu_may_19
-                END AS was_med_ltfu_may_19,
-                
-                
-                CASE
-                    WHEN
-                        (@prev_id != @cur_id
-                            OR @is_med_ltfu_surge_baseline IS NULL)
-                            AND @was_active_october_18 = 1
-                            AND @was_med_ltfu_may_19 = 1
-                            AND year_week <= 201918
-                            
-                    THEN
-                        @is_med_ltfu_surge_baseline:=1
-                    WHEN
-                        (@prev_id != @cur_id
-                            OR @is_med_ltfu_surge_baseline IS NULL)
-                            AND NOT (@was_active_october_18 = NULL
-                            AND @was_med_ltfu_may_19 = NULL)
-                            AND year_week <= 201918  
-                            
-                    THEN
-                        @is_med_ltfu_surge_baseline:=0
-                    WHEN @prev_id != @cur_id THEN @is_med_ltfu_surge_baseline:=NULL
-                    ELSE @is_med_ltfu_surge_baseline
-                END AS is_med_ltfu_surge_baseline,
-                
-                IF((@is_med_ltfu_surge_baseline = 1 OR @is_med_ltfu_after_may_revised = 1),
-                        1, 0) AS med_surge_ltfus_cumulative,
-                        
-                IF((@is_med_ltfu_surge_baseline = 1 OR @is_med_ltfu_after_may_revised = 1) AND @cur_med_status = 'ltfu'
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
+                AND @cur_status = 'ltfu'
                         AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
                         AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > end_date))
                         AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
-                        1, 0) AS med_surge_ltfu_and_med_ltfu_after_may,
+                    1,
+                    0) AS is_ltfu_after_sep_not_resolved,
+
+                
+                #MEDICATION Refill indicators
+
+                CASE
+                    WHEN
+                        (@prev_id != @cur_id
+                            OR @is_med_ltfu_after_sep19 IS NULL) 
+                            AND @ever_active_after_sep_19 = 1
+                            AND @cur_med_status = 'ltfu'
+                            AND year_week > 201938
+                    THEN
+                        @is_med_ltfu_after_sep19:=1
+                    WHEN
+                        (@prev_id != @cur_id
+                            OR @is_med_ltfu_after_sep19 IS NULL)
+                            AND NOT (@ever_active_after_sep_19 = NULL)
+                            AND year_week > 201938
+                            
+                    THEN
+                        @is_med_ltfu_after_sep19:=0
+                    WHEN @prev_id != @cur_id THEN @is_med_ltfu_after_sep19:=NULL
+                    ELSE @is_med_ltfu_after_sep19
+                END AS is_med_ltfu_after_sep19, #med revised
+
+                IF((@is_med_ltfu_after_sep19 = 1),
+                        1, 0) AS is_med_ltfu_after_sep19_cumulative,
                         
+                IF(@is_med_ltfu_after_sep19 = 1 AND @cur_med_status = 'ltfu'
+                        AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
+                        AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > end_date))
+                        AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
+                        1, 0) AS is_med_ltfu_after_sep19_unresolved,
+
+    
                 CASE
                     WHEN
                         next_clinical_datetime_hiv IS NULL
@@ -1138,54 +1119,54 @@ while @person_ids_count > 0 do
                     1,
                     0) AS newly_med_ltfu_this_week,
                     
-                IF((@is_med_ltfu_surge_baseline = 1 OR @is_med_ltfu_after_may_revised = 1)
-                    AND @prev_med_status = 'ltfu'
+                IF(@is_med_ltfu_after_sep19 = 1 AND @prev_med_status = 'ltfu'
                     AND (@cur_med_status = 'unknown'
                     OR @cur_med_status = 'missed'
                     OR @cur_med_status = 'defaulter'),
                         1, 0) AS med_surge_ltfus_outcomes_this_week, 
                         
-                IF((@is_med_ltfu_surge_baseline = 1 OR @is_med_ltfu_after_may_revised = 1)
-                    AND (@cur_med_status = 'unknown'
+                IF(@is_med_ltfu_after_sep19 = 1 AND (@cur_med_status = 'unknown'
                     OR @cur_med_status = 'missed'
                     OR @cur_med_status = 'defaulter'),
-                        1, 0) AS med_surge_ltfus_outcomes,     
+                        1, 0) AS med_surge_ltfus_outcomes,    
+
+                #MEDICATION Refill indicators final 
                     
                     
                 CASE
                     WHEN @prev_id = @cur_id 
-                    AND ( @is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1)
+                    AND @is_ltfu_after_sep19 = 1
                     AND @prev_status = 'ltfu' AND @cur_status = 'active'
                     AND @week_patient_became_active IS NULL
                     AND encounter_datetime > '2019-05-11'
                     THEN @week_patient_became_active:= encounter_datetime
                     
                     WHEN @prev_id = @cur_id 
-                    AND ( @is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1)
+                    AND @is_ltfu_after_sep19 = 1
                     AND @prev_status = 'defaulter' AND @cur_status = 'ltfu'
                     AND @week_patient_became_active IS NOT NULL
                     THEN @week_patient_became_active:= NULL
                     
                     WHEN @prev_id = @cur_id 
-                    AND ( @is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1)
+                    AND @is_ltfu_after_sep19 = 1
                     AND @prev_status = 'ltfu' AND @cur_status = 'ltfu'
                     THEN @week_patient_became_active:= NULL
                     
                     WHEN @prev_id != @cur_id 
-                    AND ( @is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1)
+                    AND @is_ltfu_after_sep19 = 1
                     AND @prev_status = 'ltfu' AND @cur_status = 'active'
                     AND @week_patient_became_active IS NULL
                     AND encounter_datetime > '2019-05-11'
                     THEN @week_patient_became_active:= encounter_datetime
                     
                     WHEN @prev_id != @cur_id 
-                    AND ( @is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1)
+                    AND @is_ltfu_after_sep19 = 1
                     AND @prev_status = 'defaulter' AND @cur_status = 'ltfu'
                     AND @week_patient_became_active IS NOT NULL
                     THEN @week_patient_became_active:= NULL
                     
                     WHEN @prev_id != @cur_id 
-                    AND ( @is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1)
+                    AND @is_ltfu_after_sep19 = 1
                     AND @prev_status = 'ltfu' AND @cur_status = 'ltfu'
                     THEN @week_patient_became_active:= NULL
                     
@@ -1202,38 +1183,12 @@ while @person_ids_count > 0 do
                         AND @cur_status = 'active',
                     1,
                     0) AS defaulter_to_active_this_week,
-                    
-                IF(status = 'ltfu', 1, 0) AS all_ltfus,
-                
-                IF(@is_ltfu_surge_baseline = 1 AND @cur_status = 'ltfu' 
+                IF((@cur_status = 'ltfu' OR days_since_rtc_date > 28 OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))
                     AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
-                    AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > end_date) OR (transfer_out_date > end_date))
+                    AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > end_date))
                     AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
                     1,
-                    0) AS surge_ltfu_and_still_ltfu,
-                
-                IF((@is_ltfu_after_may_revised = 1 OR 
-                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
-                AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
-                AND ((transfer_out_date IS NULL AND transfer_out_location_id IS NULL) OR (DATE(transfer_reporting_date) > end_date))
-                AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
-                    1,
-                    0) AS is_ltfu_after_may_total,
-                    
-                IF((@is_ltfu_after_may_revised = 1 OR 
-                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
-                AND @cur_status = 'ltfu'
-                        AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
-                        AND (transfer_out_date IS NULL OR (DATE(transfer_reporting_date) > end_date))
-                        AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
-                    1,
-                    0) AS is_ltfu_after_may,
-
-                IF((@is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1) AND @cur_status = 'ltfu'
-                        AND ((death_date IS NULL OR DATE(death_reporting_date) > end_date) AND fd_next_encounter_datetime IS NULL)
-                        AND ((transfer_out_date IS NULL AND transfer_out_location_id IS NULL) OR (DATE(transfer_reporting_date) > end_date))
-                        AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
-                        1, 0) AS surge_ltfu_and_ltfu_after_may,
+                    0) AS all_ltfus,    
                         
                 IF( YEARWEEK(death_date)=year_week, 1,0) as dead_this_week,
                 
@@ -1245,19 +1200,23 @@ while @person_ids_count > 0 do
                     AND ((exit_reporting_date IS NULL OR DATE(exit_reporting_date) > end_date) AND fe_next_encounter_datetime IS NULL),
                     1,
                     0) AS newly_ltfu_this_week,
-                    
-                    #cumulative outcomes
-                IF((@is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1 )
+
+                
+                # OUTCOMES  cumulative outcomes
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND @cur_status = 'dead',
                     1,
                     0) AS ltfu_cumulative_outcomes_death,
                     
-                IF((@is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1 )
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND @cur_status = 'transfer_out',
                     1,
                     0) AS ltfu_cumulative_outcomes_transfer_out,
                     
-                IF((@is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1 )
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND (@cur_status = 'active'
                         OR @cur_status = 'transfer_in'
                         OR @cur_status = 'missed'
@@ -1265,7 +1224,8 @@ while @person_ids_count > 0 do
                     1,
                     0) AS ltfu_cumulative_outcomes_active,
                 
-                IF((@is_ltfu_surge_baseline = 1 OR @is_ltfu_after_may_revised = 1 )
+                IF((@is_ltfu_after_sep_19 = 1 OR 
+                (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <=0))))
                         AND (@cur_status = 'active'
                         OR @cur_status = 'transfer_in'
                         OR @cur_status = 'missed'
@@ -1275,21 +1235,21 @@ while @person_ids_count > 0 do
                     1,
                     0) AS ltfu_cumulative_outcomes_total,
                     
-                    #weekly outcomes
-                IF(((@is_ltfu_surge_baseline = 1 AND @prev_status = 'ltfu') OR (@is_ltfu_after_may_revised = 1 AND @prev_status = 'ltfu')
+                    #OUTCOMES weekly outcomes
+                IF(((@is_ltfu_after_sep_19 = 1 AND @prev_status = 'ltfu')
                             OR (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <= 0 ))))
                             AND @cur_status = 'dead',
                     1,
                     0) AS ltfu_death_this_week,
                     
-                IF(((@is_ltfu_surge_baseline = 1 AND @prev_status = 'ltfu') OR (@is_ltfu_after_may_revised = 1 AND @prev_status = 'ltfu')
+                IF((@is_ltfu_after_sep_19 = 1 AND @prev_status = 'ltfu'
                         OR (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <= 0 ))))
                         AND @cur_status = 'transfer_out',
                     1,
                     0) AS ltfu_transfer_out_this_week,
                     
                     
-                IF(((@is_ltfu_surge_baseline = 1 AND @prev_status = 'ltfu') OR (@is_ltfu_after_may_revised = 1 AND @prev_status = 'ltfu') 
+                IF(((@is_ltfu_after_sep_19 = 1 AND @prev_status = 'ltfu') 
                         OR (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <= 0 )))) 
                         AND (@cur_status = 'active'
                         OR @cur_status = 'missed'
@@ -1298,11 +1258,23 @@ while @person_ids_count > 0 do
                     1,
                     0) AS ltfu_active_this_week,
                     
+				 IF(((@is_ltfu_after_sep_19 = 1 AND @prev_status = 'ltfu') 
+                        OR (@prev_status = 'defaulter' AND ((days_since_rtc_date > 28) OR (days_diff_enc_date_and_prev_rtc > 28 and days_since_rtc_date <= 0 )))) 
+                        AND (@cur_status = 'active'
+                        OR @cur_status = 'missed'
+                        OR @cur_status = 'defaulter'
+                        OR @cur_status = 'transfer_in'
+                        OR @cur_status = 'dead'
+                        OR @cur_status = 'transfer_out'),
+                    1,
+                    0) AS ltfu_cumulative_outcomes_this_week_total,
+                #OUTCOMES weekly outcomes
+                    
                 CASE
                     WHEN
                         (@prev_id != @cur_id
                             OR @was_ltfu_before_october_2018 IS NULL)
-                            AND year_week = 201839
+                            AND year_week = 201938
                             AND @cur_status = 'ltfu'
                             AND @was_active_october_18 = 0
                 THEN
@@ -1608,7 +1580,7 @@ while @person_ids_count > 0 do
                 
                 
             SELECT CONCAT('replacing into surge_weekly_report_dataset ...');
-            replace into surge_weekly_report_dataset_v7								  
+            replace into surge_weekly_report_dataset						  
                         (select
                         now(),
                         elastic_id ,
@@ -1710,8 +1682,8 @@ while @person_ids_count > 0 do
                         missed_this_week ,
                         all_ltfus ,
                         null as ltfu_surge_baseline ,
-                        surge_ltfu_and_ltfu_after_may,
-                        surge_ltfu_and_still_ltfu ,
+                        is_ltfu_after_sep_not_resolved as surge_ltfu_and_ltfu_after_may,
+                        null as surge_ltfu_and_still_ltfu ,
                         newly_ltfu_this_week ,
                         ltfu_cumulative_outcomes_death ,
                         ltfu_cumulative_outcomes_transfer_out ,
@@ -1747,8 +1719,8 @@ while @person_ids_count > 0 do
                         ltfu_death_this_week,
                         ltfu_active_this_week,
                     
-                        is_ltfu_after_may,
-                        is_ltfu_after_may_total,
+                        is_ltfu_after_sep_not_resolved AS is_ltfu_after_may,
+                        is_ltfu_after_sep_total AS is_ltfu_after_may_total,
                         week_patient_became_active,
                         
                         med_pickup_rtc_date,
@@ -1769,13 +1741,13 @@ while @person_ids_count > 0 do
                         missed_to_active_this_week,
                         defaulter_to_active_this_week,
                         missed_cumulative,
-                        med_surge_ltfus_cumulative,
-                        med_surge_ltfu_and_med_ltfu_after_may,
+                        is_med_ltfu_after_sep19_cumulative AS med_surge_ltfus_cumulative,
+                        is_med_ltfu_after_sep19_unresolved AS med_surge_ltfu_and_med_ltfu_after_may,
                         med_defaulters, 
                         newly_med_ltfu_this_week,
                         med_surge_ltfus_outcomes,
                         med_surge_ltfus_outcomes_this_week,
-                        null as column_1,
+                        ltfu_cumulative_outcomes_this_week_total as column_1,
                         null as column_2,
                         null as column_3,
                         null as column_4,
@@ -1848,7 +1820,7 @@ while @person_ids_count > 0 do
              
   set @end = now();
   if(log = true) then
-  insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+    insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
   end if;
 SELECT 
     CONCAT(@table_version,
@@ -1856,4 +1828,5 @@ SELECT
             TIMESTAMPDIFF(MINUTE, @start, @end),
             ' minutes');
   
- END
+ END$$
+DELIMITER ;
