@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_hiv_monthly_report_dataset_v1_4`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
+CREATE  PROCEDURE `generate_hiv_monthly_report_dataset`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
 BEGIN
 
 			set @start = now();
@@ -977,7 +977,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 			end if;            
 
 			set @end = now();
-            # not sure why we need last date_created, Ive replaced this with @start
+            # not sure why we need last date_created, I've replaced this with @start
 			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 			select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 

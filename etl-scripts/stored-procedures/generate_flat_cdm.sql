@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_flat_cdm_v1_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_flat_cdm`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					set @primary_table := "flat_cdm";
 					set @query_type = query_type;
