@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE  PROCEDURE `generate_surge_weekly_report_dataset_v1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
+CREATE PROCEDURE `generate_surge_weekly_report_dataset_v1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
 BEGIN
             set @primary_table := "surge_weekly_report_dataset";
             set @query_type = query_type;
@@ -610,8 +610,7 @@ while @person_ids_count > 0 do
                     JOIN  etl.flat_hiv_summary_v15b t2
                     JOIN  surge_weekly_report_dataset_temporary_build_queue t5 USING (person_id)
                     left join ndwr.patient_breast_feeding bf USING (person_id)#ON(t2.person_id = bf.person_id AND breast_feeding_encounter_date < DATE_ADD(t1.end_date, INTERVAL 1 DAY))
-                JOIN
-                amrs.person t3 USING (person_id)
+                JOIN amrs.person t3 ON (t3.person_id = t2.person_id AND (t3.voided is null or t3.voided = 0))
                     
             WHERE
                 t2.encounter_datetime < DATE_ADD(t1.end_date, INTERVAL 1 DAY)
@@ -1580,7 +1579,7 @@ while @person_ids_count > 0 do
                 
                 
             SELECT CONCAT('replacing into surge_weekly_report_dataset ...');
-            replace into surge_weekly_report_dataset							  
+            replace into surge_weekly_report_dataset						  
                         (select
                         now(),
                         elastic_id ,
