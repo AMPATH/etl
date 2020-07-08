@@ -37,6 +37,7 @@ BEGIN
 
 							prev_rtc_date datetime,
 							rtc_date datetime,
+							med_pickup_rtc_date datetime,
 							next_rtc_date datetime,
 
 							prev_clinical_encounter_datetime datetime,
@@ -81,6 +82,7 @@ BEGIN
                             
                             index person_date (person_id, encounter_datetime),
 							index location_rtc (location_id,rtc_date),
+							index location_med_pickup_rtc_date(location_id,med_pickup_rtc_date),
 							index location_enc_date (location_id,encounter_datetime),
 							index enc_date_location (encounter_datetime, location_id),
 							index loc_id_enc_date_next_clinical (location_id, program_id, encounter_datetime, next_program_encounter_datetime),
@@ -388,6 +390,12 @@ BEGIN
 											when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
 											else @cur_rtc_date := null
 										end as cur_rtc_date,
+
+										case
+											when obs regexp "!!9605=" then @cur_med_rtc_date := replace(replace((substring_index(substring(obs,locate("!!9605=",obs)),@sep,1)),"!!9605=",""),"!!","")
+											when @prev_id = @cur_id then if(@cur_med_rtc_date > encounter_datetime,@cur_med_rtc_date,null)
+											else @cur_med_rtc_date := null
+										end as cur_med_rtc_date,
 
 										case
 												when @prev_id = @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
@@ -932,6 +940,7 @@ BEGIN
 
 										prev_rtc_date,
 										cur_rtc_date,
+										cur_med_rtc_date,
 										next_rtc_date,
 
 										prev_clinical_datetime,
