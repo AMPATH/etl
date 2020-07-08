@@ -1,3 +1,5 @@
+use etl;
+drop procedure if exists generate_hiv_monthly_report_dataset_v1_4;
 DELIMITER $$
 CREATE  PROCEDURE `generate_hiv_monthly_report_dataset_v1_4`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
 BEGIN
@@ -226,6 +228,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					concat(date_format(endDate,"%Y%m"),person_id) as elastic_id,
 					endDate,
                     encounter_id,
+					visit_type,
 					person_id,
                     t3.uuid as person_uuid,
 					date(birthdate) as birthdate,
@@ -715,7 +718,12 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                         else @prev_location_id := null
 					end as next_location_id,
                     
-                    @cur_location_id := location_id as cur_location_id,
+					case 
+						when @prev_id=@cur_id and (visit_type = 23 or visit_type = 119) then
+						@cur_location_id := @cur_location_id
+						else 
+                    	@cur_location_id := location_id 
+					end as cur_location_id,
 
 					case
 						when @prev_id=@cur_id then @prev_status := @cur_status
@@ -729,8 +737,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 
 				alter table hiv_monthly_report_dataset_1 drop prev_id, drop cur_id, drop cur_status, drop cur_location_id;
 
-				set @prev_id = null;
-				set @cur_id = null;
+				set @prev_id = -1;
+				set @cur_id = -1;
 				set @cur_status = null;
 				set @prev_status = null;
                 set @cur_arv_meds = null;
@@ -748,8 +756,12 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when @prev_id=@cur_id then @prev_location_id := @cur_location_id
                         else @prev_location_id := null
 					end as prev_location_id,
-                    
-                    @cur_location_id := location_id as cur_location_id,
+                    case 
+						when @prev_id=@cur_id and (visit_type = 23 or visit_type = 119) then
+						@cur_location_id := @cur_location_id
+						else 
+                    	@cur_location_id := location_id 
+					end as cur_location_id,
                     
 					case
 						when @prev_id=@cur_id then @prev_status := @cur_status
@@ -800,6 +812,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					from hiv_monthly_report_dataset_1
 					order by person_id, endDate
 				);
+
+				-- select * from hiv_monthly_report_dataset_2 where endDate = '2020-06-30';
                                 
                 select now();
 				select count(*) as num_rows_to_be_inserted from hiv_monthly_report_dataset_2;
@@ -826,7 +840,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                 unscheduled_this_month,
                 f_18_and_over_this_month,
                 prev_location_id,
-				location_id,
+				cur_location_id as location_id,
                 t2.uuid as location_uuid,
                 next_location_id,
 				t2.state_province as clinic_county,
@@ -930,7 +944,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                 contraceptive_method,
                 discordant_status
 					from hiv_monthly_report_dataset_2 t1
-                    join amrs.location t2 using (location_id)
+                    join amrs.location t2 on (t2.location_id = t1.cur_location_id)
 				);
                 
 
@@ -977,7 +991,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 			end if;            
 
 			set @end = now();
-            # not sure why we need last date_created, I've replaced this with @start
+            -- not sure why we need last date_created, I've replaced this with @start
 			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 			select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
