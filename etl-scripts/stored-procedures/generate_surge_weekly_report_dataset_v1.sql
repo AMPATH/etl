@@ -286,19 +286,17 @@ CREATE TABLE IF NOT EXISTS surge_weekly_report_dataset(
     PREPARE s1 from @dyn_sql; 
     EXECUTE s1; 
     DEALLOCATE PREPARE s1;
-
-  
-  SET @num_ids := 0;
-  SET @dyn_sql=CONCAT('select count(*) into @num_ids from ',@queue_table,';'); 
-  PREPARE s1 from @dyn_sql; 
-  EXECUTE s1; 
-  DEALLOCATE PREPARE s1; 
   
   SET @person_ids_count = 0;
   SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table); 
   PREPARE s1 from @dyn_sql; 
   EXECUTE s1; 
   DEALLOCATE PREPARE s1;
+
+  SET @dyn_sql=CONCAT('delete t1 from ',@primary_table, ' t1 join ',@queue_table,' t2 using (person_id);'); 
+                    PREPARE s1 from @dyn_sql; 
+                    EXECUTE s1; 
+                    DEALLOCATE PREPARE s1;
   
 SELECT CONCAT('Patients in queue: ', @person_ids_count);
                           
