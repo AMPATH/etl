@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE  PROCEDURE `generate_prep_summary_v1_1_prod`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
+CREATE PROCEDURE `generate_prep_summary_v1_1_prod`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
 BEGIN
 
 					select @start := now();
@@ -76,6 +76,7 @@ BEGIN
 					  `prev_rtc_date` longtext,
 					  `prev_rtc_week` int(6) DEFAULT NULL,
 					  `rtc_date` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+                      `days_since_rtc_date` BIGINT(21),
 					  `rtc_week` int(6) DEFAULT NULL,
 					  `cur_prep_meds_names` text,
 					  `first_prep_regimen` longtext,
@@ -568,6 +569,7 @@ BEGIN
 							prev_rtc_date,
                             @prev_rtc_week := yearweek(prev_rtc_date) as prev_rtc_week,
 							rtc_date,
+                            TIMESTAMPDIFF(DAY, rtc_date, end_date) AS days_since_rtc_date,
 							@rtc_week := yearweek(rtc_date) as rtc_week,
                             cur_prep_meds_names,
                             first_prep_regimen,
