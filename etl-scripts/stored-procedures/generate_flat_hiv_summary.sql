@@ -1629,6 +1629,10 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                         set @prev_clinical_location_id = null;
                         set @cur_clinical_location_id = null;
+                        set @prev_visit_type = null;
+                        set @cur_visit_type = null;
+                        set @prev_visit_id = null;
+                        set @cur_visit_id = null;
 
 
                         alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
@@ -1813,7 +1817,28 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when is_clinical_encounter then @cur_clinical_location_id := location_id
                                 when @prev_id = @cur_id then @cur_clinical_location_id
                                 else @cur_clinical_location_id := null
-                            end as cur_clinical_location_id
+                            end as cur_clinical_location_id,
+
+                            case
+                                when @prev_id = @cur_id then @prev_visit_id := @cur_visit_id
+                                else @prev_visit_id := null
+                            end as prev_visit_id,
+
+                            case
+                                when @prev_id = @cur_id then @cur_visit_id := visit_id
+                                else @cur_visit_id := null
+                            end as cur_visit_id,
+
+                            case
+                                when @prev_id = @cur_id and @prev_visit_id != @cur_visit_id  then @prev_visit_type := @cur_visit_type
+								when @prev_id = @cur_id and @prev_visit_id = @cur_visit_id then @prev_visit_type
+                                else @prev_visit_type := null
+                            end as prev_visit_type,
+
+                            case
+                                when @prev_id = @cur_id then @cur_visit_type := visit_type
+                                else @cur_visit_type := null
+                            end as cur_visit_type
 
 /* MOVED to flat_hiv_summary_1
                             case
@@ -1854,20 +1879,20 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
-                                when prev_clinical_location_id != location_id then @transfer_in := 1
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in := 1
                                 else @transfer_in := null
                             end as transfer_in,
 
                             case 
                                 when obs regexp "!!7015=" then @transfer_in_date := date(encounter_datetime)
-                                when prev_clinical_location_id != location_id and encounter_type != 186  then @transfer_in_date := date(encounter_datetime)
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33)) and (prev_visit_type is null or prev_visit_type not in (23,24,33))  then @transfer_in_date := date(encounter_datetime)
                                 when @cur_id = @prev_id then @transfer_in_date
                                 else @transfer_in_date := null
                             end transfer_in_date,
                             
                             case 
                                 when obs regexp "!!7015=1287" then @transfer_in_location_id := 9999
-                                when prev_clinical_location_id != location_id and encounter_type != 186 then @transfer_in_location_id := prev_clinical_location_id
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in_location_id := cur_clinical_location_id
                                 when @cur_id = @prev_id then @transfer_in_location_id
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
