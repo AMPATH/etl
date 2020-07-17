@@ -1,9 +1,11 @@
+use etl;
+drop procedure if exists generate_flat_appointment_pocamrs364;
 DELIMITER $$
-CREATE PROCEDURE `generate_flat_appointment`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_flat_appointment_pocamrs364`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					select @start := now();
-					select @table_version := "flat_appointment_v1.0";
-					set @primary_table := "flat_appointment";
+					select @table_version := "flat_appointment_pocamrs364_v1.0";
+					set @primary_table := "flat_appointment_pocamrs364";
 					set @query_type = query_type;
                     set @queue_table = "";
                     set @total_rows_written = 0;
@@ -13,8 +15,8 @@ BEGIN
 					select @sep := " ## ";
 					select @last_date_created := (select max(max_date_created) from etl.flat_obs);
         
-					#drop table if exists etl.appointment_2;
-					create table if not exists etl.flat_appointment
+					drop table if exists etl.flat_appointment_pocamrs364;
+					create table if not exists etl.flat_appointment_pocamrs364
 							(
                             date_created timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                             person_id int,
@@ -39,6 +41,9 @@ BEGIN
 							rtc_date datetime,
 							med_pickup_rtc_date datetime,
 							next_rtc_date datetime,
+							scheduled_date datetime,
+							isGeneralAppt smallint,
+    						isMedPickupAppt smallint,
 
 							prev_clinical_encounter_datetime datetime,
 							next_clinical_encounter_datetime datetime,
@@ -82,10 +87,10 @@ BEGIN
                             
                             index person_date (person_id, encounter_datetime),
 							index location_rtc (location_id,rtc_date),
-							index location_med_pickup_rtc_date(location_id,med_pickup_rtc_date),
-							index location_enc_date (location_id,encounter_datetime),
+							index location_med_pickup_rtc_date(location_id,scheduled_date),
+							index location_enc_date (location_id, encounter_datetime),
 							index enc_date_location (encounter_datetime, location_id),
-							index loc_id_enc_date_next_clinical (location_id, program_id, encounter_datetime, next_program_encounter_datetime),
+							-- index loc_id_enc_date_next_clinical (location_id, program_id, encounter_datetime, next_program_encounter_datetime),
 							index encounter_type (encounter_type)
 							);
                             
@@ -917,8 +922,106 @@ BEGIN
 										order by person_id, program_id, encounter_datetime
 									);
 
-									SET @dyn_sql=CONCAT('replace into ',@write_table,		
-									'(select
+									-- Merge MedPickUp Dates and RTC dates to form schedule
+									drop temporary table if exists A;
+									create temporary table A(select encounter_id, cur_rtc_date as scheduled_date, 1 as isGeneralAppt, 0 as isMedPickupAppt from foo_5 where cur_med_rtc_date is null or cur_rtc_date = cur_med_rtc_date);
+
+									drop temporary table  if exists B;
+									create temporary table B(select encounter_id, cur_rtc_date as scheduled_date, 1 as isGeneralAppt, 0 as isMedPickupAppt from foo_5 where cur_med_rtc_date is not null and cur_rtc_date <> cur_med_rtc_date);
+
+									drop temporary table  if exists  C;
+									create temporary table C(select encounter_id, cur_med_rtc_date as scheduled_date, 0 as isGeneralAppt, 1 as isMedPickupAppt from foo_5 where cur_med_rtc_date is not null and cur_rtc_date <> cur_med_rtc_date);
+
+									drop temporary table if exists merged;
+									create temporary table merged(index enc_id(encounter_id)) (
+									select * from
+										(select * from A
+										union
+										select * from B
+										union
+										select * from C) tm
+									);
+
+									drop temporary table if exists final_stage;
+									create temporary table final_stage(SELECT 
+										a.*,
+										scheduled_date,
+										isGeneralAppt,
+										isMedPickupAppt
+									FROM
+										merged f
+											JOIN
+										foo_5 a USING (encounter_id));
+
+									SET @dyn_sql=CONCAT('replace into ',@write_table,
+									'(
+										date_created,
+										person_id,
+										encounter_id,
+										encounter_datetime,
+										visit_id,
+										visit_type_id,
+										location_id,
+										program_id,
+										department_id,
+										visit_start_datetime,
+										is_clinical,
+
+										prev_encounter_datetime,
+										next_encounter_datetime,
+
+										prev_encounter_type,
+										encounter_type,
+										next_encounter_type,
+
+										prev_rtc_date,
+										rtc_date,
+										med_pickup_rtc_date,
+										next_rtc_date,
+										scheduled_date,
+										isGeneralAppt,
+										isMedPickupAppt,
+
+										prev_clinical_encounter_datetime,
+										next_clinical_encounter_datetime,
+
+										prev_clinical_rtc_date,
+										next_clinical_rtc_date,
+
+										prev_clinical_encounter_type,
+										next_clinical_encounter_type,
+
+										prev_program_encounter_datetime,
+										next_program_encounter_datetime,
+
+										prev_program_rtc_date,
+										next_program_rtc_date,
+
+										prev_program_encounter_type,
+										next_program_encounter_type,
+										
+										prev_program_clinical_datetime,
+										next_program_clinical_datetime,
+
+										prev_program_clinical_rtc_date,
+										next_program_clinical_rtc_date,
+										
+										prev_department_encounter_datetime,
+										next_department_encounter_datetime,
+
+										prev_department_rtc_date,
+										next_department_rtc_date,
+
+										prev_department_encounter_type,
+										next_department_encounter_type,
+										
+										prev_department_clinical_datetime,
+										next_department_clinical_datetime,
+
+										prev_department_clinical_rtc_date,
+										next_department_clinical_rtc_date
+									 )',		
+									'select
 										NULL,
 										person_id,
 										encounter_id,
@@ -942,6 +1045,9 @@ BEGIN
 										cur_rtc_date,
 										cur_med_rtc_date,
 										next_rtc_date,
+										scheduled_date,
+										isGeneralAppt,
+										isMedPickupAppt,
 
 										prev_clinical_datetime,
 										next_clinical_datetime,
@@ -983,8 +1089,10 @@ BEGIN
 										prev_department_clinical_rtc_date,
 										next_department_clinical_rtc_date
                                         
-									from etl.foo_5
-								);');
+									from etl.final_stage
+								;');
+
+								-- select @dyn_sql;
 
                                 PREPARE s1 from @dyn_sql; 
 								EXECUTE s1; 
@@ -1050,7 +1158,7 @@ BEGIN
                 select CONCAT('Average Cycle Length: ', @ave_cycle_length, ' second(s)');
                 
 				select @end := now();
-				insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+				-- insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
 		END$$
