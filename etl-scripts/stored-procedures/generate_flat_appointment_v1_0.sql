@@ -15,7 +15,7 @@ BEGIN
 					select @sep := " ## ";
 					select @last_date_created := (select max(max_date_created) from etl.flat_obs);
         
-					drop table if exists etl.flat_appointment_pocamrs364;
+					-- drop table if exists etl.flat_appointment_pocamrs364;
 					create table if not exists etl.flat_appointment_pocamrs364
 							(
                             date_created timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
