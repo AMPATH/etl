@@ -385,18 +385,23 @@ while @person_ids_count > 0 do
                 t1.encounter_id, 
                 encounter_datetime,
                 CASE
-                    WHEN @prev_id != @cur_id  THEN @height := height 
-                    WHEN @prev_id = @cur_id and @height is null and height is not null THEN @height := height
+                    WHEN @prev_id != @cur_id and height is not null and weight is not null THEN @height := height 
+                    WHEN @prev_id = @cur_id and (weight is null or weight is not null) and height is null THEN @height
+                    WHEN @prev_id = @cur_id and (height is null or height is not null) and weight is null THEN @height
+                    WHEN @prev_id = @cur_id and height is not null and weight is not null THEN @height := height
                     WHEN @prev_id = @cur_id and @height  and height  THEN @height := height
-                    ELSE @height 
+					ELSE @height := null 
                 END AS height,
+                
                 CASE
-                    WHEN @prev_id != @cur_id  THEN @weight := weight 
-                    WHEN @prev_id = @cur_id and @weight is null and weight is not null THEN @weight := weight
+                    WHEN @prev_id != @cur_id and height is not null and weight is not null THEN @weight := weight 
+                    WHEN @prev_id = @cur_id and (weight is null or weight is not null) and height is null THEN @weight
+                    WHEN @prev_id = @cur_id and (height is null or height is not null) and weight is null THEN @weight
+                    WHEN @prev_id = @cur_id and height is not null and weight is not null THEN @weight := weight
                     WHEN @prev_id = @cur_id and @weight  and weight  THEN @weight := weight
-                    ELSE @weight 
-                END AS weight,
-                (@weight / (@height * @height) * 10000)  as bmi
+                    ELSE @weight := null
+               END AS weight,
+               (@weight / (@height * @height) * 10000) as bmi
                 
                 from 
                 (select encounter_id, height,weight,encounter_datetime,tv.person_id from  etl.flat_vitals tv 
@@ -1386,23 +1391,21 @@ while @person_ids_count > 0 do
                         AND tx2_visit_this_week = 1,
                     1,
                     0) AS tx2_unscheduled_this_week,
-                
-                CASE
-                    WHEN days_since_last_vl <= 365
-                            AND vl_2_date IS NOT NULL
-                            AND (months_since_tb_tx_start_date IS NULL
-                            OR months_since_tb_tx_start_date >= 6)
-                            AND (is_pregnant = 0 OR is_pregnant IS NULL)
-                            AND @bmi >= 18.5
-                            AND age >= 20
-                            AND @cur_status = 'active'
-                            AND days_since_starting_arvs > 364
-                            AND vl_1 >= 0
-                            AND vl_1 <= 400 
-                        THEN @not_elligible_for_dc := 0
-                        ELSE @not_elligible_for_dc := 1
-                    END AS not_elligible_for_dc,
-                    
+			 CASE  
+				WHEN days_since_last_vl > 365
+						or vl_2_date IS NULL
+						OR months_since_tb_tx_start_date < 6
+						or months_since_ipt_completion_date < 6
+						or TIMESTAMPDIFF(MONTH,vl_1_date,end_date) > 12
+						or @bmi < 18.5
+						or age < 20
+						or @cur_status = 'ltfu'
+						or days_since_starting_arvs < 364
+						or vl_1 >= 400
+					THEN @not_elligible_for_dc := 1
+						ELSE
+					@not_elligible_for_dc := 0
+				END AS not_elligible_for_dc,   
                     
                 CASE    
                     WHEN days_since_last_vl <= 365
@@ -1419,9 +1422,9 @@ while @person_ids_count > 0 do
                             AND days_since_starting_arvs > 364
                             AND vl_1 >= 0
                             AND vl_1 <= 400 
-                        THEN @eligible_not_on_dc := 1
+                        THEN @eligible_and_on_dc := 1
                             ELSE
-                        @eligible_not_on_dc := 0
+                        @eligible_and_on_dc := 0
                     END AS eligible_and_on_dc,
                     
 					CASE    
