@@ -286,19 +286,17 @@ CREATE TABLE IF NOT EXISTS surge_weekly_report_dataset(
     PREPARE s1 from @dyn_sql; 
     EXECUTE s1; 
     DEALLOCATE PREPARE s1;
-
-  
-  SET @num_ids := 0;
-  SET @dyn_sql=CONCAT('select count(*) into @num_ids from ',@queue_table,';'); 
-  PREPARE s1 from @dyn_sql; 
-  EXECUTE s1; 
-  DEALLOCATE PREPARE s1; 
   
   SET @person_ids_count = 0;
   SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table); 
   PREPARE s1 from @dyn_sql; 
   EXECUTE s1; 
   DEALLOCATE PREPARE s1;
+
+  SET @dyn_sql=CONCAT('delete t1 from ',@primary_table, ' t1 join ',@queue_table,' t2 using (person_id);'); 
+                    PREPARE s1 from @dyn_sql; 
+                    EXECUTE s1; 
+                    DEALLOCATE PREPARE s1;
   
 SELECT CONCAT('Patients in queue: ', @person_ids_count);
                           
@@ -387,18 +385,23 @@ while @person_ids_count > 0 do
                 t1.encounter_id, 
                 encounter_datetime,
                 CASE
-                    WHEN @prev_id != @cur_id  THEN @height := height 
-                    WHEN @prev_id = @cur_id and @height is null and height is not null THEN @height := height
+                    WHEN @prev_id != @cur_id and height is not null and weight is not null THEN @height := height 
+                    WHEN @prev_id = @cur_id and (weight is null or weight is not null) and height is null THEN @height
+                    WHEN @prev_id = @cur_id and (height is null or height is not null) and weight is null THEN @height
+                    WHEN @prev_id = @cur_id and height is not null and weight is not null THEN @height := height
                     WHEN @prev_id = @cur_id and @height  and height  THEN @height := height
-                    ELSE @height 
+					ELSE @height := null 
                 END AS height,
+                
                 CASE
-                    WHEN @prev_id != @cur_id  THEN @weight := weight 
-                    WHEN @prev_id = @cur_id and @weight is null and weight is not null THEN @weight := weight
+                    WHEN @prev_id != @cur_id and height is not null and weight is not null THEN @weight := weight 
+                    WHEN @prev_id = @cur_id and (weight is null or weight is not null) and height is null THEN @weight
+                    WHEN @prev_id = @cur_id and (height is null or height is not null) and weight is null THEN @weight
+                    WHEN @prev_id = @cur_id and height is not null and weight is not null THEN @weight := weight
                     WHEN @prev_id = @cur_id and @weight  and weight  THEN @weight := weight
-                    ELSE @weight 
-                END AS weight,
-                (@weight / (@height * @height) * 10000)  as bmi
+                    ELSE @weight := null
+               END AS weight,
+               (@weight / (@height * @height) * 10000) as bmi
                 
                 from 
                 (select encounter_id, height,weight,encounter_datetime,tv.person_id from  etl.flat_vitals tv 
@@ -595,9 +598,12 @@ while @person_ids_count > 0 do
 
 
                     tb_tx_start_date, 
-                        TIMESTAMPDIFF(MONTH,
+					TIMESTAMPDIFF(MONTH,
                     tb_tx_start_date,
                     end_date) AS months_since_tb_tx_start_date,
+                    TIMESTAMPDIFF(MONTH,
+                    ipt_completion_date,
+                    end_date) AS months_since_ipt_completion_date,
                     CASE
                     WHEN YEARWEEK(vl_order_date) = t1.week THEN 1
                     ELSE 0
@@ -697,7 +703,8 @@ while @person_ids_count > 0 do
             `breast_feeding` int(11) DEFAULT NULL,
             `breast_feeding_encounter_date` datetime DEFAULT NULL,
             `tb_tx_start_date` datetime DEFAULT NULL,
-            `months_since_tb_tx_start_date` bigint(21) DEFAULT NULL,
+            `months_since_tb_tx_start_date` bigint(21) DEFAULT NULL, 
+            `months_since_ipt_completion_date` bigint(21) DEFAULT NULL,
             `vl_ordered_this_week` int(0) DEFAULT NULL,
             `intervention_done_this_week` int(1) NOT NULL DEFAULT '0',
             `interventions` int(1) NOT NULL DEFAULT '0',
@@ -845,6 +852,7 @@ while @person_ids_count > 0 do
                     1,
                     0) AS new_prep_this_week,
                 IF(t4.program_id = 10 , 1, 0) AS cur_prep_this_week,
+                t4.program_id as cur_program,
                 t6.weight AS weight,
                 t6.height AS height,
                 fd.encounter_datetime as death_reporting_date,
@@ -858,7 +866,7 @@ while @person_ids_count > 0 do
                     LEFT OUTER JOIN   patient_vl_status vl ON vl.person_id=sw0.person_id and vl.week = sw0.year_week
                     LEFT OUTER JOIN
                 amrs.patient_program t4 ON t4.patient_id = sw0.person_id
-                    AND t4.program_id IN (3 , 9, 10, 11)
+                    AND t4.program_id IN (3, 4 , 9, 10, 11)
                     AND t4.date_completed IS NULL
                     LEFT OUTER JOIN
                 surge_vitals t6 ON t6.encounter_id = sw0.encounter_id
@@ -1383,31 +1391,31 @@ while @person_ids_count > 0 do
                         AND tx2_visit_this_week = 1,
                     1,
                     0) AS tx2_unscheduled_this_week,
-                
-                CASE
+			 CASE  
+				WHEN days_since_last_vl > 365
+						or vl_2_date IS NULL
+						OR months_since_tb_tx_start_date < 6
+						or months_since_ipt_completion_date < 6
+						or TIMESTAMPDIFF(MONTH,vl_1_date,end_date) > 12
+						or @bmi < 18.5
+						or age < 20
+						or @cur_status = 'ltfu'
+						or days_since_starting_arvs < 364
+						or vl_1 >= 400
+					THEN @not_elligible_for_dc := 1
+						ELSE
+					@not_elligible_for_dc := 0
+				END AS not_elligible_for_dc,   
+                    
+                CASE    
                     WHEN days_since_last_vl <= 365
-                            AND vl_2_date IS NOT NULL
+                        AND vl_2_date IS NOT NULL
                             AND (months_since_tb_tx_start_date IS NULL
                             OR months_since_tb_tx_start_date >= 6)
-                            AND (is_pregnant = 0 OR is_pregnant IS NULL)
-                            AND @bmi >= 18.5
-                            AND age >= 20
-                            AND @cur_status = 'active'
-                            AND days_since_starting_arvs > 364
-                            AND vl_1 >= 0
-                            AND vl_1 <= 400 
-                        THEN @not_elligible_for_dc := 0
-                        ELSE @not_elligible_for_dc := 1
-                    END AS not_elligible_for_dc,
-                    
-                    
-                CASE
-                    WHEN days_since_last_vl <= 365
-                            AND vl_2_date IS NOT NULL
-                            AND (months_since_tb_tx_start_date IS NULL
-                            OR months_since_tb_tx_start_date >= 6)
-                            AND on_dc_this_week = 1
-                            AND (is_pregnant = 0 OR is_pregnant IS NULL)
+                            AND months_since_ipt_completion_date >= 6
+                            AND TIMESTAMPDIFF(MONTH,vl_1_date,end_date) <= 12
+							AND on_dc_this_week = 1
+                            AND DATE(prev_rtc_date) = DATE(encounter_datetime)
                             AND @bmi >= 18.5
                             AND age >= 20
                             AND @cur_status = 'active'
@@ -1415,16 +1423,19 @@ while @person_ids_count > 0 do
                             AND vl_1 >= 0
                             AND vl_1 <= 400 
                         THEN @eligible_and_on_dc := 1
-                        ELSE @eligible_and_on_dc := 0
+                            ELSE
+                        @eligible_and_on_dc := 0
                     END AS eligible_and_on_dc,
                     
-                CASE    
+					CASE    
                     WHEN days_since_last_vl <= 365
                         AND vl_2_date IS NOT NULL
                             AND (months_since_tb_tx_start_date IS NULL
                             OR months_since_tb_tx_start_date >= 6)
-                            AND on_dc_this_week != 1
-                            AND (is_pregnant = 0 OR is_pregnant IS NULL)
+                            AND months_since_ipt_completion_date >= 6
+                            AND TIMESTAMPDIFF(MONTH,vl_1_date,end_date) <= 12
+                            AND (cur_program is null or cur_program not in (3,4,9))
+                            AND DATE(prev_rtc_date) = DATE(encounter_datetime)
                             AND @bmi >= 18.5
                             AND age >= 20
                             AND @cur_status = 'active'
