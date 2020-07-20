@@ -821,8 +821,8 @@ BEGIN
 									;
 
 
-									set @cur_id = null;
-									set @prev_id = null;
+									set @cur_id = -1;
+									set @prev_id = -1;
 									 
 									set @prev_department_id = null;
 									set @cur_department_id = null;
@@ -842,13 +842,27 @@ BEGIN
 									set @prev_department_clinical_rtc_date = null;	
 									set @cur_department_clinical_rtc_date = null;
 
+									set @prev_location_id = null;	
+									set @cur_location_id = null;
 
 									drop temporary table if exists etl.foo_5;
 									create temporary table etl.foo_5
 									(select *,
-											@prev_id := @cur_id as prev_id,
-											#	@cur_id := person_id as cur_id,    
+											@prev_id := @cur_id as prev_id,  
 											@cur_id := person_id as cur_id,
+
+											case
+												when @prev_id = @cur_id then @prev_location_id := @cur_location_id
+												else @prev_location_id := null
+											end as prev_location_id,
+
+											-- Do not change location if patient is on inbetween visit or transit vist
+											case
+												when @prev_id = @cur_id and visit_type_id in (23, 24, 119, 124) and @cur_location_id is not null then
+												@cur_location_id
+												else
+												@cur_location_id := location_id 
+											end as cur_location_id,
 										
 											case
 												when @prev_id = @cur_id then @prev_department_id := @cur_department_id
@@ -1028,7 +1042,7 @@ BEGIN
 										encounter_datetime,
 										visit_id,
 										visit_type_id,
-										location_id,
+										cur_location_id,
 										program_id,
                                         department_id,
 										visit_start_datetime,
