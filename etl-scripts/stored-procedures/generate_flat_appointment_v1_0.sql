@@ -90,7 +90,7 @@ BEGIN
 							index location_med_pickup_rtc_date(location_id,scheduled_date),
 							index location_enc_date (location_id, encounter_datetime),
 							index enc_date_location (encounter_datetime, location_id),
-							-- index loc_id_enc_date_next_clinical (location_id, program_id, encounter_datetime, next_program_encounter_datetime),
+							index loc_id_enc_date_next_clinical (location_id, program_id, encounter_datetime, next_program_encounter_datetime),
 							index encounter_type (encounter_type)
 							);
                             
