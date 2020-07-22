@@ -1113,7 +1113,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 										prev_department_clinical_rtc_date,
 										next_department_clinical_rtc_date
                                         
-									from etl.foo_5
+									from etl.final_stage
 								;');
 
                                 PREPARE s1 from @dyn_sql; 
