@@ -1,11 +1,11 @@
 use etl;
-drop procedure if exists generate_flat_appointment_pocamrs364;
+drop procedure if exists generate_flat_appointment;
 DELIMITER $$
-CREATE PROCEDURE `generate_flat_appointment_pocamrs364`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `generate_flat_appointment`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					select @start := now();
-					select @table_version := "flat_appointment_pocamrs364_v1.0";
-					set @primary_table := "flat_appointment_pocamrs364";
+					select @table_version := "flat_appointment_v1.0";
+					set @primary_table := "flat_appointment";
 					set @query_type = query_type;
                     set @queue_table = "";
                     set @total_rows_written = 0;
@@ -15,8 +15,8 @@ BEGIN
 					select @sep := " ## ";
 					select @last_date_created := (select max(max_date_created) from etl.flat_obs);
         
-					-- drop table if exists etl.flat_appointment_pocamrs364;
-					create table if not exists etl.flat_appointment_pocamrs364
+					-- drop table if exists etl.flat_appointment;
+					create table if not exists etl.flat_appointment
 							(
                             date_created timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                             person_id int,
@@ -1172,7 +1172,7 @@ BEGIN
                 select CONCAT('Average Cycle Length: ', @ave_cycle_length, ' second(s)');
                 
 				select @end := now();
-				-- insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+				insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
 		END$$
