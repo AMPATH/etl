@@ -1,3 +1,6 @@
+
+use etl;
+drop procedure if exists generate_flat_appointment_v1_1;
 DELIMITER $$
 CREATE  PROCEDURE `generate_flat_appointment_v1_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
@@ -36,6 +39,7 @@ BEGIN
     next_encounter_type SMALLINT,
     prev_rtc_date DATETIME,
     rtc_date DATETIME,
+	med_pickup_rtc_date datetime,
     next_rtc_date DATETIME,
     prev_clinical_encounter_datetime DATETIME,
     next_clinical_encounter_datetime DATETIME,
@@ -65,6 +69,7 @@ BEGIN
     next_department_clinical_rtc_date DATETIME,
     INDEX person_date (person_id , encounter_datetime),
     INDEX location_rtc (location_id , rtc_date),
+	index location_med_pickup_rtc_date(location_id,med_pickup_rtc_date),
     INDEX location_enc_date (location_id , encounter_datetime),
     INDEX enc_date_location (encounter_datetime , location_id),
     INDEX loc_id_enc_date_next_clinical (location_id , program_id , encounter_datetime , next_program_encounter_datetime),
@@ -394,6 +399,12 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 											when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
 											else @cur_rtc_date := null
 										end as cur_rtc_date,
+
+										case
+											when obs regexp "!!9605=" then @cur_med_rtc_date := replace(replace((substring_index(substring(obs,locate("!!9605=",obs)),@sep,1)),"!!9605=",""),"!!","")
+											when @prev_id = @cur_id then if(@cur_med_rtc_date > encounter_datetime,@cur_med_rtc_date,null)
+											else @cur_med_rtc_date := null
+										end as cur_med_rtc_date,
 
 										case
 												when @prev_id = @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
@@ -938,6 +949,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 
 										prev_rtc_date,
 										cur_rtc_date,
+										cur_med_rtc_date,
 										next_rtc_date,
 
 										prev_clinical_datetime,
