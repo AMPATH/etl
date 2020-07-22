@@ -1,3 +1,6 @@
+
+use etl;
+drop procedure if exists generate_flat_appointment_v1_1;
 DELIMITER $$
 CREATE  PROCEDURE `generate_flat_appointment_v1_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
@@ -36,7 +39,11 @@ BEGIN
     next_encounter_type SMALLINT,
     prev_rtc_date DATETIME,
     rtc_date DATETIME,
+	med_pickup_rtc_date datetime,
     next_rtc_date DATETIME,
+	scheduled_date datetime,
+	isGeneralAppt smallint,
+    isMedPickupAppt smallint,
     prev_clinical_encounter_datetime DATETIME,
     next_clinical_encounter_datetime DATETIME,
     prev_clinical_rtc_date DATETIME,
@@ -65,6 +72,7 @@ BEGIN
     next_department_clinical_rtc_date DATETIME,
     INDEX person_date (person_id , encounter_datetime),
     INDEX location_rtc (location_id , rtc_date),
+	index location_med_pickup_rtc_date(location_id,scheduled_date),
     INDEX location_enc_date (location_id , encounter_datetime),
     INDEX enc_date_location (encounter_datetime , location_id),
     INDEX loc_id_enc_date_next_clinical (location_id , program_id , encounter_datetime , next_program_encounter_datetime),
@@ -394,6 +402,12 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 											when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
 											else @cur_rtc_date := null
 										end as cur_rtc_date,
+
+										case
+											when obs regexp "!!9605=" then @cur_med_rtc_date := replace(replace((substring_index(substring(obs,locate("!!9605=",obs)),@sep,1)),"!!9605=",""),"!!","")
+											when @prev_id = @cur_id then if(@cur_med_rtc_date > encounter_datetime,@cur_med_rtc_date,null)
+											else @cur_med_rtc_date := null
+										end as cur_med_rtc_date,
 
 										case
 												when @prev_id = @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
@@ -814,8 +828,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 									;
 
 
-									set @cur_id = null;
-									set @prev_id = null;
+									set @cur_id = -1;
+									set @prev_id = -1;
 									 
 									set @prev_department_id = null;
 									set @cur_department_id = null;
@@ -835,13 +849,28 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 									set @prev_department_clinical_rtc_date = null;	
 									set @cur_department_clinical_rtc_date = null;
 
+									set @prev_location_id = null;	
+									set @cur_location_id = null;
+
 
 									drop temporary table if exists etl.foo_5;
 									create temporary table etl.foo_5
 									(select *,
-											@prev_id := @cur_id as prev_id,
-											#	@cur_id := person_id as cur_id,    
+											@prev_id := @cur_id as prev_id,    
 											@cur_id := person_id as cur_id,
+
+											case
+												when @prev_id = @cur_id then @prev_location_id := @cur_location_id
+												else @prev_location_id := null
+											end as prev_location_id,
+
+											-- Do not change location if patient is on inbetween visit or transit vist
+											case
+												when @prev_id = @cur_id and visit_type_id in (23, 24, 119, 124) and @cur_location_id is not null then
+												@cur_location_id
+												else
+												@cur_location_id := location_id 
+											end as cur_location_id,
 										
 											case
 												when @prev_id = @cur_id then @prev_department_id := @cur_department_id
@@ -915,15 +944,115 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 										order by person_id, program_id, encounter_datetime
 									);
 
-									SET @dyn_sql=CONCAT('replace into ',@write_table,		
-									'(select
-										NULL,
+									-- Merge MedPickUp Dates and RTC dates to form schedule
+									drop temporary table if exists A;
+									create temporary table A(select encounter_id, cur_rtc_date as scheduled_date, 1 as isGeneralAppt, 0 as isMedPickupAppt from foo_5 where cur_med_rtc_date is null or cur_rtc_date = cur_med_rtc_date);
+
+									drop temporary table  if exists B;
+									create temporary table B(select encounter_id, cur_rtc_date as scheduled_date, 1 as isGeneralAppt, 0 as isMedPickupAppt from foo_5 where cur_med_rtc_date is not null and cur_rtc_date <> cur_med_rtc_date);
+
+									drop temporary table  if exists  C;
+									create temporary table C(select encounter_id, cur_med_rtc_date as scheduled_date, 0 as isGeneralAppt, 1 as isMedPickupAppt from foo_5 where cur_med_rtc_date is not null and cur_rtc_date <> cur_med_rtc_date);
+
+									drop temporary table if exists merged;
+									create temporary table merged(index enc_id(encounter_id)) (
+									select * from
+										(select * from A
+										union
+										select * from B
+										union
+										select * from C) tm
+									);
+
+									drop temporary table if exists final_stage;
+									create temporary table final_stage(SELECT 
+										a.*,
+										scheduled_date,
+										isGeneralAppt,
+										isMedPickupAppt
+									FROM
+										merged f
+											JOIN
+										foo_5 a USING (encounter_id));
+
+									SET @dyn_sql=CONCAT('replace into ',@write_table,
+									'
+									(
+										date_created,
 										person_id,
 										encounter_id,
 										encounter_datetime,
 										visit_id,
 										visit_type_id,
 										location_id,
+										program_id,
+										department_id,
+										visit_start_datetime,
+										is_clinical,
+
+										prev_encounter_datetime,
+										next_encounter_datetime,
+
+										prev_encounter_type,
+										encounter_type,
+										next_encounter_type,
+
+										prev_rtc_date,
+										rtc_date,
+										med_pickup_rtc_date,
+										next_rtc_date,
+										scheduled_date,
+										isGeneralAppt,
+										isMedPickupAppt,
+
+										prev_clinical_encounter_datetime,
+										next_clinical_encounter_datetime,
+
+										prev_clinical_rtc_date,
+										next_clinical_rtc_date,
+
+										prev_clinical_encounter_type,
+										next_clinical_encounter_type,
+
+										prev_program_encounter_datetime,
+										next_program_encounter_datetime,
+
+										prev_program_rtc_date,
+										next_program_rtc_date,
+
+										prev_program_encounter_type,
+										next_program_encounter_type,
+										
+										prev_program_clinical_datetime,
+										next_program_clinical_datetime,
+
+										prev_program_clinical_rtc_date,
+										next_program_clinical_rtc_date,
+										
+										prev_department_encounter_datetime,
+										next_department_encounter_datetime,
+
+										prev_department_rtc_date,
+										next_department_rtc_date,
+
+										prev_department_encounter_type,
+										next_department_encounter_type,
+										
+										prev_department_clinical_datetime,
+										next_department_clinical_datetime,
+
+										prev_department_clinical_rtc_date,
+										next_department_clinical_rtc_date
+									 )
+									',		
+									'select
+										NULL,
+										person_id,
+										encounter_id,
+										encounter_datetime,
+										visit_id,
+										visit_type_id,
+										cur_location_id,
 										program_id,
                                         department_id,
 										visit_start_datetime,
@@ -938,7 +1067,11 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 
 										prev_rtc_date,
 										cur_rtc_date,
+										cur_med_rtc_date,
 										next_rtc_date,
+										scheduled_date,
+										isGeneralAppt,
+										isMedPickupAppt,
 
 										prev_clinical_datetime,
 										next_clinical_datetime,
@@ -980,8 +1113,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 										prev_department_clinical_rtc_date,
 										next_department_clinical_rtc_date
                                         
-									from etl.foo_5
-								);');
+									from etl.final_stage
+								;');
 
                                 PREPARE s1 from @dyn_sql; 
 								EXECUTE s1; 
