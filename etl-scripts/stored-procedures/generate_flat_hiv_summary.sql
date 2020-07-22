@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.20";
+                    set @table_version = "flat_hiv_summary_v2.21";
 
                     set session sort_buffer_size=512000000;
 
@@ -309,6 +309,10 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
+							case
+                               when t1.obs regexp "!!7013=" then 2
+                               else 1
+                            end as enrollment_sort_index,
 
                             t2.orders
                             from etl.flat_obs t1
@@ -335,14 +339,60 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             0 as is_clinical_encounter,
                             1 as encounter_type_sort_index,
+                            1 as enrollment_sort_index,
                             null
                             from etl.flat_lab_obs t1
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                         );
+                        
+                        set @enrollment_date = null;
+						set @prev_id = null;
+                        set @cur_id = null;
+                        
+                        drop  table if exists flat_hiv_summary_enrollment;
+                        create  table flat_hiv_summary_enrollment(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+                        (select *,
+                        @prev_id := @cur_id as prev_id,
+						@cur_id := person_id as cur_id,
+                         CASE
+                                 WHEN
+                                     (@enrollment_date IS NULL
+                                         || (@enrollment_date IS NOT NULL
+                                         AND @prev_id != @cur_id))
+                                         AND obs REGEXP '!!7013='
+                                 THEN
+                                     @enrollment_date:=REPLACE(REPLACE((SUBSTRING_INDEX(SUBSTRING(obs, LOCATE('!!7013=', obs)),
+                                                     @sep,
+                                                     1)),
+                                             '!!7013=',
+                                             ''),
+                                         '!!',
+                                         '')
+                                 WHEN
+                                     obs REGEXP '!!7015='
+                                         AND (@enrollment_date IS NULL
+                                         || (@enrollment_date IS NOT NULL
+                                         AND @prev_id != @cur_id))
+                                 THEN
+                                     @enrollment_date:='1900-01-01'
+                                 WHEN
+                                     encounter_type NOT IN (21 , @lab_encounter_type)
+                                         AND (@enrollment_date IS NULL
+                                         || (@enrollment_date IS NOT NULL
+                                         AND @prev_id != @cur_id))
+                                 THEN
+                                     @enrollment_date:=DATE(encounter_datetime)
+                                 WHEN @prev_id = @cur_id THEN @enrollment_date
+                                 ELSE @enrollment_date:=NULL
+                             END AS enrollment_date
+                        
+                        from flat_hiv_summary_0a
+                        order by person_id, enrollment_sort_index desc, date(encounter_datetime), encounter_type_sort_index desc 
+                        );
 
                         drop temporary table if exists flat_hiv_summary_0;
                         create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
-                        (select * from flat_hiv_summary_0a
+                        (select * from flat_hiv_summary_enrollment
                         order by person_id, date(encounter_datetime), encounter_type_sort_index
                         );
 
@@ -454,40 +504,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             t1.encounter_type,
                             t1.is_transit,
                             t1.is_clinical_encounter,                                                    
-                            CASE
-                                 WHEN
-                                     (@enrollment_date IS NULL
-                                         || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
-                                         AND obs REGEXP '!!7013='
-                                 THEN
-                                     @enrollment_date:=REPLACE(REPLACE((SUBSTRING_INDEX(SUBSTRING(obs, LOCATE('!!7013=', obs)),
-                                                     @sep,
-                                                     1)),
-                                             '!!7013=',
-                                             ''),
-                                         '!!',
-                                         '')
-                                 WHEN
-                                     obs REGEXP '!!7015='
-                                         AND (@enrollment_date IS NULL
-                                         || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
-                                 THEN
-                                     @enrollment_date:='1900-01-01'
-                                 WHEN
-                                     t1.encounter_type NOT IN (21 , @lab_encounter_type)
-                                         AND (@enrollment_date IS NULL
-                                         || (@enrollment_date IS NOT NULL
-                                         AND @prev_id != @cur_id))
-                                 THEN
-                                     @enrollment_date:=DATE(encounter_datetime)
-                                 WHEN @prev_id = @cur_id THEN @enrollment_date
-                                 ELSE @enrollment_date:=NULL
-                             END AS enrollment_date,               
-                             
-                             
-                             
+                            t1.enrollment_date,             
                             CASE
                              WHEN
                                  (@enrollment_location_id IS NULL
@@ -765,7 +782,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
                                     @arv_first_regimen_start_date:='1900-01-01'
-								WHEN @arv_first_regimen_start_date = "1900-01-01" AND obs regexp '!!1633=' AND obs regexp '!!1499=' then 
+								WHEN @arv_first_regimen_start_date = "1900-01-01" AND obs regexp '!!1499=' then 
                                      @arv_first_regimen_start_date := replace(replace((substring_index(substring(obs,locate("!!1499=",obs)),@sep,1)),"!!1499=",""),"!!","")
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
                                 WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
@@ -1893,8 +1910,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                             *,
                             @prev_id := @cur_id as prev_id,
                             @cur_id := t1.person_id as cur_id,
-                                                    
-                            
+
+
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
