@@ -52,6 +52,12 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
     infection_status_this_month INT,
     mother_alive_this_month SMALLINT,
     mother_alive_on_child_enrollment SMALLINT,
+    age INT,
+	active_and_eligible_for_ovc tinyint,
+	inactive_and_eligible_for_ovc tinyint,
+	enrolled_in_ovc_this_month tinyint,
+	ovc_non_enrolment_declined tinyint,
+	ovc_non_enrolment_out_of_catchment_area tinyint,
     PRIMARY KEY elastic_id (elastic_id),
     INDEX person_enc_date (person_id , encounter_date),
     INDEX person_report_date (person_id , endDate),
@@ -76,16 +82,16 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
             if (query_type = "sync") then
 					set @queue_table = "hei_monthly_report_dataset_sync_queue";
 					CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset_sync_queue (
-    person_id INT PRIMARY KEY
-);
-                    
-									SELECT 
-    @last_update:=(SELECT 
-            MAX(date_updated)
-        FROM
-            etl.flat_log
-        WHERE
-            table_name = @table_version);
+						person_id INT PRIMARY KEY
+					);
+
+					SELECT
+						@last_update:=(SELECT
+								MAX(date_updated)
+							FROM
+								etl.flat_log
+							WHERE
+								table_name = @table_version);
 
 					replace into hei_monthly_report_dataset_sync_queue
                     (select distinct person_id from flat_hei_summary where date_created >= @last_update);
@@ -105,6 +111,10 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 			EXECUTE s1; 
 			DEALLOCATE PREPARE s1;  
             
+            SELECT NOW();
+            SELECT @person_ids_count;
+            SELECT @queue_table;
+
             
             SET @dyn_sql=CONCAT('delete t1 from hei_monthly_report_dataset t1 join ',@queue_table,' t2 using (person_id);'); 
 			PREPARE s1 from @dyn_sql; 
@@ -137,15 +147,15 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
                 drop temporary table if exists hei_monthly_report_dataset_0;
 				create temporary table hei_monthly_report_dataset_0
 				(select 
-					concat(date_format(endDate,"%Y%m"),t2.person_id) as elastic_id,
-					endDate,
+					concat(date_format(t1.endDate,"%Y%m"),t2.person_id) as elastic_id,
+					t1.endDate,
                     t2.encounter_id,
                     t2.encounter_type,
 					t2.person_id,
                     t3.uuid as person_uuid,
 					date(birthdate) as birthdate,
                     t3.death_date,
-					round(timestampdiff(month,birthdate,endDate),2) as age_in_months,
+					round(timestampdiff(month,birthdate,t1.endDate),2) as age_in_months,
 					t3.gender,
 					date(t2.encounter_datetime) as encounter_date,
                     t2.location_id,
@@ -154,12 +164,12 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
                     date(t2.date_enrolled) as enrolled_date,
                     t2.rtc_date,
                     case
-						when t2.date_enrolled between date_format(endDate,"%Y-%m-01")  and endDate then 1
+						when t2.date_enrolled between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate then 1
 						else null
 					end as enrolled_this_month,
                     t2.enrollment_location_id,
                     case
-						when t2.transfer_in_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
+						when t2.transfer_in_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate then 1
 						else 0
 					end as transfer_in_this_month,
 					t2.transfer_in_location_id,
@@ -167,31 +177,31 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 
 
 					case
-						when t2.transfer_out_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
+						when t2.transfer_out_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate then 1
 						else 0
 					end as transfer_out_this_month,
 					
 					t2.transfer_out_location_id,
 					t2.transfer_out_date,
                     case
-                        when (t6.hiv_dna_pcr_1_date between date_format(endDate,"%Y-%m-01")  and endDate) then 1
+                        when (t6.hiv_dna_pcr_1_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate) then 1
                         else null
                     end as initial_pcr_this_month,
                     t2.hiv_dna_pcr_date,
                     case
-                        when (t6.hiv_dna_pcr_2_date between date_format(endDate,"%Y-%m-01")  and endDate)  then 1
+                        when (t6.hiv_dna_pcr_2_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate)  then 1
                         else null
                     end as second_pcr_this_month,
                     case
-                        when (t6.hiv_dna_pcr_3_date between date_format(endDate,"%Y-%m-01")  and endDate) then 1
+                        when (t6.hiv_dna_pcr_3_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate) then 1
                         else null
                     end as third_pcr_this_month,
                     case
-                        when (t2.antibody_screen_1_date between date_format(endDate,"%Y-%m-01")  and endDate) then 1
+                        when (t2.antibody_screen_1_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate) then 1
                         else null
                     end as initial_antibody_screening_this_month,
                     case
-                        when (t2.antibody_screen_2_date between date_format(endDate,"%Y-%m-01")  and endDate)  then 1
+                        when (t2.antibody_screen_2_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate)  then 1
                         else null
                     end as second_antibody_screening_this_month,
                     t2.vl_1,
@@ -200,11 +210,11 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 					t2.vl_2_date,
                     t2.patient_care_status,
                     case
-						when date_format(endDate, "%Y-%m-01") > t2.death_date then @retention_status := "dead"
-                        when date_format(endDate, "%Y-%m-01") > t2.transfer_out_date then @retention_status := "transfer_out"
-						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),endDate) <= 28 then @retention_status := "active"
-						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),endDate) between 29 and 90 then @retention_status := "defaulter"
-						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),endDate) > 90 then @retention_status := "ltfu"
+						when date_format(t1.endDate, "%Y-%m-01") > t2.death_date then @retention_status := "dead"
+                        when date_format(t1.endDate, "%Y-%m-01") > t2.transfer_out_date then @retention_status := "transfer_out"
+						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),t1.endDate) <= 28 then @retention_status := "active"
+						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),t1.endDate) between 29 and 90 then @retention_status := "defaulter"
+						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),t1.endDate) > 90 then @retention_status := "ltfu"
 						else @retention_status := "unknown"
 					end as retention_status,
                     t2.hei_outcome as hei_outcome_this_month,
@@ -224,7 +234,41 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
                     
                     end as infection_status_this_month,
                     t2.mother_alive as mother_alive_this_month,
-                    t2.mother_alive_on_child_enrollment as mother_alive_on_child_enrollment
+                    t2.mother_alive_on_child_enrollment as mother_alive_on_child_enrollment,
+                    case
+						when timestampdiff(year,birthdate,t1.endDate) > 0 then @age := round(timestampdiff(year,birthdate,t1.endDate),0)
+						else @age :=round(timestampdiff(month,birthdate,t1.endDate)/12,2)
+					end as age,
+					case
+						when @retention_status="active"
+                            AND @age<=15
+                            then 1
+						else 0
+					end as active_and_eligible_for_ovc,
+
+					case
+						when @retention_status="defaulter" OR @retention_status="ltfu"
+                            AND @age<=15
+                            then  1
+						else 0
+					end as inactive_and_eligible_for_ovc,
+
+                    case when t4.in_ovc_this_month
+						then 1
+                        else 0
+					end  as enrolled_in_ovc_this_month,
+
+					case
+						when t2.ovc_non_enrolment_reason = 1504
+                            then 1
+						else 0
+					end as ovc_non_enrolment_declined,
+
+					case
+						when t2.ovc_non_enrolment_reason = 6834
+                            then 1
+						else 0
+					end as ovc_non_enrolment_out_of_catchment_area
 					
 					from etl.dates t1
 					join etl.flat_hei_summary t2 
@@ -232,14 +276,14 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
                     left join amrs.location t4 on (t4.location_id = t2.person_id)
 					join etl.hei_monthly_report_dataset_build_queue__0 t5 ON (t5.person_id=t2.person_id)
 					left join etl.flat_hei_summary t6 on (t6.person_id = t2.person_id AND t6.next_encounter_datetime_hiv IS NULL)
-                    
+                    left join patient_monthly_enrollment t4 on (t2.person_id = t4.person_id and t1.endDate = t4.endDate)
 
 					where  
 							DATE(t2.encounter_datetime) <= t1.endDate
                             and (t2.next_clinical_datetime_hiv is null or (t2.next_clinical_datetime_hiv > t1.endDate ))
 							and (t2.is_clinical_encounter = 1)
 							and t1.endDate between start_date and date_add(now(),interval 1 month)
-					order by person_id, endDate
+					order by t2.person_id, t1.endDate
 				);
                 
                 
@@ -285,7 +329,7 @@ FROM
     hei_monthly_report_dataset_2;
 	
 				#add data to table
-				replace into hei_monthly_report_dataset											  
+				replace into hei_monthly_report_dataset
 				(select
 					null, #date_created will be automatically set or updated
 					elastic_id,
@@ -328,7 +372,13 @@ FROM
                 infant_feeding_method_this_month,
                 infection_status_this_month,
                 mother_alive_this_month,
-                mother_alive_on_child_enrollment
+                mother_alive_on_child_enrollment,
+                age,
+				active_and_eligible_for_ovc,
+				inactive_and_eligible_for_ovc,
+				enrolled_in_ovc_this_month,
+				ovc_non_enrolment_declined,
+				ovc_non_enrolment_out_of_catchment_area
 					from hei_monthly_report_dataset_2
 				);
                 
