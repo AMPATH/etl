@@ -113,7 +113,7 @@ wait_for_replication_catchup = BashOperator(
 
 update_hiv_summary = MySqlOperator(
     task_id='update_hiv_summary',
-    sql='call generate_hiv_summary_v15_12("sync",1,15000,20);',
+    sql='generate_flat_hiv_summary("sync",1,15000,20);',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
@@ -168,7 +168,7 @@ update_pep_summary = MySqlOperator(
 
 update_appointments = MySqlOperator(
     task_id='update_appointments',
-    sql='call generate_flat_appointment_v1_1("sync",1,15000,20);',
+    sql='call generate_flat_appointment("sync",1,15000,20);',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
