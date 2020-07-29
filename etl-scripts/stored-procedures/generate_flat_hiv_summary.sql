@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.21";
+                    set @table_version = "flat_hiv_summary_v2.22";
 
                     set session sort_buffer_size=512000000;
 
@@ -107,6 +107,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     vl_1_date DATETIME,
     vl_2 INT,
     vl_2_date DATETIME,
+    height INT,
+    weight INT,
     expected_vl_date SMALLINT,
     vl_order_date DATETIME,
     cd4_order_date DATETIME,
@@ -349,8 +351,8 @@ SELECT @person_ids_count AS 'num patients to sync';
 						set @prev_id = null;
                         set @cur_id = null;
                         
-                        drop  table if exists flat_hiv_summary_enrollment;
-                        create  table flat_hiv_summary_enrollment(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+                        drop temporary table if exists flat_hiv_summary_enrollment;
+                        create temporary table flat_hiv_summary_enrollment(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
                         (select *,
                         @prev_id := @cur_id as prev_id,
 						@cur_id := person_id as cur_id,
@@ -458,6 +460,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @vl_2_date=null;
                         set @vl_resulted=null;
                         set @vl_resulted_date=null;
+                        set @height=null;
+                        set @weight=null;
 
                         set @cd4_resulted=null;
                         set @cd4_resulted_date=null;
@@ -1383,6 +1387,16 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         end
                                     else @vl_2_date:=null
                             end as vl_2_date,
+                            case 
+                                when obs regexp "!!5090=" then @height := cast(replace(replace((substring_index(substring(obs,locate("!!5090=",obs)),@sep,1)),"!!5090=",""),"!!","") as decimal(4,1))
+                                when @prev_id = @cur_id then @height
+                                else @height := null
+                            end as height,
+                            case 
+                                when obs regexp "!!5089=" then @weight := cast(replace(replace((substring_index(substring(obs,locate("!!5089=",obs)),@sep,1)),"!!5089=",""),"!!","") as decimal(4,1))
+                                when @prev_id = @cur_id then @weight
+                                else @weight := null
+                            end as weight,
 
                             case
                                 when t1.encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_date_resulted := date(encounter_datetime)
@@ -2087,6 +2101,8 @@ SELECT @total_rows_written;
                         vl_1_date,
                         vl_2,
                         vl_2_date,
+                        height,
+                        weight,
                         expected_vl_date,
                         vl_order_date,
                         cd4_order_date,
