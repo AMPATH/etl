@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.21";
+                    set @table_version = "flat_hiv_summary_v2.22";
 
                     set session sort_buffer_size=512000000;
 
