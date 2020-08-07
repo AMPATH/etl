@@ -1,4 +1,3 @@
-
 DELIMITER $$
 CREATE PROCEDURE `generate_prep_monthly_report_v1_prod`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
 BEGIN
@@ -48,7 +47,7 @@ BEGIN
 		`status` varchar(12) CHARACTER SET utf8 DEFAULT NULL,
 		`active_on_prep_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_defaulter_this_month` int(1) NOT NULL DEFAULT '0',
-		`cumulative_prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
+        `cumulative_prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_discontinued_this_month` int(1) NOT NULL DEFAULT '0',
 		`enrolled_in_prep_this_month` int(1) NOT NULL DEFAULT '0',
@@ -262,7 +261,7 @@ BEGIN
 				ELSE @status:='unknown'
 			END AS status,
 			
-			if( @status = 'active', 1, 0) as active_on_prep_this_month,
+			if( @status = 'active' or @status = 'defaulter', 1, 0) as active_on_prep_this_month,
 			if( @status = 'defaulter', 1, 0) as prep_defaulter_this_month,
 			if( @status = 'ltfu', 1, 0) as cumulative_prep_ltfu_this_month,
 			if( @status = 'ltfu' AND timestampdiff(day,rtc_date, endDate) <= 30, 1, 0) as prep_ltfu_this_month,
