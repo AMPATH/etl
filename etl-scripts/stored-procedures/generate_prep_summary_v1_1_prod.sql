@@ -14,8 +14,6 @@ BEGIN
 					select @sep := " ## ";
 					select @last_date_created := (select max(max_date_created) from etl.flat_obs);
 
-					#drop table if exists flat_prep_summary;
-					#delete from flat_log where table_name="flat_pep_summary";
 					CREATE TABLE IF NOT EXISTS `flat_prep_summary_v1_1` (
 					  `date_created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 					  `prev_id` bigint(20) DEFAULT NULL,
@@ -30,7 +28,7 @@ BEGIN
 					  `enrollment_date` longtext CHARACTER SET utf8,
 					  `prev_discontinued_prep` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
 					  `discontinued_prep` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
-					  `discontinued_prep_date` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+					  `discontinued_prep_date` datetime DEFAULT NULL,
                       `turned_positive` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
 					  `turned_positive_date` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
 					  `enrollment_location_id` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
@@ -176,12 +174,13 @@ BEGIN
                     select @primary_table;
                     select @write_table;
                       
--- 					SET @dyn_sql=CONCAT('delete t1 FROM ',@queue_table,' t1
---                             join amrs.person_attribute t2 using (person_id)
---                             where t2.person_attribute_type_id=28 and value="true" and voided=0');
---                     PREPARE s1 from @dyn_sql; 
---                     EXECUTE s1; 
---                     DEALLOCATE PREPARE s1;  
+                      #delete test patients
+ 					SET @dyn_sql=CONCAT('delete t1 FROM ',@queue_table,' t1
+                             join amrs.person_attribute t2 using (person_id)
+                             where t2.person_attribute_type_id=28 and value="true" and voided=0');
+					PREPARE s1 from @dyn_sql; 
+					EXECUTE s1; 
+					DEALLOCATE PREPARE s1;  
 					
                     SET @dyn_sql=CONCAT('select count(*) as queue_size from ',@queue_table); 
                     PREPARE s1 from @dyn_sql; 
@@ -200,7 +199,12 @@ BEGIN
                     SET @dyn_sql=CONCAT('delete t1 from ',@primary_table, ' t1 join ',@queue_table,' t2 using (person_id);'); 
                     PREPARE s1 from @dyn_sql; 
                     EXECUTE s1; 
-                    DEALLOCATE PREPARE s1;  
+                    DEALLOCATE PREPARE s1; 
+                    
+                    SET @dyn_sql=CONCAT('delete t1 from etl.prep_weekly_report_dataset_v1_1 t1 join ',@queue_table,' t2 using (person_id);'); 
+                    PREPARE s1 from @dyn_sql; 
+                    EXECUTE s1; 
+                    DEALLOCATE PREPARE s1;
 
                     set @total_time=0;
                     set @cycle_number = 0;
@@ -335,6 +339,7 @@ BEGIN
                              
                              CASE
 								WHEN  obs REGEXP '!!9772=6102' then @discontinued_prep := 1
+                                WHEN t1.encounter_type = 157 then @discontinued_prep := 1
 								WHEN  obs REGEXP '!!9772=' then @discontinued_prep := null
                                 WHEN @prev_id = @cur_id then @discontinued_prep
                                 ELSE @discontinued_prep := null
@@ -343,7 +348,7 @@ BEGIN
                             case
 								when @discontinued_prep = 1 and  @prev_discontinued_prep is null  then @discontinued_prep_date := date(encounter_datetime)
                                 when @discontinued_prep is null and  @prev_discontinued_prep = 1 then @discontinued_prep_date := null
-                                when @prev_id = @cur_id then date(@discontinued_prep_date)
+                                when @prev_id = @cur_id then @discontinued_prep_date
                                 else @discontinued_prep_date := null
 							end as discontinued_prep_date,
                             case
@@ -490,14 +495,11 @@ BEGIN
 								when @population_type = 4 and @prev_id = @cur_id  then @key_population_type
 								else @key_population_type := null
 							end as key_population_type
-                          
+							
 
 						from flat_prep_summary_0 t1
 							join amrs.person p using (person_id)
 						);
-                        
-                        
-						-- select * from flat_prep_summary_1 order by person_id, encounter_datetime;
 						
                         replace into flat_prep_summary_v1_1
 						(select
@@ -544,36 +546,36 @@ BEGIN
                          index(location_id, week), 
                          index(encounter_datetime))
 						(SELECT
-						   concat(week, person_id) as elastic_id,
-							location_id,
-							person_id, 
-							uuid AS person_uuid,
-							DATE(birthdate) AS birthdate,
-							death_date,
+						   concat(week, t1.person_id, week) as elastic_id,
+							t1.location_id,
+							t1.person_id, 
+							t1.uuid AS person_uuid,
+							DATE(t1.birthdate) AS birthdate,
+							t1.death_date,
 							CASE
 								WHEN
-									TIMESTAMPDIFF(YEAR, birthdate, end_date) > 0
+									TIMESTAMPDIFF(YEAR, t1.birthdate, end_date) > 0
 								THEN
-									@age:=ROUND(TIMESTAMPDIFF(YEAR, birthdate, end_date),
+									@age:=ROUND(TIMESTAMPDIFF(YEAR, t1.birthdate, end_date),
 											0)
 								ELSE @age:=ROUND(TIMESTAMPDIFF(MONTH,
-											birthdate,
+											t1.birthdate,
 											end_date) / 12,
 										2)
 							END AS age,
-							gender,
-							encounter_id, 
-							encounter_datetime,
-                            @encounter_week := yearweek(encounter_datetime) as encounter_week,
-							week,
-							prev_rtc_date,
-                            @prev_rtc_week := yearweek(prev_rtc_date) as prev_rtc_week,
-							rtc_date,
-                            TIMESTAMPDIFF(DAY, rtc_date, end_date) AS days_since_rtc_date,
-							@rtc_week := yearweek(rtc_date) as rtc_week,
-                            cur_prep_meds_names,
-                            first_prep_regimen,
-                            prep_start_date,
+							t1.gender,
+							t1.encounter_id, 
+							t1.encounter_datetime,
+                            @encounter_week := yearweek(t1.encounter_datetime) as encounter_week,
+							t1.week,
+							t1.prev_rtc_date,
+                            @prev_rtc_week := yearweek(t1.prev_rtc_date) as prev_rtc_week,
+							t1.rtc_date,
+                            TIMESTAMPDIFF(DAY, t1.rtc_date, end_date) AS days_since_rtc_date,
+							@rtc_week := yearweek(t1.rtc_date) as rtc_week,
+                            t1.cur_prep_meds_names,
+                            t1.first_prep_regimen,
+                            t1.prep_start_date,
                             
                             CASE
 								WHEN @encounter_week = week THEN @visit_this_week := 1
@@ -605,10 +607,10 @@ BEGIN
 							 
 							 CASE
 								WHEN 
-									DATE(start_date) > DATE(death_date) 
+									DATE(start_date) > DATE(t1.death_date) 
 								THEN @status:='dead'
 								WHEN 
-								 	week >= yearweek(discontinued_prep_date) 
+									(week >= yearweek(t1.discontinued_prep_date) or week >= yearweek(te.discontinued_prep_date)) 
 									THEN 
 								    @status:='discontinued'
 								WHEN
@@ -629,16 +631,18 @@ BEGIN
                             if( @status = 'active', 1, 0) as active_on_prep_this_week,
                             if( @status = 'defaulter', 1, 0) as prep_defaulter_this_week,
 							if( @status = 'ltfu', 1, 0) as prep_ltfu_this_week,
-                            if( @status = 'discontinued', 1, 0) as prep_discontinued_this_week,
+                            if( @status = 'discontinued' and yearweek(te.discontinued_prep_date) = week, 1, 0) as prep_discontinued_this_week,
                             
-							if(yearweek(enrollment_date) = week, 1, 0) as enrolled_in_prep_this_week,
-							if(yearweek(discontinued_prep_date) = week, 1, 0) as discontinued_from_prep_this_week,
-                            case when yearweek(turned_positive_date) = week then @turned_positive_this_week = 1
+							if(yearweek(t1.enrollment_date) = week, 1, 0) as enrolled_in_prep_this_week,
+							if(yearweek(t1.discontinued_prep_date) = week, 1, 0) as discontinued_from_prep_this_week,
+                            case when yearweek(t1.turned_positive_date) = week then @turned_positive_this_week = 1
                             else @turned_positive_this_week = 0  end as turned_positive_this_week,
                             if((@turned_positive_this_week = 1 and @status = 'discontinued'), 1, 0) as prev_on_prep_and_turned_positive
                             
                             from 
-                            patient_week_encounters
+                            patient_week_encounters t1
+							left join etl.flat_prep_summary_v1_1 te on (te.person_id = t1.person_id and te.encounter_type = 157 and te.encounter_datetime > t1.encounter_datetime)
+                            group by person_id,week
 						 );
                          
                          replace into prep_weekly_report_dataset_v1_1
