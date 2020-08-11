@@ -3,7 +3,7 @@ CREATE PROCEDURE `generate_prep_summary_v1_1_prod`(IN query_type varchar(50), IN
 BEGIN
 
 					select @start := now();
-					select @table_version := "flat_prep_summary_v1_1";
+					select @table_version := "flat_prep_summary_v1_10";
                     set @primary_table := "flat_prep_summary_v1_1";
                     set @query_type = query_type;
                     
@@ -25,6 +25,8 @@ BEGIN
 					  `encounter_datetime` datetime DEFAULT NULL,
 					  `encounter_type` int(11) DEFAULT NULL,
 					  `is_prep_clinical_encounter` int(0) DEFAULT NULL,
+                      `prev_encounter_datetime` datetime DEFAULT NULL,
+                      `next_encounter_datetime` datetime DEFAULT NULL,
 					  `enrollment_date` longtext CHARACTER SET utf8,
 					  `prev_discontinued_prep` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
 					  `discontinued_prep` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
@@ -289,15 +291,50 @@ BEGIN
                         from flat_prep_summary_0a t1
 						order by person_id, encounter_type_sort_index desc, encounter_datetime 
 						);
+                        
+						alter table flat_prep_summary_00 drop cur_id, drop prev_id;
 
-						drop temporary table if exists flat_prep_summary_0;
-						create temporary table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
-						(select * from flat_prep_summary_00
+						set @cur_id := -1 ;
+						set @prev_id  := -1 ;
+						set @cur_enc_date := null;
+                        drop temporary table if exists flat_prep_summary_prev_enc;
+                        create temporary table flat_prep_summary_prev_enc(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+                        (select *,
+						   @prev_id := @cur_id as prev_id,
+						   @cur_id := person_id as cur_id,
+						   case 
+								when @prev_id = @cur_id then @cur_enc_date
+								else null  		
+							end as prev_encounter_date,
+						   @cur_enc_date := encounter_datetime as cur_enc_date
+							FROM etl.flat_prep_summary_00 ORDER BY person_id , encounter_datetime ASC);
+                            
+						alter table flat_prep_summary_prev_enc drop cur_id, drop prev_id, drop cur_enc_date;
+						
+                        set @cur_id := -1 ;
+						set @prev_id  := -1 ;
+						set @cur_enc_date := null;
+						drop temporary table if exists flat_prep_summary_next_enc;
+                        create temporary table flat_prep_summary_next_enc(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+                        (select *,
+                        @prev_id := @cur_id as prev_id,
+						@cur_id := person_id as cur_id,
+							case 
+								when @prev_id = @cur_id then @cur_enc_date
+								else null  		
+							end as next_encounter_date,
+                            @cur_enc_date := encounter_datetime as cur_enc_date
+                            FROM etl.flat_prep_summary_prev_enc ORDER BY person_id , encounter_datetime DESC);
+                        
+                        alter table flat_prep_summary_next_enc drop cur_id, drop prev_id, drop cur_enc_date;
+
+						drop table if exists flat_prep_summary_0;
+						create table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+						(select * from flat_prep_summary_next_enc
 						order by person_id, encounter_datetime, 
                         encounter_type_sort_index
 						);
-
-
+                        
 						select @prev_id := -1;
 						select @cur_id := -1;
 						select @enrollment_date := null;
@@ -330,6 +367,8 @@ BEGIN
 							t1.encounter_datetime,
 							t1.encounter_type,
                             is_prep_clinical_encounter,
+                            prev_encounter_date as prev_encounter_datetime,
+                            next_encounter_date as next_encounter_datetime,
                             t1.enrollment_date,
                              
 							case 
