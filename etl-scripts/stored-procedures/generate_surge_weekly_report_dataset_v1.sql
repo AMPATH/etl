@@ -7,7 +7,7 @@ BEGIN
 
             set @total_rows_written = 0;
   			set @start = now();
-  			set @table_version = "surge_weekly_report_dataset";
+  			set @table_version = "surge_weekly_report_dataset_v10";
 
             set @last_update = null;
   			set @last_date_created = (select max(max_date_created) from etl.flat_obs);
@@ -385,21 +385,17 @@ while @person_ids_count > 0 do
                 t1.encounter_id, 
                 encounter_datetime,
                 CASE
-                    WHEN @prev_id != @cur_id and height is not null and weight is not null THEN @height := height 
-                    WHEN @prev_id = @cur_id and (weight is null or weight is not null) and height is null THEN @height
-                    WHEN @prev_id = @cur_id and (height is null or height is not null) and weight is null THEN @height
-                    WHEN @prev_id = @cur_id and height is not null and weight is not null THEN @height := height
-                    WHEN @prev_id = @cur_id and @height  and height  THEN @height := height
-					ELSE @height := null 
-                END AS height,
+					WHEN @prev_id != @cur_id  THEN @height := height 
+					WHEN @prev_id = @cur_id and @height is null and height is not null THEN @height := height
+					WHEN @prev_id = @cur_id and @height  and height  THEN @height := height 
+					ELSE @height
+				END AS height,
                 
-                CASE
-                    WHEN @prev_id != @cur_id and height is not null and weight is not null THEN @weight := weight 
-                    WHEN @prev_id = @cur_id and (weight is null or weight is not null) and height is null THEN @weight
-                    WHEN @prev_id = @cur_id and (height is null or height is not null) and weight is null THEN @weight
-                    WHEN @prev_id = @cur_id and height is not null and weight is not null THEN @weight := weight
+               CASE
+                    WHEN @prev_id != @cur_id  THEN @weight := weight 
+                    WHEN @prev_id = @cur_id and @weight is null and weight is not null THEN @weight := weight	
                     WHEN @prev_id = @cur_id and @weight  and weight  THEN @weight := weight
-                    ELSE @weight := null
+                    ELSE @weight
                END AS weight,
                (@weight / (@height * @height) * 10000) as bmi
                 
@@ -1392,56 +1388,43 @@ while @person_ids_count > 0 do
                     1,
                     0) AS tx2_unscheduled_this_week,
 			 CASE  
-				WHEN days_since_last_vl > 365
-						or vl_2_date IS NULL
-						OR months_since_tb_tx_start_date < 6
-						or months_since_ipt_completion_date < 6
-						or TIMESTAMPDIFF(MONTH,vl_1_date,end_date) > 12
-						or @bmi < 18.5
-						or age < 20
-						or @cur_status = 'ltfu'
-						or days_since_starting_arvs < 364
-						or vl_1 >= 400
+				WHEN months_since_tb_tx_start_date < 6
+					or DATE(prev_rtc_date) != DATE(encounter_datetime) 
+					or @bmi < 18.5 
+					or age < 20
+					or @cur_status != 'active' 
+					or TIMESTAMPDIFF(MONTH,arv_first_regimen_start_date,end_date) < 12
+					or vl_1 > 400 
 					THEN @not_elligible_for_dc := 1
 						ELSE
 					@not_elligible_for_dc := 0
 				END AS not_elligible_for_dc,   
                     
-                CASE    
-                    WHEN days_since_last_vl <= 365
-                        AND vl_2_date IS NOT NULL
-                            AND (months_since_tb_tx_start_date IS NULL
+				CASE    
+                    WHEN (months_since_tb_tx_start_date IS NULL
                             OR months_since_tb_tx_start_date >= 6)
-                            AND months_since_ipt_completion_date >= 6
-                            AND TIMESTAMPDIFF(MONTH,vl_1_date,end_date) <= 12
-							AND on_dc_this_week = 1
-                            AND DATE(prev_rtc_date) = DATE(encounter_datetime)
-                            AND @bmi >= 18.5
+                            AND on_dc_this_week = 1 
+                            AND DATE(prev_rtc_date) = DATE(encounter_datetime) 
+                            AND @bmi >= 18.5 
                             AND age >= 20
-                            AND @cur_status = 'active'
-                            AND days_since_starting_arvs > 364
-                            AND vl_1 >= 0
-                            AND vl_1 <= 400 
+                            AND @cur_status = 'active' 
+                            AND TIMESTAMPDIFF(MONTH,arv_first_regimen_start_date,end_date) >= 12
+                            AND vl_1 < 401  
                         THEN @eligible_and_on_dc := 1
                             ELSE
                         @eligible_and_on_dc := 0
-                    END AS eligible_and_on_dc,
+                END AS eligible_and_on_dc,   
                     
-					CASE    
-                    WHEN days_since_last_vl <= 365
-                        AND vl_2_date IS NOT NULL
-                            AND (months_since_tb_tx_start_date IS NULL
+				CASE    
+                    WHEN (months_since_tb_tx_start_date IS NULL
                             OR months_since_tb_tx_start_date >= 6)
-                            AND months_since_ipt_completion_date >= 6
-                            AND TIMESTAMPDIFF(MONTH,vl_1_date,end_date) <= 12
-                            AND (cur_program is null or cur_program not in (3,4,9))
-                            AND DATE(prev_rtc_date) = DATE(encounter_datetime)
-                            AND @bmi >= 18.5
+                            AND (cur_program is null or cur_program not in (3,4,9)) 
+                            AND DATE(prev_rtc_date) = DATE(encounter_datetime) 
+                            AND @bmi >= 18.5 
                             AND age >= 20
-                            AND @cur_status = 'active'
-                            AND days_since_starting_arvs > 364
-                            AND vl_1 >= 0
-                            AND vl_1 <= 400 
+                            AND @cur_status = 'active' 
+                            AND TIMESTAMPDIFF(MONTH,arv_first_regimen_start_date,end_date) >= 12
+                            AND vl_1 < 401 
                         THEN @eligible_not_on_dc := 1
                             ELSE
                         @eligible_not_on_dc := 0
@@ -1464,23 +1447,7 @@ while @person_ids_count > 0 do
                 @previous_dc_eligibility := @dc_eligible_cumulative 
                 END as previous_dc_eligibility,
                 
-                CASE 
-                WHEN days_since_last_vl <= 365
-                        AND vl_2_date IS NOT NULL
-                        AND (months_since_tb_tx_start_date IS NULL
-                        OR months_since_tb_tx_start_date >= 6)
-                        AND on_dc_this_week != 1
-                        AND (is_pregnant = 0 OR is_pregnant IS NULL)
-                        AND @bmi >= 18.5
-                        AND age >= 20
-                        AND @cur_status = 'active'
-                        AND days_since_starting_arvs >= 364
-                        AND vl_1 >= 0
-                        AND vl_1 <= 400 
-                    THEN @dc_eligible_cumulative := 1
-                        ELSE
-                    @dc_eligible_cumulative := 0
-                    END AS dc_eligible_cumulative,
+                null AS dc_eligible_cumulative,
                     
                 IF(@prev_id = @cur_id AND (@previous_dc_eligibility = 0 OR @previous_dc_eligibility = null) AND @dc_eligible_cumulative = 1, 1, 0 ) as dc_eligible_this_week,
                 
