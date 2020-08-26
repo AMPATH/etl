@@ -385,19 +385,19 @@ while @person_ids_count > 0 do
                 t1.encounter_id, 
                 encounter_datetime,
                 CASE
-					WHEN @prev_id != @cur_id  THEN @height := height 
-					WHEN @prev_id = @cur_id and @height is null and height is not null THEN @height := height
-					WHEN @prev_id = @cur_id and @height  and height  THEN @height := height 
-					ELSE @height
-				END AS height,
-                
-               CASE
+                    WHEN @prev_id != @cur_id  THEN @height := height 
+                    WHEN @prev_id = @cur_id and @height is null and height is not null THEN @height := height
+                    WHEN @prev_id = @cur_id and @height  and height  THEN @height := height
+                    ELSE @height 
+                END AS height,
+
+                CASE
                     WHEN @prev_id != @cur_id  THEN @weight := weight 
-                    WHEN @prev_id = @cur_id and @weight is null and weight is not null THEN @weight := weight	
+                    WHEN @prev_id = @cur_id and @weight is null and weight is not null THEN @weight := weight
                     WHEN @prev_id = @cur_id and @weight  and weight  THEN @weight := weight
-                    ELSE @weight
-               END AS weight,
-               (@weight / (@height * @height) * 10000) as bmi
+                    ELSE @weight 
+                END AS weight,
+                (@weight / (@height * @height) * 10000) as bmi
                 
                 from 
                 (select encounter_id, height,weight,encounter_datetime,tv.person_id from  etl.flat_vitals tv 
@@ -553,7 +553,7 @@ while @person_ids_count > 0 do
                 cd4_1_date,
                 NULL AS child_hiv_status_disclosure_status,
                 CASE
-                    WHEN YEARWEEK(transfer_in_date) = t1.week THEN 1
+                    WHEN YEARWEEK(transfer_in_date) = t1.week and transfer_in = 1 THEN 1
                     ELSE 0
                 END AS transfer_in_this_week,
                 transfer_in_location_id,
@@ -839,7 +839,7 @@ while @person_ids_count > 0 do
                         AND (t4.program_id = 3 OR t4.program_id = 9),
                     1,
                     0) AS started_dc_this_week,
-                IF(t4.program_id = 3 OR t4.program_id = 9, 1, 0) AS active_on_dc,
+                IF(t4.program_id = 3 OR t4.program_id = 9 AND @status = 'active' , 1, 0) AS active_on_dc,
                 IF(t4.program_id = 3 OR t4.program_id = 9,
                     1,
                     0) AS on_dc_this_week,
