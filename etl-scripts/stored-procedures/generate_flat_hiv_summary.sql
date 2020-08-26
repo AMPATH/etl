@@ -1741,6 +1741,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @prev_visit_id = null;
                         set @cur_visit_id = null;
 
+                        
                         drop table if exists flat_hiv_summary_2;
                         create temporary table flat_hiv_summary_2
                         (select *,
@@ -2005,7 +2006,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @cur_id = @prev_id then @transfer_in_location_id
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
-
 
                             case
                                     when obs regexp "!!1285=!!" then @transfer_out := 1
