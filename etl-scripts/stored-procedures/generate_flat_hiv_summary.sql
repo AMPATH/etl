@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.24";
+                    set @table_version = "flat_hiv_summary_v2.25";
 
                     set session sort_buffer_size=512000000;
 
@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     enrollment_location_id INT,
     ovc_non_enrollment_reason INT,
     ovc_non_enrollment_date DATETIME,
+    ovc_exit_reason INT,
+    ovc_exit_date DATETIME,
     hiv_start_date DATETIME,
     death_date DATETIME,
     scheduled_visit INT,
@@ -307,7 +309,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214) then 10
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,220) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -321,7 +323,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
 								left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214)
+                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,220)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -406,6 +408,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @enrollment_date = null;
                         set @ovc_non_enrollment_reason = null;
                         set @ovc_non_enrollment_date = null;
+                        set @ovc_exit_reason = null;
+                        set @ovc_exit_date = null;
                         set @hiv_start_date = null;
                         set @cur_location = null;
                         set @cur_rtc_date = null;
@@ -541,13 +545,28 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when @prev_id = @cur_id then @ovc_non_enrollment_reason
                             else @ovc_non_enrollment_reason := null
                         end as ovc_non_enrollment_reason,
-                         case
+
+                        case
                             when  t1.encounter_type = 214  then @ovc_non_enrollment_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_non_enrollment_date
                             else null
                         end as ovc_non_enrollment_date,
 
-                            
+                        case 
+                            when obs regexp "!!1596=8204" then @ovc_exit_reason := 8204
+                            when obs regexp "!!1596=11292" then @ovc_exit_reason := 11292  
+                            when obs regexp "!!1596=10119" then @ovc_exit_reason := 10119
+                            when obs regexp "!!1596=8640" then @ovc_exit_reason := 8640                                                 
+                            when @prev_id = @cur_id then @ovc_exit_reason
+                            else @ovc_exit_reason := null
+                        end as ovc_exit_reason,
+
+                        case
+                            when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
+                            when @prev_id = @cur_id then @ovc_exit_date
+                            else null
+                        end as ovc_exit_date,
+
                             
                             if(obs regexp "!!1839="
                                 ,replace(replace((substring_index(substring(obs,locate("!!1839=",obs)),@sep,1)),"!!1839=",""),"!!","")
@@ -1673,9 +1692,9 @@ SELECT @person_ids_count AS 'num patients to sync';
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
                         );
-   
-                    alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
                         
+						alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
+
                         set @prev_id = -1;
                         set @cur_id = -1;
                         set @prev_clinical_location_id = null;
@@ -1721,7 +1740,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                         
                         set @prev_visit_id = null;
                         set @cur_visit_id = null;
-
 
                         drop table if exists flat_hiv_summary_2;
                         create temporary table flat_hiv_summary_2
@@ -1989,7 +2007,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end transfer_in_location_id,
 
 
-
                             case
                                     when obs regexp "!!1285=!!" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
@@ -2052,7 +2069,9 @@ SELECT @total_rows_written;
                         enrollment_date,                        
                         enrollment_location_id,
                         ovc_non_enrollment_reason,
-                        ovc_non_enrollment_date,                                      
+                        ovc_non_enrollment_date,
+                        ovc_exit_reason,
+                        ovc_exit_date,                                     
                         hiv_start_date,
                         death_date,
                         scheduled_visit,                        
@@ -2187,7 +2206,7 @@ SELECT @total_rows_written;
                     set @total_time = @total_time + @cycle_length;
                     set @cycle_number = @cycle_number + 1;
                     
-	
+                    
                     set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
                     
 
@@ -2258,5 +2277,5 @@ SELECT
             TIMESTAMPDIFF(MINUTE, @start, @end),
             ' minutes');
 
-        END$$
+    END$$
 DELIMITER ;

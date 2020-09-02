@@ -140,6 +140,8 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				enrolled_in_ovc_this_month tinyint,
 				ovc_non_enrolment_declined tinyint,
 				ovc_non_enrolment_out_of_catchment_area tinyint,
+				newly_exited_from_ovc_this_month tinyint,
+				exited_from_ovc_this_month tinyint,
                                 
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
@@ -708,8 +710,17 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when t2.ovc_non_enrollment_reason = 6834
                             then 1
 						else 0
-					end as ovc_non_enrolment_out_of_catchment_area
+					end as ovc_non_enrolment_out_of_catchment_area,
 
+					case
+                        when (t2.ovc_exit_date is not null and t2.ovc_exit_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate)  then 1
+                        else 0
+                    end as newly_exited_from_ovc_this_month,
+
+					case
+                        when t2.ovc_exit_date is not null then 1
+                        else 0
+                    end as exited_from_ovc_this_month
 					
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
@@ -978,7 +989,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				inactive_and_eligible_for_ovc,
 				enrolled_in_ovc_this_month,
 				ovc_non_enrolment_declined,
-				ovc_non_enrolment_out_of_catchment_area
+				ovc_non_enrolment_out_of_catchment_area,
+				newly_exited_from_ovc_this_month,
+				exited_from_ovc_this_month
 					from hiv_monthly_report_dataset_2 t1
                     join amrs.location t2 on (t2.location_id = t1.cur_location_id)
 				);

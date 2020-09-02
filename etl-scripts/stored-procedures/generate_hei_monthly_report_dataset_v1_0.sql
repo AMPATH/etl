@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 	enrolled_in_ovc_this_month tinyint,
 	ovc_non_enrolment_declined tinyint,
 	ovc_non_enrolment_out_of_catchment_area tinyint,
+	newly_exited_from_ovc_this_month tinyint,
+	exited_from_ovc_this_month tinyint,
     PRIMARY KEY elastic_id (elastic_id),
     INDEX person_enc_date (person_id , encounter_date),
     INDEX person_report_date (person_id , endDate),
@@ -268,7 +270,17 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 						when t2.ovc_non_enrolment_reason = 6834
                             then 1
 						else 0
-					end as ovc_non_enrolment_out_of_catchment_area
+					end as ovc_non_enrolment_out_of_catchment_area,
+
+					case
+                        when (t2.ovc_exit_date is not null and t2.ovc_exit_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate)  then 1
+                        else 0
+                    end as newly_exited_from_ovc_this_month,
+
+					case
+                        when t2.ovc_exit_date is not null then 1
+                        else 0
+                    end as exited_from_ovc_this_month
 					
 					from etl.dates t1
 					join etl.flat_hei_summary t2 
@@ -378,7 +390,9 @@ FROM
 				inactive_and_eligible_for_ovc,
 				enrolled_in_ovc_this_month,
 				ovc_non_enrolment_declined,
-				ovc_non_enrolment_out_of_catchment_area
+				ovc_non_enrolment_out_of_catchment_area,
+				newly_exited_from_ovc_this_month,
+				exited_from_ovc_this_month
 					from hei_monthly_report_dataset_2
 				);
                 
