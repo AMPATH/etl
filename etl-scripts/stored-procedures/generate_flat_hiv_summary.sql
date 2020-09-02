@@ -1766,21 +1766,19 @@ SELECT @person_ids_count AS 'num patients to sync';
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
                         );
-                        
-						alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
+   
+                    alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
 
                         set @prev_id = -1;
                         set @cur_id = -1;
                         set @prev_clinical_location_id = null;
                         set @cur_clinical_location_id = null;
 
-
                         drop table if exists flat_hiv_summary_02;
                         create temporary table flat_hiv_summary_02
                         (select *,
                             @prev_id := @cur_id as prev_id,
                             @cur_id := person_id as cur_id,
-
 
                             case
                                 when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
@@ -2102,6 +2100,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
                                 when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
                                 when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
+                                when @cur_id = @prev_id then @transfer_out_date
                                 else @transfer_out_date := null
                             end transfer_out_date
 
@@ -2289,7 +2288,7 @@ SELECT @total_rows_written;
                     set @total_time = @total_time + @cycle_length;
                     set @cycle_number = @cycle_number + 1;
                     
-                    
+	
                     set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
                     
 

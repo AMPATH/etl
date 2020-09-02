@@ -390,6 +390,7 @@ while @person_ids_count > 0 do
                     WHEN @prev_id = @cur_id and @height  and height  THEN @height := height
                     ELSE @height 
                 END AS height,
+
                 CASE
                     WHEN @prev_id != @cur_id  THEN @weight := weight 
                     WHEN @prev_id = @cur_id and @weight is null and weight is not null THEN @weight := weight
