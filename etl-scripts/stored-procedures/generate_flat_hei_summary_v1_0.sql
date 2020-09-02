@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS flat_hei_summary (
     enrollment_location_id INT,
     ovc_non_enrolment_reason INT,
     ovc_non_enrolment_date DATETIME,
+    ovc_exit_reason INT,
+    ovc_exit_date DATETIME,
     transfer_in TINYINT,
     transfer_in_location_id INT,
     transfer_in_date DATETIME,
@@ -193,7 +195,7 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (3,4,9,114,115,214) then 10
+                                when t1.encounter_type in (3,4,9,114,115,214,220) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -204,7 +206,7 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
                                 join amrs.location l using (location_id)
                                 left join etl.flat_orders t2 using(encounter_id)
                                 left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (21,67,110,114,115,168,186,214)
+                            where t1.encounter_type in (21,67,110,114,115,168,186,214,220)
                             AND  (v.visit_type_id IS NULL OR v.visit_type_id IN (25,33,47,53))
                             AND NOT obs regexp "!!5303=703!!"
                         );
@@ -389,6 +391,21 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
                             when @prev_id = @cur_id then @ovc_non_enrolment_date
                             else null
                         end as ovc_non_enrolment_date,
+
+                        case 
+                            when obs regexp "!!1596=8204" then @ovc_exit_reason := 8204
+                            when obs regexp "!!1596=11292" then @ovc_exit_reason := 11292  
+                            when obs regexp "!!1596=10119" then @ovc_exit_reason := 10119
+                            when obs regexp "!!1596=8640" then @ovc_exit_reason := 8640                                                 
+                            when @prev_id = @cur_id then @ovc_exit_reason
+                            else @ovc_exit_reason := null
+                        end as ovc_exit_reason,
+
+                        case
+                            when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
+                            when @prev_id = @cur_id then @ovc_exit_date
+                            else null
+                        end as ovc_exit_date,
 
                              case
                                 when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
@@ -954,6 +971,8 @@ SELECT @total_rows_written;
                         enrollment_location_id,
                         ovc_non_enrolment_reason,
                         ovc_non_enrolment_date,
+                        ovc_exit_reason,
+                        ovc_exit_date,
                         transfer_in,
                         transfer_in_location_id,
                         transfer_in_date,
