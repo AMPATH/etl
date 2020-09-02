@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.22";
+                    set @table_version = "flat_hiv_summary_v2.24";
 
                     set session sort_buffer_size=512000000;
 
@@ -242,7 +242,7 @@ WHERE
                             where t2.person_attribute_type_id=28 and value="true" and voided=0');
                     PREPARE s1 from @dyn_sql; 
                     EXECUTE s1; 
-                    DEALLOCATE PREPARE s1;  
+                    DEALLOCATE PREPARE s1;
 
                     SET @person_ids_count = 0;
                     SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table); 
@@ -1673,7 +1673,36 @@ SELECT @person_ids_count AS 'num patients to sync';
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
                         );
+   
+                    alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
                         
+                        set @prev_id = -1;
+                        set @cur_id = -1;
+                        set @prev_clinical_location_id = null;
+                        set @cur_clinical_location_id = null;
+
+                        drop table if exists flat_hiv_summary_02;
+                        create temporary table flat_hiv_summary_02
+                        (select *,
+                            @prev_id := @cur_id as prev_id,
+                            @cur_id := person_id as cur_id,
+
+                            case
+                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
+                                else @prev_clinical_location_id := null
+                            end as next_clinical_location_id,
+
+                            case
+                                when is_clinical_encounter then @cur_clinical_location_id := location_id
+                                when @prev_id = @cur_id then @cur_clinical_location_id
+                                else @cur_clinical_location_id := null
+                            end as cur_clinic_location_id
+
+                            from flat_hiv_summary_1
+                            order by person_id, encounter_datetime desc
+						);
+
+                        alter table flat_hiv_summary_02 drop prev_id, drop cur_id;
                 
 
                         set @prev_id = -1;
@@ -1686,9 +1715,6 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                         set @next_encounter_type = null;
                         set @cur_encounter_type = null;
-
-                        set @prev_clinical_location_id = null;
-                        set @cur_clinical_location_id = null;
                         
                         set @prev_visit_type = null;
                         set @cur_visit_type = null;
@@ -1696,8 +1722,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @prev_visit_id = null;
                         set @cur_visit_id = null;
 
-
-                        alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
 
                         drop table if exists flat_hiv_summary_2;
                         create temporary table flat_hiv_summary_2
@@ -1725,21 +1749,10 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as next_clinical_datetime_hiv,
 
                             case
-                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
-                                else @prev_clinical_location_id := null
-                            end as next_clinical_location_id,
-
-                            case
                                 when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
                                 when @prev_id = @cur_id then @cur_clinical_datetime
                                 else @cur_clinical_datetime := null
                             end as cur_clinic_datetime,
-
-                            case
-                                when is_clinical_encounter then @cur_clinical_location_id := location_id
-                                when @prev_id = @cur_id then @cur_clinical_location_id
-                                else @cur_clinical_location_id := null
-                            end as cur_clinic_location_id,
 
                             case
                                 when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
@@ -1818,12 +1831,42 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @transfer_transfer_out_bncd
                             end as next_transfer_transfer_out_bncd
 
-                            from flat_hiv_summary_1
+                            from flat_hiv_summary_02
                             order by person_id, date(encounter_datetime) desc, encounter_type_sort_index desc
                         );
 
                         alter table flat_hiv_summary_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime, drop cur_clinical_rtc_date;
 
+						set @prev_id = -1;
+                        set @cur_id = -1;
+                        set @prev_clinical_location_id = null;
+                        set @cur_clinical_location_id = null;
+
+                        drop temporary table if exists flat_hiv_summary_03;
+                        create temporary table flat_hiv_summary_03 (index person_enc (person_id, encounter_datetime desc))
+                        (select
+                            *,
+                            @prev_id := @cur_id as prev_id,
+                            @cur_id := t1.person_id as cur_id,
+
+                            case
+                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
+                                else @prev_clinical_location_id := null
+                            end as prev_clinical_location_id,
+
+
+                            case
+                                when is_clinical_encounter then @cur_clinical_location_id := location_id
+                                when @prev_id = @cur_id then @cur_clinical_location_id
+                                else @cur_clinical_location_id := null
+                            end as cur_clinical_location_id
+
+
+                            from flat_hiv_summary_2 t1
+                            order by person_id, encounter_datetime asc
+                        );
+
+                        alter table flat_hiv_summary_03 drop prev_id, drop cur_id;
 
                         set @prev_id = -1;
                         set @cur_id = -1;
@@ -1833,8 +1876,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @cur_encounter_datetime = null;
                         set @prev_clinical_datetime = null;
                         set @cur_clinical_datetime = null;
-                        set @prev_clinical_location_id = null;
-                        set @cur_clinical_location_id = null;
 
                         drop temporary table if exists flat_hiv_summary_3;
                         create temporary table flat_hiv_summary_3 (prev_encounter_datetime datetime, prev_encounter_type int, index person_enc (person_id, encounter_datetime desc))
@@ -1868,18 +1909,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @cur_clinical_datetime := null
                             end as cur_clinical_datetime,
 */
-
-                            case
-                                when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
-                                else @prev_clinical_location_id := null
-                            end as prev_clinical_location_id,
-
-
-                            case
-                                when is_clinical_encounter then @cur_clinical_location_id := location_id
-                                when @prev_id = @cur_id then @cur_clinical_location_id
-                                else @cur_clinical_location_id := null
-                            end as cur_clinical_location_id,
                             
                             case
                                 when @prev_id = @cur_id then @prev_visit_id := @cur_visit_id
@@ -1914,7 +1943,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @cur_clinical_rtc_date:= null
                             end as cur_clinic_rtc_date
 */
-                            from flat_hiv_summary_2 t1
+                            from flat_hiv_summary_03 t1
                             order by person_id, date(encounter_datetime), encounter_type_sort_index
                         );
                                         
@@ -1961,15 +1990,6 @@ SELECT @person_ids_count AS 'num patients to sync';
 
 
 
-
-                            
-                            
-                            
-                            
-                            
-                            
-                            
-                            
                             case
                                     when obs regexp "!!1285=!!" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
@@ -1981,7 +2001,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                             case 
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
-                                when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := next_clinical_location_id
+                                when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := prev_clinical_location_id
+                                when @cur_id = @prev_id then @transfer_out_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
 
@@ -1990,6 +2011,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
                                 when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
                                 when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
+                                when @cur_id = @prev_id then @transfer_out_date
                                 else @transfer_out_date := null
                             end transfer_out_date
 
@@ -2165,7 +2187,7 @@ SELECT @total_rows_written;
                     set @total_time = @total_time + @cycle_length;
                     set @cycle_number = @cycle_number + 1;
                     
-                    
+	
                     set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
                     
 
