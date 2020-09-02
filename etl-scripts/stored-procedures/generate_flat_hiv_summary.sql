@@ -1766,8 +1766,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
                         );
-   
-                    alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
+                           
+						alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
 
                         set @prev_id = -1;
                         set @cur_id = -1;
@@ -2288,7 +2288,7 @@ SELECT @total_rows_written;
                     set @total_time = @total_time + @cycle_length;
                     set @cycle_number = @cycle_number + 1;
                     
-	
+                    
                     set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
                     
 
@@ -2361,3 +2361,4 @@ SELECT
 
     END$$
 DELIMITER ;
+

@@ -792,8 +792,17 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when t2.ovc_non_enrollment_reason = 6834
                             then 1
 						else 0
-					end as ovc_non_enrolment_out_of_catchment_area
+					end as ovc_non_enrolment_out_of_catchment_area,
 
+					case
+                        when (t2.ovc_exit_date is not null and t2.ovc_exit_date between date_format(t1.endDate,"%Y-%m-01")  and t1.endDate)  then 1
+                        else 0
+                    end as newly_exited_from_ovc_this_month,
+
+					case
+                        when t2.ovc_exit_date is not null then 1
+                        else 0
+                    end as exited_from_ovc_this_month
 					
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
@@ -1069,11 +1078,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				travelled_outside_last_12_months,
                 tb_tx_end_date,
                 tb_tx_stop_date,
-<<<<<<< HEAD
                 country_of_residence,
-=======
-                country_of_residence
->>>>>>> Added ovc indicators to hiv monthly summary script
 				active_and_eligible_for_ovc,
 				inactive_and_eligible_for_ovc,
 				enrolled_in_ovc_this_month,
