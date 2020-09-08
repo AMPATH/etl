@@ -50,9 +50,11 @@ BEGIN
         `cumulative_prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
 		`prep_discontinued_this_month` int(1) NOT NULL DEFAULT '0',
+        `cumulative_prep_discontinued_this_month` int(1) NOT NULL DEFAULT '0',
 		`enrolled_in_prep_this_month` int(1) NOT NULL DEFAULT '0',
 		`discontinued_from_prep_this_month` int(1) NOT NULL DEFAULT '0',
 		`turned_positive_this_month` int(1) NOT NULL DEFAULT '0',
+        `cumulative_turned_positive_this_month` int(1) NOT NULL DEFAULT '0',
 		`prev_on_prep_and_turned_positive` int(1) NOT NULL DEFAULT '0',
 		PRIMARY KEY (`elastic_id`),
 		KEY `person_id` (`person_id`),
@@ -251,25 +253,23 @@ BEGIN
 				THEN
 					@status:='active'
 				WHEN
-					timestampdiff(day,rtc_date, endDate) > 0  AND timestampdiff(day,rtc_date, endDate) <= 28
-				THEN
-					@status:='defaulter'
-				WHEN
-					timestampdiff(day,rtc_date, endDate) > 28
+					timestampdiff(day,rtc_date, endDate) > 0
 				THEN
 					@status:='ltfu'
 				ELSE @status:='unknown'
 			END AS status,
 			
-			if( @status = 'active' or @status = 'defaulter', 1, 0) as active_on_prep_this_month,
-			if( @status = 'defaulter', 1, 0) as prep_defaulter_this_month,
+			if( @status = 'active', 1, 0) as active_on_prep_this_month,
+			null as prep_defaulter_this_month,
 			if( @status = 'ltfu', 1, 0) as cumulative_prep_ltfu_this_month,
-			if( @status = 'ltfu' AND timestampdiff(day,rtc_date, endDate) <= 30, 1, 0) as prep_ltfu_this_month,
-			if( @status = 'discontinued', 1, 0) as prep_discontinued_this_month,
-			
+			if( @status = 'ltfu' AND rtc_date between date_format(endDate,"%Y-%m-01") and endDate , 1, 0) as prep_ltfu_this_month,
+			if( @status = 'discontinued' and discontinued_prep_date between date_format(endDate,"%Y-%m-01") and endDate, 1, 0) as prep_discontinued_this_month,
+			if( @status = 'discontinued', 1, 0) as cumulative_prep_discontinued_this_month,
+
 			if(enrollment_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as enrolled_in_prep_this_month,
 			if(discontinued_prep_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as discontinued_from_prep_this_month,
 			if(turned_positive_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as turned_positive_this_month,
+            if(turned_positive_date is not null, 1, 0) as cumulative_turned_positive_this_month,
 			if((@turned_positive_this_month = 1 and @status = 'discontinued'), 1, 0) as prev_on_prep_and_turned_positive
 			
 			from 
