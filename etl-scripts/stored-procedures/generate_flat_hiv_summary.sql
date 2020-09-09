@@ -145,8 +145,6 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     travelled_outside_last_12_months INT,
     last_cross_boarder_screening_datetime DATETIME,
     is_cross_border_country INT,
-    is_cross_border_county INT,
-    is_cross_border INT,
     cross_border_service_offered INT,
     cross_border_country_travelled INT, 
     PRIMARY KEY encounter_id (encounter_id),
@@ -1708,13 +1706,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                             else @is_cross_border_country := 0
                         end as is_cross_border_country,
 
-                        null as is_cross_border_county,
-                        
-                        case
-                            when  @is_cross_border_country = 1  then @is_cross_border := 1
-                            else @is_cross_border := 0
-                        end as is_cross_border,
-
                         case 
                             when obs regexp "!!11243=10739" then @cross_border_service_offered := 10739
                             when obs regexp "!!11243=10649" then @cross_border_service_offered := 10649
@@ -2219,8 +2210,6 @@ SELECT @total_rows_written;
                         travelled_outside_last_12_months,
                         last_cross_boarder_screening_datetime,
                         is_cross_border_country,
-                        is_cross_border_county,
-                        is_cross_border,
                         cross_border_service_offered,
                         cross_border_country_travelled
                         
