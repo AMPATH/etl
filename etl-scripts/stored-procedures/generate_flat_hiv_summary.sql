@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     on_tb_tx BOOLEAN,
     tb_tx_start_date DATETIME,
     tb_tx_end_date DATETIME,
+    tb_tx_stop_date DATETIME,
     pcp_prophylaxis_start_date DATETIME,
     condoms_provided_date DATETIME,
     modern_contraceptive_method_start_date DATETIME,
@@ -146,7 +147,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     last_cross_boarder_screening_datetime DATETIME,
     is_cross_border_country INT,
     cross_border_service_offered INT,
-    cross_border_country_travelled INT, 
+    country_of_residence INT,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -309,6 +310,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             case
                                 when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
+                                when t1.encounter_type in (158) AND v.visit_type_id not in (104) AND v.visit_type_id is NOT NULL then 1
                                 else null
                             end as is_clinical_encounter,
 
@@ -444,6 +446,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @on_tb_tx = null;
                         set @tb_tx_start_date = null;
                         set @tb_tx_end_date = null;
+                        set @tb_tx_stop_date = null;
                         set @pcp_prophylaxis_start_date = null;
                         set @tb_screen = null;
                         set @tb_screening_result = null;
@@ -1272,13 +1275,18 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                     when obs regexp "!!2041=" then @tb_tx_end_date := date(replace(replace((substring_index(substring(obs,locate("!!2041=",obs)),@sep,1)),"!!2041=",""),"!!",""))
-                                    when obs regexp "!!1268=1260!!" then @tb_tx_end_date := encounter_datetime
+                                    when obs regexp "!!1268=1267!!" then @tb_tx_end_date := encounter_datetime
                                     when @cur_id = @prev_id then @tb_tx_end_date
                                     else @tb_tx_end_date := null
                             end as tb_tx_end_date,
-
-
                             
+                            case
+                                    when obs regexp "!!1268=(7043|7065|1259|44|7061|102|5622)!!" then @tb_tx_stop_date := encounter_datetime
+                                    when @cur_id = @prev_id then @tb_tx_stop_date
+                                    else @tb_tx_stop_date := null
+                            end as tb_tx_stop_date,
+
+
                             
                             
                             case
@@ -1719,7 +1727,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                             else @cross_border_service_offered := null
                         end as cross_border_service_offered,
 
-                        null as cross_border_country_travelled
+						case 
+                            when obs regexp "!!11252=11197" then @country_of_residence := 11197
+                            when obs regexp "!!11252=11118" then @country_of_residence := 11118                                                
+                            when @prev_id = @cur_id then @country_of_residence
+                            else @country_of_residence := null
+                        end as country_of_residence
                             
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
@@ -1732,11 +1745,13 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @prev_clinical_location_id = null;
                         set @cur_clinical_location_id = null;
 
+
                         drop table if exists flat_hiv_summary_02;
                         create temporary table flat_hiv_summary_02
                         (select *,
                             @prev_id := @cur_id as prev_id,
                             @cur_id := person_id as cur_id,
+
 
                             case
                                 when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
@@ -2051,7 +2066,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
                                 when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := prev_clinical_location_id
-                                when @cur_id = @prev_id then @transfer_out_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
 
@@ -2060,7 +2074,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
                                 when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
                                 when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
-                                when @cur_id = @prev_id then @transfer_out_date
                                 else @transfer_out_date := null
                             end transfer_out_date
 
@@ -2147,7 +2160,8 @@ SELECT @total_rows_written;
                         ipt_completion_date,
                         on_tb_tx,
                         tb_tx_start_date,
-                        tb_tx_end_date,                        
+                        tb_tx_end_date,  
+                        tb_tx_stop_date,
                         pcp_prophylaxis_start_date,
                         condoms_provided_date,
                         modern_contraceptive_method_start_date,
@@ -2211,7 +2225,7 @@ SELECT @total_rows_written;
                         last_cross_boarder_screening_datetime,
                         is_cross_border_country,
                         cross_border_service_offered,
-                        cross_border_country_travelled
+                        country_of_residence
                         
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
