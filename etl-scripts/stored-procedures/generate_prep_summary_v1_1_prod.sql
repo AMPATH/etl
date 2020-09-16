@@ -328,8 +328,8 @@ BEGIN
                         
                         alter table flat_prep_summary_next_enc drop cur_id, drop prev_id, drop cur_enc_date;
 
-						drop table if exists flat_prep_summary_0;
-						create table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+						drop temporary table if exists flat_prep_summary_0;
+						create temporary table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
 						(select * from flat_prep_summary_next_enc
 						order by person_id, encounter_datetime, 
                         encounter_type_sort_index
