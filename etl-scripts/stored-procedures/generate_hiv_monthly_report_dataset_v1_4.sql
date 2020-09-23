@@ -115,6 +115,8 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
                 tb_screened_active_this_month tinyint,
 				presumed_tb_positive_this_month tinyint,
 				tb_tx_start_date date,
+				tb_tx_end_date date,
+                tb_tx_stop_date date,
 				started_tb_tx_this_month tinyint,
                 on_tb_tx_this_month tinyint,                
 				on_tb_tx_and_started_art_this_month tinyint,
@@ -144,6 +146,7 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				travelled_outside_last_3_months int,
 				travelled_outside_last_6_months int,
 				travelled_outside_last_12_months int,
+				country_of_residence int,
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
                 index person_report_date (person_id, endDate),
@@ -568,7 +571,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 							then timestampdiff(month,ifnull(vl_1_date,arv_start_date),endDate) - 12
                     end as number_of_months_has_needed_vl,
                     
-					@tb_tx_start_date :=  date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months
+					@tb_tx_start_date :=  date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months,
+					@tb_tx_end_date :=  date(tb_tx_end_date) as tb_tx_end_date,
+                    @tb_tx_stop_date :=  date(tb_tx_stop_date) as tb_tx_stop_date,
 
 					case
 						when tb_tx_start_date between date_format(endDate,"%Y-%m-01")  and endDate then @started_tb_tx_this_month :=  1
@@ -717,7 +722,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 12
                             then 1                            
 						else 0
-					end as travelled_outside_last_12_months
+					end as travelled_outside_last_12_months,
+
+					t2.country_of_residence
                     
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
@@ -960,6 +967,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				tb_screened_active_this_month,
 				presumed_tb_positive_this_month,
 				tb_tx_start_date,
+				tb_tx_end_date,
+                tb_tx_stop_date,
 				started_tb_tx_this_month,
                 on_tb_tx_this_month,
                 on_tb_tx_and_started_art_this_month,
@@ -988,7 +997,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                 last_cross_boarder_screening_datetime,
 				travelled_outside_last_3_months,
 				travelled_outside_last_6_months,
-				travelled_outside_last_12_months
+				travelled_outside_last_12_months,
+				country_of_residence
 					from hiv_monthly_report_dataset_2 t1
                     join amrs.location t2 on (t2.location_id = t1.cur_location_id)
 				);
