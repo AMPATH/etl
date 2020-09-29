@@ -146,7 +146,9 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				travelled_outside_last_3_months int,
 				travelled_outside_last_6_months int,
 				travelled_outside_last_12_months int,
-				country_of_residence int,
+                tb_tx_end_date date,
+                tb_tx_stop_date date,
+                country_of_residence int,
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
                 index person_report_date (person_id, endDate),
@@ -315,9 +317,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when date_format(endDate, "%Y-%m-01") > t2.death_date then @status := "dead"
 #						when transfer_out_date < date_format(endDate,"%Y-%m-01") then @status := "transfer_out"
 						when date_format(endDate, "%Y-%m-01") > transfer_out_date then @status := "transfer_out"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 then @status := "active"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) between 29 and 90 then @status := "defaulter"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) > 90 then @status := "ltfu"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 then @status := "active"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) between 31 and 90 then @status := "defaulter"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) > 90 then @status := "ltfu"
 						else @status := "unknown"
 					end as status,
 					
@@ -662,7 +664,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					
 					case
 						when condoms_provided_date >= date(encounter_datetime)
-							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 then 1                            
+							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 then 1                            
 						else 0
 					end as condoms_provided_since_active,
 
@@ -674,7 +676,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     
 					case
 						when modern_contraceptive_method_start_date <= date(encounter_datetime)
-							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 
+							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 
                             then 1                            
 						else 0
 					end as modern_contraception_since_active,
@@ -998,7 +1000,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				travelled_outside_last_3_months,
 				travelled_outside_last_6_months,
 				travelled_outside_last_12_months,
-				country_of_residence
+                tb_tx_end_date,
+                tb_tx_stop_date,
+                country_of_residence
 					from hiv_monthly_report_dataset_2 t1
                     join amrs.location t2 on (t2.location_id = t1.cur_location_id)
 				);
