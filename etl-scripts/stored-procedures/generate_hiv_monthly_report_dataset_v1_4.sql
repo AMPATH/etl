@@ -115,8 +115,6 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
                 tb_screened_active_this_month tinyint,
 				presumed_tb_positive_this_month tinyint,
 				tb_tx_start_date date,
-				tb_tx_end_date date,
-                tb_tx_stop_date date,
 				started_tb_tx_this_month tinyint,
                 on_tb_tx_this_month tinyint,                
 				on_tb_tx_and_started_art_this_month tinyint,
@@ -574,7 +572,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     end as number_of_months_has_needed_vl,
                     
 					@tb_tx_start_date :=  date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months,
-					@tb_tx_end_date :=  date(tb_tx_end_date) as tb_tx_end_date,
+                    @tb_tx_end_date :=  date(tb_tx_end_date) as tb_tx_end_date,
                     @tb_tx_stop_date :=  date(tb_tx_stop_date) as tb_tx_stop_date,
 
 					case
@@ -676,7 +674,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     
 					case
 						when modern_contraceptive_method_start_date <= date(encounter_datetime)
-							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30
+							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 
                             then 1                            
 						else 0
 					end as modern_contraception_since_active,
@@ -697,7 +695,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					is_cross_border_country as is_cross_border_country_this_month,
                     
                     case
-						when is_cross_border_country = 0 and t4.address1 != 'Busia' then @is_cross_border_county_this_month := 1
+						when is_cross_border_country = 0 and t2.location_id in (20,19,55,83,12,23,100,130,78,91,106,65,90) and t4.address1 != 'Busia' then @is_cross_border_county_this_month := 1
 						else @is_cross_border_county_this_month := 0
 					end as is_cross_border_county_this_month,
                     
@@ -705,7 +703,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     
                     date(last_cross_boarder_screening_datetime) as last_cross_boarder_screening_datetime,
                     
-                    case
+					case
 						when t2.travelled_outside_last_3_months = 1
 							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 3
                             then 1                            
@@ -713,20 +711,20 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					end as travelled_outside_last_3_months,
                     
                     case
-						when t2.travelled_outside_last_6_months = 1
+						when (t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
 							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 6
                             then 1                            
 						else 0
 					end as travelled_outside_last_6_months,
                     
                     case
-						when t2.travelled_outside_last_12_months = 1
+						when (t2.travelled_outside_last_12_months = 1 or t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
 							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 12
                             then 1                            
 						else 0
 					end as travelled_outside_last_12_months,
-
-					t2.country_of_residence
+                    
+                    t2.country_of_residence
                     
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
@@ -969,8 +967,6 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				tb_screened_active_this_month,
 				presumed_tb_positive_this_month,
 				tb_tx_start_date,
-				tb_tx_end_date,
-                tb_tx_stop_date,
 				started_tb_tx_this_month,
                 on_tb_tx_this_month,
                 on_tb_tx_and_started_art_this_month,
