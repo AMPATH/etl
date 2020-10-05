@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.25";
+                    set @table_version = "flat_hiv_summary_v2.26";
 
                     set session sort_buffer_size=512000000;
 
@@ -558,8 +558,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when @prev_id = @cur_id then @ovc_non_enrollment_reason
                             else @ovc_non_enrollment_reason := null
                         end as ovc_non_enrollment_reason,
-
-                        case
+                        
+                         case
                             when  t1.encounter_type = 214  then @ovc_non_enrollment_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_non_enrollment_date
                             else null
@@ -596,7 +596,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @prev_id != @cur_id then @visit_num := 1
                             end as visit_num,
                             case
-                              when encounter_type=110 then
+                              when encounter_type in(110) then
                                 case
                                   when obs regexp "!!(10532)" then @mdt_session_number:= 4
 								  when obs regexp "!!(10527|10528|10529|10530|10531)" then @mdt_session_number:= 3
@@ -605,7 +605,8 @@ SELECT @person_ids_count AS 'num patients to sync';
 								  when @prev_id = @cur_id then @mdt_session_number
 								else null
 							  end
-							  else @mdt_session_number
+							  when @prev_id = @cur_id then @mdt_session_number
+							  else null
                             end as mdt_session_number,
 
                             case
@@ -1748,25 +1749,25 @@ SELECT @person_ids_count AS 'num patients to sync';
                             else @cross_border_service_offered := null
                         end as cross_border_service_offered,
 
-                        case 
+						case 
                             when obs regexp "!!11252=11197" then @country_of_residence := 11197
                             when obs regexp "!!11252=11118" then @country_of_residence := 11118                                                
                             when @prev_id = @cur_id then @country_of_residence
                             else @country_of_residence := null
                         end as country_of_residence,
-                        null as is_cross_border_county,
+                        
+						null as is_cross_border_county,
                         
                         case
                             when  @is_cross_border_country = 1  then @is_cross_border := 1
                             else @is_cross_border := 0
-                        end as is_cross_border,
+                        end as is_cross_border
+        
 
-                        null as cross_border_country_travelled
-                            
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
                         );
-                           
+                        
 						alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
 
                         set @prev_id = -1;
@@ -2100,7 +2101,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
                                 when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
                                 when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
-                                when @cur_id = @prev_id then @transfer_out_date
                                 else @transfer_out_date := null
                             end transfer_out_date
 
@@ -2143,7 +2143,7 @@ SELECT @total_rows_written;
                         ovc_non_enrollment_reason,
                         ovc_non_enrollment_date,
                         ovc_exit_reason,
-                        ovc_exit_date,                                     
+                        ovc_exit_date,                                      
                         hiv_start_date,
                         death_date,
                         scheduled_visit,                        
@@ -2253,7 +2253,7 @@ SELECT @total_rows_written;
                         last_cross_boarder_screening_datetime,
                         is_cross_border_country,
                         cross_border_service_offered,
-                        cross_border_country_travelled
+                        null as cross_border_country_travelled,
                         is_cross_border_county,
                         is_cross_border,
                         tb_tx_stop_date,
@@ -2359,6 +2359,5 @@ SELECT
             TIMESTAMPDIFF(MINUTE, @start, @end),
             ' minutes');
 
-    END$$
+        END$$
 DELIMITER ;
-
