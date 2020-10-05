@@ -559,13 +559,18 @@ while @person_ids_count > 0 do
                 transfer_in_location_id,
                 transfer_in_date,
                 CASE
-                    WHEN YEARWEEK(transfer_out_date) = t1.week THEN 1
+					WHEN YEARWEEK(transfer_out_date) = YEARWEEK(transfer_in_date) THEN 0
+                    WHEN YEARWEEK(transfer_out_date) = t1.week  THEN 1
                     ELSE 0
                 END AS transfer_out_this_week,
                 transfer_out_location_id,
                 transfer_out_date,
-                            
-                t2.location_id,
+				
+                case 
+                    when t2.visit_type not in (23, 119, 124) then @location_id = t2.location_id
+                    else @location_id := t2.prev_clinical_location_id
+                end as location_id,
+                
                 IF((DATE(arv_first_regimen_start_date) = DATE(t2.encounter_datetime)
                         AND YEARWEEK(rtc_date) = t1.week) or (DATE(arv_first_regimen_start_date) = DATE(prev_clinical_datetime_hiv)
                         AND YEARWEEK(prev_rtc_date) = t1.week) ,
@@ -839,10 +844,8 @@ while @person_ids_count > 0 do
                         AND (t4.program_id = 3 OR t4.program_id = 9),
                     1,
                     0) AS started_dc_this_week,
-                IF(t4.program_id = 3 OR t4.program_id = 9 AND @status = 'active' , 1, 0) AS active_on_dc,
-                IF(t4.program_id = 3 OR t4.program_id = 9,
-                    1,
-                    0) AS on_dc_this_week,
+                IF((t4.program_id = 3 OR t4.program_id = 9) AND @status != 'dead' AND @status != 'transfer_out' AND @status != 'ltfu', 1, 0) AS active_on_dc,
+                IF((t4.program_id = 3 OR t4.program_id = 9) AND @status != 'dead' AND @status != 'transfer_out' AND @status != 'ltfu',1,0) AS on_dc_this_week,
                 IF(YEARWEEK(t4.date_enrolled) = year_week
                         AND t4.program_id = 10,
                     1,
@@ -1410,6 +1413,7 @@ while @person_ids_count > 0 do
                             AND @cur_status = 'active' 
                             AND TIMESTAMPDIFF(MONTH,arv_first_regimen_start_date,end_date) >= 12
                             AND vl_1 < 401  
+                            AND cur_program not in (4)
                         THEN @eligible_and_on_dc := 1
                             ELSE
                         @eligible_and_on_dc := 0

@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.25";
+                    set @table_version = "flat_hiv_summary_v2.26";
 
                     set session sort_buffer_size=512000000;
 
@@ -142,6 +142,17 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     home_outreach INT,
     outreach_attempts INT,
     outreach_missed_visit_reason INT,
+    travelled_outside_last_3_months INT,
+    travelled_outside_last_6_months INT,
+    travelled_outside_last_12_months INT,
+    last_cross_boarder_screening_datetime DATETIME,
+    is_cross_border_country INT,
+    cross_border_service_offered INT,
+    cross_border_country_travelled INT,
+	is_cross_border_county INT,
+    is_cross_border INT,
+    tb_tx_stop_date DATETIME,
+    country_of_residence INT,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -304,12 +315,13 @@ SELECT @person_ids_count AS 'num patients to sync';
                             case
                                 when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
+                                when t1.encounter_type in (158) AND v.visit_type_id not in (104) AND v.visit_type_id is NOT NULL then 1
                                 else null
                             end as is_clinical_encounter,
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,220) then 10
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,218,220) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -323,7 +335,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
 								left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,220)
+                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,218,220)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -441,6 +453,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @on_tb_tx = null;
                         set @tb_tx_start_date = null;
                         set @tb_tx_end_date = null;
+						set @tb_tx_stop_date = null;
                         set @pcp_prophylaxis_start_date = null;
                         set @tb_screen = null;
                         set @tb_screening_result = null;
@@ -545,8 +558,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when @prev_id = @cur_id then @ovc_non_enrollment_reason
                             else @ovc_non_enrollment_reason := null
                         end as ovc_non_enrollment_reason,
-
-                        case
+                        
+                         case
                             when  t1.encounter_type = 214  then @ovc_non_enrollment_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_non_enrollment_date
                             else null
@@ -583,7 +596,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @prev_id != @cur_id then @visit_num := 1
                             end as visit_num,
                             case
-                              when encounter_type=110 then
+                              when encounter_type in(110) then
                                 case
                                   when obs regexp "!!(10532)" then @mdt_session_number:= 4
 								  when obs regexp "!!(10527|10528|10529|10530|10531)" then @mdt_session_number:= 3
@@ -592,7 +605,8 @@ SELECT @person_ids_count AS 'num patients to sync';
 								  when @prev_id = @cur_id then @mdt_session_number
 								else null
 							  end
-							  else @mdt_session_number
+							  when @prev_id = @cur_id then @mdt_session_number
+							  else null
                             end as mdt_session_number,
 
                             case
@@ -1279,7 +1293,11 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @tb_tx_start_date := null
                             end as tb_tx_start_date,
 
-                            
+                            case
+                                    when obs regexp "!!1268=(7043|7065|1259|44|7061|102|5622)!!" then @tb_tx_stop_date := encounter_datetime
+                                    when @cur_id = @prev_id then @tb_tx_stop_date
+                                    else @tb_tx_stop_date := null
+                            end as tb_tx_stop_date,
                             
                             
                             case
@@ -1684,10 +1702,67 @@ SELECT @person_ids_count AS 'num patients to sync';
                            else @outreach_attempts := null
                          end as outreach_attempts,
                             
-                         0 as outreach_missed_visit_reason
-                            
-                            
-                            
+                         0 as outreach_missed_visit_reason,
+                         
+                         case 
+                            when obs regexp "!!11237=1065" then @travelled_outside_last_3_months := 1
+                            when obs regexp "!!11237=1066" then @travelled_outside_last_3_months := 0 
+                            when @prev_id = @cur_id then @travelled_outside_last_3_months                                                
+                            else @travelled_outside_last_3_months := null
+                        end as travelled_outside_last_3_months,
+
+                        case 
+                            when obs regexp "!!11238=1065" then @travelled_outside_last_6_months := 1
+                            when obs regexp "!!11238=1066" then @travelled_outside_last_6_months := 0 
+                            when @prev_id = @cur_id then @travelled_outside_last_6_months                                                
+                            else @travelled_outside_last_6_months := null
+                        end as travelled_outside_last_6_months,
+
+                        case 
+                            when obs regexp "!!11239=1065" then @travelled_outside_last_12_months := 1
+                            when obs regexp "!!11239=1066" then @travelled_outside_last_12_months := 0
+                            when @prev_id = @cur_id then @travelled_outside_last_12_months                                                 
+                            else @travelled_outside_last_12_months := null
+                        end as travelled_outside_last_12_months,
+
+                        case
+                            when  t1.encounter_type = 218  then @last_cross_boarder_screening_datetime := encounter_datetime
+                            when @prev_id = @cur_id then @last_cross_boarder_screening_datetime
+                            else null
+                        end as last_cross_boarder_screening_datetime,
+						
+                        case
+                            when  @travelled_outside_last_3_months = 1 or @travelled_outside_last_6_months = 1 or @travelled_outside_last_12_months = 1  then @is_cross_border_country := 1
+                            else @is_cross_border_country := 0
+                        end as is_cross_border_country,
+
+                        case 
+                            when obs regexp "!!11243=10739" then @cross_border_service_offered := 10739
+                            when obs regexp "!!11243=10649" then @cross_border_service_offered := 10649
+                            when obs regexp "!!11243=5483" then @cross_border_service_offered := 5483
+                            when obs regexp "!!11243=2050" then @cross_border_service_offered := 2050
+                            when obs regexp "!!11243=11244" then @cross_border_service_offered := 11244
+                            when obs regexp "!!11243=1964" then @cross_border_service_offered := 1964
+                            when obs regexp "!!11243=7913" then @cross_border_service_offered := 7913
+                            when obs regexp "!!11243=5622" then @cross_border_service_offered := 5622                                                  
+                            when @prev_id = @cur_id then @cross_border_service_offered
+                            else @cross_border_service_offered := null
+                        end as cross_border_service_offered,
+
+						case 
+                            when obs regexp "!!11252=11197" then @country_of_residence := 11197
+                            when obs regexp "!!11252=11118" then @country_of_residence := 11118                                                
+                            when @prev_id = @cur_id then @country_of_residence
+                            else @country_of_residence := null
+                        end as country_of_residence,
+                        
+						null as is_cross_border_county,
+                        
+                        case
+                            when  @is_cross_border_country = 1  then @is_cross_border := 1
+                            else @is_cross_border := 0
+                        end as is_cross_border
+        
 
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
@@ -2006,7 +2081,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
 
-
                             case
                                     when obs regexp "!!1285=!!" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
@@ -2019,7 +2093,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
                                 when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := prev_clinical_location_id
-                                when @cur_id = @prev_id then @transfer_out_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
 
@@ -2028,7 +2101,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
                                 when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
                                 when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
-                                when @cur_id = @prev_id then @transfer_out_date
                                 else @transfer_out_date := null
                             end transfer_out_date
 
@@ -2071,7 +2143,7 @@ SELECT @total_rows_written;
                         ovc_non_enrollment_reason,
                         ovc_non_enrollment_date,
                         ovc_exit_reason,
-                        ovc_exit_date,                                     
+                        ovc_exit_date,                                      
                         hiv_start_date,
                         death_date,
                         scheduled_visit,                        
@@ -2174,8 +2246,18 @@ SELECT @total_rows_written;
                         phone_outreach,
                         home_outreach,
 						outreach_attempts,
-                        outreach_missed_visit_reason
-                        
+                        outreach_missed_visit_reason,
+                        travelled_outside_last_3_months,
+                        travelled_outside_last_6_months,
+                        travelled_outside_last_12_months,
+                        last_cross_boarder_screening_datetime,
+                        is_cross_border_country,
+                        cross_border_service_offered,
+                        null as cross_border_country_travelled,
+                        is_cross_border_county,
+                        is_cross_border,
+                        tb_tx_stop_date,
+                        country_of_residence
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
 
@@ -2277,5 +2359,5 @@ SELECT
             TIMESTAMPDIFF(MINUTE, @start, @end),
             ' minutes');
 
-    END$$
+        END$$
 DELIMITER ;

@@ -135,6 +135,16 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
                 on_modern_contraception_this_month tinyint,
                 contraceptive_method int,
                 discordant_status int,
+                is_cross_border_country_this_month int,
+				is_cross_border_county_this_month int,
+				is_cross_border_this_month int,
+                last_cross_boarder_screening_datetime date,
+				travelled_outside_last_3_months int,
+				travelled_outside_last_6_months int,
+				travelled_outside_last_12_months int,
+                tb_tx_end_date date,
+                tb_tx_stop_date date,
+                country_of_residence int,
 				active_and_eligible_for_ovc tinyint,
 				inactive_and_eligible_for_ovc tinyint,
 				enrolled_in_ovc_this_month tinyint,
@@ -142,7 +152,6 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				ovc_non_enrolment_out_of_catchment_area tinyint,
 				newly_exited_from_ovc_this_month tinyint,
 				exited_from_ovc_this_month tinyint,
-                                
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
                 index person_report_date (person_id, endDate),
@@ -230,7 +239,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                 drop temporary table if exists hiv_monthly_report_dataset_0;
 				create temporary table hiv_monthly_report_dataset_0
 
-                (select
+				(select 
 					concat(date_format(endDate,"%Y%m"),person_id) as elastic_id,
 					endDate,
                     encounter_id,
@@ -312,9 +321,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when date_format(endDate, "%Y-%m-01") > t2.death_date then @status := "dead"
 #						when transfer_out_date < date_format(endDate,"%Y-%m-01") then @status := "transfer_out"
 						when date_format(endDate, "%Y-%m-01") > transfer_out_date then @status := "transfer_out"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 then @status := "active"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) between 29 and 90 then @status := "defaulter"
-						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) > 90 then @status := "ltfu"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 then @status := "active"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) between 31 and 90 then @status := "defaulter"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) > 90 then @status := "ltfu"
 						else @status := "unknown"
 					end as status,
 					
@@ -569,6 +578,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     end as number_of_months_has_needed_vl,
                     
 					@tb_tx_start_date :=  date(tb_tx_start_date) as tb_tx_start_date,#need to know time period, i.e. screened this month or screened in past X months
+                    
+                    @tb_tx_end_date :=  date(tb_tx_end_date) as tb_tx_end_date,
+                    @tb_tx_stop_date :=  date(tb_tx_stop_date) as tb_tx_stop_date,
 
 					case
 						when tb_tx_start_date between date_format(endDate,"%Y-%m-01")  and endDate then @started_tb_tx_this_month :=  1
@@ -657,7 +669,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					
 					case
 						when condoms_provided_date >= date(encounter_datetime)
-							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 then 1                            
+							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 then 1                            
 						else 0
 					end as condoms_provided_since_active,
 
@@ -669,7 +681,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     
 					case
 						when modern_contraceptive_method_start_date <= date(encounter_datetime)
-							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 28 day)),endDate) <= 28 
+							AND timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 
                             then 1                            
 						else 0
 					end as modern_contraception_since_active,
@@ -686,6 +698,41 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 
                     contraceptive_method,
                     discordant_status,
+				
+					is_cross_border_country as is_cross_border_country_this_month,
+                    
+                    case
+						when is_cross_border_country = 0 and t2.location_id in (20,19,55,83,12,23,100,130,78,91,106,65,90) and t4.address1 != 'Busia' then @is_cross_border_county_this_month := 1
+						else @is_cross_border_county_this_month := 0
+					end as is_cross_border_county_this_month,
+                    
+                    IF(is_cross_border_country = 1 or @is_cross_border_county_this_month = 1, 1, 0) as is_cross_border_this_month,
+                    
+                    date(last_cross_boarder_screening_datetime) as last_cross_boarder_screening_datetime,
+                    
+					case
+						when t2.travelled_outside_last_3_months = 1
+							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 3
+                            then 1                            
+						else 0
+					end as travelled_outside_last_3_months,
+                    
+                    case
+						when (t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
+							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 6
+                            then 1                            
+						else 0
+					end as travelled_outside_last_6_months,
+                    
+                    case
+						when (t2.travelled_outside_last_12_months = 1 or t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
+							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 12
+                            then 1                            
+						else 0
+					end as travelled_outside_last_12_months,
+                    
+                    t2.country_of_residence,
+
 					case
 						when @status="active"
                             AND @age<=15
@@ -721,10 +768,11 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                         when t2.ovc_exit_date is not null then 1
                         else 0
                     end as exited_from_ovc_this_month
-					
+                    
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
 					join amrs.person t3 using (person_id)
+					left join amrs.person_address t4 using (person_id)
 					join etl.hiv_monthly_report_dataset_build_queue__0 t5 using (person_id)
                     
 
@@ -736,7 +784,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 							and t1.endDate between start_date and date_add(now(),interval 2 year)
 					order by person_id, endDate
 				);
+                
                
+
 				set @prev_id = null;
 				set @cur_id = null;
 				set @cur_status = null;
@@ -756,13 +806,13 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                         else @prev_location_id := null
 					end as next_location_id,
                     
-					case 
-						when @prev_id=@cur_id and (visit_type = 23 or visit_type = 119) then
-						@cur_location_id := @cur_location_id
-						else 
-                    	@cur_location_id := location_id 
+                    					case
+						when @prev_id=@cur_id and (visit_type = 23 or visit_type = 119) then	
+						@cur_location_id := @cur_location_id	
+						else 	
+                    	@cur_location_id := location_id 	
 					end as cur_location_id,
-
+                    
 					case
 						when @prev_id=@cur_id then @prev_status := @cur_status
 						else @prev_status := null
@@ -793,10 +843,12 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						then 1
                         else 0
 					end as enrolled_in_ovc_this_month,
+                    
                     case
 						when @prev_id=@cur_id then @prev_location_id := @cur_location_id
                         else @prev_location_id := null
 					end as prev_location_id,
+                    
                     case 
 						when @prev_id=@cur_id and (visit_type = 23 or visit_type = 119) then
 						@cur_location_id := @cur_location_id
@@ -854,9 +906,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					left join patient_monthly_enrollment t3 on (t1.person_id = t3.person_id and t1.endDate = t3.endDate)
 					order by t1.person_id, t1.endDate
 				);
-
-				-- select * from hiv_monthly_report_dataset_2 where endDate = '2020-06-30';
                                 
+                -- select * from hiv_monthly_report_dataset_2 where endDate = '2020-06-30'; 
+
                 select now();
 				select count(*) as num_rows_to_be_inserted from hiv_monthly_report_dataset_2;
 	
@@ -985,6 +1037,16 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                 on_modern_contraception_this_month,
                 contraceptive_method,
                 discordant_status,
+                is_cross_border_country_this_month,
+				is_cross_border_county_this_month,
+				is_cross_border_this_month,
+                last_cross_boarder_screening_datetime,
+				travelled_outside_last_3_months,
+				travelled_outside_last_6_months,
+				travelled_outside_last_12_months,
+                tb_tx_end_date,
+                tb_tx_stop_date,
+                country_of_residence,
 				active_and_eligible_for_ovc,
 				inactive_and_eligible_for_ovc,
 				enrolled_in_ovc_this_month,
@@ -1038,6 +1100,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					EXECUTE s1; 
 					DEALLOCATE PREPARE s1;  
 			end if;            
+
 			set @end = now();
             -- not sure why we need last date_created, I've replaced this with @start
 			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
