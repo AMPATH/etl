@@ -50,7 +50,7 @@ BEGIN
 					  `is_breastfeeding` INT DEFAULT NULL,
 					  `is_pregnant` INT DEFAULT NULL,
 					  `population_type` INT  DEFAULT NULL,
-					  `key_population_type` INT DEFAULT NULL,
+					  `sub_population_type` INT DEFAULT NULL,
 					  PRIMARY KEY (`encounter_id`),
 					  KEY `person_date` (`person_id`,`encounter_datetime`),
 					  KEY `location_rtc` (`location_id`,`rtc_date`),
@@ -328,8 +328,8 @@ BEGIN
                         
                         alter table flat_prep_summary_next_enc drop cur_id, drop prev_id, drop cur_enc_date;
 
-						drop table if exists flat_prep_summary_0;
-						create table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+						drop temporary table if exists flat_prep_summary_0;
+						create temporary table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
 						(select * from flat_prep_summary_next_enc
 						order by person_id, encounter_datetime, 
                         encounter_type_sort_index
@@ -520,20 +520,29 @@ BEGIN
 							end as is_pregnant,
 							case
 								when (obs regexp "!!9782=6096!!") or (obs regexp "!!6096=1065!!" and encounter_type=2) then @population_type := '1'
-								when obs regexp "!!9782=9784!!" then @population_type := '2'
+								when obs regexp "!!9782=11288!!" then @population_type := '2'
 								when obs regexp "!!9782=9783!!" then @population_type := '3'
 								when obs regexp "!!9782=6578!!" then @population_type := '4'
 								when @prev_id = @cur_id then @population_type
 								else @population_type := null
 							end as population_type,
 							case
-								when @population_type = 4 and obs regexp "!!6578=8291!!" then @key_population_type := '1'
-								when @population_type = 4 and obs regexp "!!6578=9785!!" then @key_population_type := '2'
-								when @population_type = 4 and obs regexp "!!6578=9786!!" then @key_population_type := '3'
-								when @population_type = 4 and obs regexp "!!6578=105!!" then @key_population_type := '4'
-								when @population_type = 4 and @prev_id = @cur_id  then @key_population_type
-								else @key_population_type := null
-							end as key_population_type
+								when @population_type = 4 and obs regexp "!!6578=8291!!" then @sub_population_type := '1'
+								when @population_type = 4 and obs regexp "!!6578=9785!!" then @sub_population_type := '2'
+								when @population_type = 4 and obs regexp "!!6578=9786!!" then @sub_population_type := '3'
+								when @population_type = 4 and obs regexp "!!6578=105!!" then @sub_population_type := '4'
+								when @population_type = 4 and obs regexp "!!6578=11290!!" then @sub_population_type := '5'
+								when @population_type = 4 and obs regexp "!!6578=11291!!" then @sub_population_type := '6'
+
+								when @population_type = 2 and obs regexp "!!11288=9784!!" then @sub_population_type := '7'
+								when @population_type = 2 and obs regexp "!!11288=8290!!" then @sub_population_type := '8'
+								when @population_type = 2 and obs regexp "!!11288=11284!!" then @sub_population_type := '9'
+								when @population_type = 2 and obs regexp "!!11288=11285!!" then @sub_population_type := '10'
+								when @population_type = 2 and obs regexp "!!11288=6966!!" then @sub_population_type := '12'
+								when @population_type = 2 and obs regexp "!!11288=11287!!" then @sub_population_type := '13'
+								when @population_type in (2, 4) and @prev_id = @cur_id  then @sub_population_type
+								else @sub_population_type := null
+							end as sub_population_type
 							
 
 						from flat_prep_summary_0 t1
