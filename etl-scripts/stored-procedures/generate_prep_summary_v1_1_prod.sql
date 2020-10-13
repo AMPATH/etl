@@ -3,7 +3,7 @@ CREATE PROCEDURE `generate_prep_summary_v1_1_prod`(IN query_type varchar(50), IN
 BEGIN
 
 					select @start := now();
-					select @table_version := "flat_prep_summary_v1_10";
+					select @table_version := "flat_prep_summary_v1_1";
                     set @primary_table := "flat_prep_summary_v1_1";
                     set @query_type = query_type;
                     
@@ -50,7 +50,9 @@ BEGIN
 					  `is_breastfeeding` INT DEFAULT NULL,
 					  `is_pregnant` INT DEFAULT NULL,
 					  `population_type` INT  DEFAULT NULL,
-					  `key_population_type` INT DEFAULT NULL,
+					  `sub_population_type` INT DEFAULT NULL,
+                      `hiv_rapid_test_result` INT DEFAULT NULL,
+                      `hiv_rapid_test_date` date DEFAULT NULL,
 					  PRIMARY KEY (`encounter_id`),
 					  KEY `person_date` (`person_id`,`encounter_datetime`),
 					  KEY `location_rtc` (`location_id`,`rtc_date`),
@@ -328,8 +330,8 @@ BEGIN
                         
                         alter table flat_prep_summary_next_enc drop cur_id, drop prev_id, drop cur_enc_date;
 
-						drop table if exists flat_prep_summary_0;
-						create table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+						drop temporary table if exists flat_prep_summary_0;
+						create temporary table flat_prep_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
 						(select * from flat_prep_summary_next_enc
 						order by person_id, encounter_datetime, 
                         encounter_type_sort_index
@@ -395,14 +397,16 @@ BEGIN
 								WHEN  obs REGEXP '!!1040=' then @turned_positive := null
                                 WHEN @prev_id = @cur_id then @turned_positive
                                 ELSE @turned_positive := null
-							END as  turned_positive,
+							END as  turned_positive, 
                             
                             case
-								when @turned_positive = 1 and  @prev_discontinued_prep is null  then @turned_positive_date := date(encounter_datetime)
-                                when @turned_positive is null and  @prev_discontinued_prep = 1 then @turned_positive_date := null
-                                when @prev_id = @cur_id then date(@turned_positive_date)
-                                else @turned_positive_date := null
-							end as turned_positive_date,
+                                when @turned_positive = 1
+									and (@turned_positive_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!",""),@turned_positive_date)) > 30)
+									and (@turned_positive_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!","")) > @turned_positive_date)
+								then @turned_positive_date := replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!","")
+                                when @prev_id=@cur_id then @turned_positive_date
+                                else @turned_positive_date:=null
+                            end as turned_positive_date,
 						
                              CASE
 								 WHEN
@@ -520,20 +524,48 @@ BEGIN
 							end as is_pregnant,
 							case
 								when (obs regexp "!!9782=6096!!") or (obs regexp "!!6096=1065!!" and encounter_type=2) then @population_type := '1'
-								when obs regexp "!!9782=9784!!" then @population_type := '2'
+								when obs regexp "!!9782=11288!!" then @population_type := '2'
 								when obs regexp "!!9782=9783!!" then @population_type := '3'
 								when obs regexp "!!9782=6578!!" then @population_type := '4'
 								when @prev_id = @cur_id then @population_type
 								else @population_type := null
 							end as population_type,
 							case
-								when @population_type = 4 and obs regexp "!!6578=8291!!" then @key_population_type := '1'
-								when @population_type = 4 and obs regexp "!!6578=9785!!" then @key_population_type := '2'
-								when @population_type = 4 and obs regexp "!!6578=9786!!" then @key_population_type := '3'
-								when @population_type = 4 and obs regexp "!!6578=105!!" then @key_population_type := '4'
-								when @population_type = 4 and @prev_id = @cur_id  then @key_population_type
-								else @key_population_type := null
-							end as key_population_type
+								when @population_type = 4 and obs regexp "!!6578=8291!!" then @sub_population_type := '1'
+								when @population_type = 4 and obs regexp "!!6578=9785!!" then @sub_population_type := '2'
+								when @population_type = 4 and obs regexp "!!6578=9786!!" then @sub_population_type := '3'
+								when @population_type = 4 and obs regexp "!!6578=105!!" then @sub_population_type := '4'
+								when @population_type = 4 and obs regexp "!!6578=11290!!" then @sub_population_type := '5'
+								when @population_type = 4 and obs regexp "!!6578=11291!!" then @sub_population_type := '6'
+
+								when @population_type = 2 and obs regexp "!!11288=9784!!" then @sub_population_type := '7'
+								when @population_type = 2 and obs regexp "!!11288=8290!!" then @sub_population_type := '8'
+								when @population_type = 2 and obs regexp "!!11288=11284!!" then @sub_population_type := '9'
+								when @population_type = 2 and obs regexp "!!11288=11285!!" then @sub_population_type := '10'
+								when @population_type = 2 and obs regexp "!!11288=6966!!" then @sub_population_type := '12'
+								when @population_type = 2 and obs regexp "!!11288=11287!!" then @sub_population_type := '13'
+								when @population_type in (2, 4) and @prev_id = @cur_id  then @sub_population_type
+								else @sub_population_type := null
+							end as sub_population_type,
+                            
+                            case
+								when obs regexp "!!1040=703!!" then @hiv_rapid_test_result := '703'
+								when obs regexp "!!1040=664!!" then @hiv_rapid_test_result := '664'
+								when obs regexp "!!1040=1138!!" then @hiv_rapid_test_result := '1138'
+								when obs regexp "!!1040=1304!!" then @hiv_rapid_test_result := '1304'
+								when obs regexp "!!1040=1067!!" then @hiv_rapid_test_result := '1067'
+								when @prev_id = @cur_id  then @hiv_rapid_test_result
+								else @hiv_rapid_test_result := null
+							end as hiv_rapid_test_result,
+                            
+                            case
+                                when @hiv_rapid_test_result is not null
+                                        and (@hiv_rapid_test_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!",""),@hiv_rapid_test_date)) > 30)
+                                        and (@hiv_rapid_test_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!","")) > @hiv_rapid_test_date)
+                                    then @hiv_rapid_test_date := replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!","")
+                                when @prev_id=@cur_id then @hiv_rapid_test_date
+                                else @hiv_rapid_test_date:=null
+                            end as hiv_rapid_test_date
 							
 
 						from flat_prep_summary_0 t1
