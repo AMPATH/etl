@@ -86,6 +86,10 @@ CREATE TABLE IF NOT EXISTS flat_hei_summary (
     next_encounter_datetime_hiv DATETIME,
     prev_clinical_datetime_hiv DATETIME,
     next_clinical_datetime_hiv DATETIME,
+    ovc_non_enrolment_reason INT,
+    ovc_non_enrolment_date DATETIME,
+    ovc_exit_reason INT,
+    ovc_exit_date DATETIME,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX location_id_rtc_date (location_id),
@@ -166,9 +170,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         DEALLOCATE PREPARE s1;
                         
                         
-SELECT 'creating  flat_hei_summary_0a from flat_obs...';
-
-
+						SELECT 'creating  flat_hei_summary_0a from flat_obs...';
                         drop temporary table if exists flat_hei_summary_0a;
                         create  temporary table flat_hei_summary_0a
                         (select
@@ -191,7 +193,7 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (3,4,9,114,115) then 10
+                                when t1.encounter_type in (3,4,9,114,115,214,220) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -202,8 +204,7 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
                                 join amrs.location l using (location_id)
                                 left join etl.flat_orders t2 using(encounter_id)
                                 left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (21,67,110,114,115,168,186)
-                            AND  (v.visit_type_id IS NULL OR v.visit_type_id IN (25,33,47,53))
+                            where t1.encounter_type in (21,67,110,114,115,168,186,116,214,220)
                             AND NOT obs regexp "!!5303=703!!"
                         );
                         
@@ -718,7 +719,35 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
                                 when obs regexp "!!1187=" then @newborn_arv_meds := normalize_pmtct_arvs(obs,'1187')
                                 when @prev_id = @cur_id then @newborn_arv_meds
                                 else @newborn_arv_meds:= null
-                            end as newborn_arv_meds
+                            end as newborn_arv_meds,
+                            
+                                                     case
+                            when obs regexp "!!11219=6834" then @ovc_non_enrolment_reason := 6834
+                            when obs regexp "!!11219=1504" then @ovc_non_enrolment_reason := 1504
+                            when @prev_id = @cur_id then @ovc_non_enrolment_reason
+                            else @ovc_non_enrolment_reason := null
+                        end as ovc_non_enrolment_reason,
+
+                         case
+                            when  t1.encounter_type = 214  then @ovc_non_enrolment_date := encounter_datetime
+                            when @prev_id = @cur_id then @ovc_non_enrolment_date
+                            else null
+                        end as ovc_non_enrolment_date,
+
+                        case 
+                            when obs regexp "!!1596=8204" then @ovc_exit_reason := 8204
+                            when obs regexp "!!1596=11292" then @ovc_exit_reason := 11292  
+                            when obs regexp "!!1596=10119" then @ovc_exit_reason := 10119
+                            when obs regexp "!!1596=8640" then @ovc_exit_reason := 8640                                                 
+                            when @prev_id = @cur_id then @ovc_exit_reason
+                            else @ovc_exit_reason := null
+                        end as ovc_exit_reason,
+
+                        case
+                            when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
+                            when @prev_id = @cur_id then @ovc_exit_date
+                            else null
+                        end as ovc_exit_date
 
                         from flat_hei_summary_0 t1
                             join amrs.person p using (person_id)
@@ -875,10 +904,11 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
                             
-                            case
+							case
                                     when obs regexp "!!1285=" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
                                     when obs regexp "!!9082=(1287|1594|9068|9504|1285)!!" then @transfer_out := 1
+                                    when obs regexp "!!10000=" then @transfer_out := 1
                                     when next_clinical_location_id != location_id then @transfer_out := 1
                                     else @transfer_out := null
                             end as transfer_out,
@@ -886,6 +916,7 @@ SELECT 'creating  flat_hei_summary_0a from flat_obs...';
                             case 
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
+                                when obs regexp "!!10000=" then @transfer_out_location_id := 9999
                                 when next_clinical_location_id != location_id then @transfer_out_location_id := next_clinical_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
@@ -979,7 +1010,11 @@ SELECT @total_rows_written;
                         prev_encounter_datetime_hiv,
                         next_encounter_datetime_hiv,
                         prev_clinical_datetime_hiv,
-	                    next_clinical_datetime_hiv
+	                    next_clinical_datetime_hiv,
+                        ovc_non_enrolment_reason,
+                        ovc_non_enrolment_date,
+                        ovc_exit_reason,
+                        ovc_exit_date
                         from flat_hei_summary_4 t1)');
 
                     PREPARE s1 from @dyn_sql; 

@@ -151,6 +151,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     is_cross_border INT,
     tb_tx_stop_date DATETIME,
     country_of_residence INT,
+    ovc_exit_reason INT,
+    ovc_exit_date DATETIME,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -319,7 +321,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,218) then 10
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,218,220) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -333,7 +335,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
 								left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,218)
+                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,218,220)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -418,6 +420,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @enrollment_date = null;
                         set @ovc_non_enrollment_reason = null;
                         set @ovc_non_enrollment_date = null;
+						set @ovc_exit_reason = null;
+                        set @ovc_exit_date = null;
                         set @hiv_start_date = null;
                         set @cur_location = null;
                         set @cur_rtc_date = null;
@@ -577,7 +581,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @prev_id != @cur_id then @visit_num := 1
                             end as visit_num,
                             case
-                              when encounter_type=110 then
+                              when encounter_type in(110) then
                                 case
                                   when obs regexp "!!(10532)" then @mdt_session_number:= 4
 								  when obs regexp "!!(10527|10528|10529|10530|10531)" then @mdt_session_number:= 3
@@ -586,7 +590,8 @@ SELECT @person_ids_count AS 'num patients to sync';
 								  when @prev_id = @cur_id then @mdt_session_number
 								else null
 							  end
-							  else @mdt_session_number
+							  when @prev_id = @cur_id then @mdt_session_number
+							  else null
                             end as mdt_session_number,
 
                             case
@@ -1729,21 +1734,36 @@ SELECT @person_ids_count AS 'num patients to sync';
                             else @cross_border_service_offered := null
                         end as cross_border_service_offered,
 
-                        case 
+						case 
                             when obs regexp "!!11252=11197" then @country_of_residence := 11197
                             when obs regexp "!!11252=11118" then @country_of_residence := 11118                                                
                             when @prev_id = @cur_id then @country_of_residence
                             else @country_of_residence := null
                         end as country_of_residence,
-                        null as is_cross_border_county,
+                        
+						null as is_cross_border_county,
                         
                         case
                             when  @is_cross_border_country = 1  then @is_cross_border := 1
                             else @is_cross_border := 0
                         end as is_cross_border,
+                        
+                        case 
+                            when obs regexp "!!1596=8204" then @ovc_exit_reason := 8204
+                            when obs regexp "!!1596=11292" then @ovc_exit_reason := 11292  
+                            when obs regexp "!!1596=10119" then @ovc_exit_reason := 10119
+                            when obs regexp "!!1596=8640" then @ovc_exit_reason := 8640                                                 
+                            when @prev_id = @cur_id then @ovc_exit_reason
+                            else @ovc_exit_reason := null
+                        end as ovc_exit_reason,
 
-                        null as cross_border_country_travelled
-                            
+                        case
+                            when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
+                            when @prev_id = @cur_id then @ovc_exit_date
+                            else null
+                        end as ovc_exit_date
+        
+
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
                         );
@@ -2234,11 +2254,14 @@ SELECT @total_rows_written;
                         last_cross_boarder_screening_datetime,
                         is_cross_border_country,
                         cross_border_service_offered,
-                        cross_border_country_travelled
+                        null as cross_border_country_travelled,
                         is_cross_border_county,
                         is_cross_border,
                         tb_tx_stop_date,
-                        country_of_residence
+                        country_of_residence,
+                        ovc_exit_reason,
+                        ovc_exit_date
+                        
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
 
@@ -2342,3 +2365,4 @@ SELECT
 
         END$$
 DELIMITER ;
+
