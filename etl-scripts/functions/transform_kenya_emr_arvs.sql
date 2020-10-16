@@ -1,9 +1,7 @@
-DELIMITER $$
-CREATE FUNCTION `transform_kenya_emr_arvs`(obs varchar(10000),regimen_concept_id varchar(250)) RETURNS varchar(100) CHARSET latin1
+CREATE DEFINER=`root`@`%` FUNCTION `transform_kenya_emr_arvs`(obs varchar(10000),regimen_concept_id varchar(250)) RETURNS varchar(100) CHARSET latin1
     DETERMINISTIC
 BEGIN
-/*
-*/
+
                 set @regimen := null;
                 select
                 (
@@ -34,12 +32,11 @@ BEGIN
 					when obs regexp concat('!!',regimen_concept_id,'=10802!!') then @regimen:= '802 ## 814 ## 9026 ## 795'
 					when obs regexp concat('!!',regimen_concept_id,'=10803!!') then @regimen:= '814 ## 796 ## 9026 ## 795'
 					when obs regexp concat('!!',regimen_concept_id,'=10847!!') then @regimen:= '814 ## 802 ## 628 ## 9026 ## 795'
-					else ""    
+					else null    
 				end 
-
+                
                 ) into @regimen;
-
+                
                 return @regimen;
-
-        END$$
-DELIMITER ;
+            
+        END
