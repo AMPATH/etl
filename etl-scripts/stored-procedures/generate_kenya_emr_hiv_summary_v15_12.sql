@@ -1,8 +1,6 @@
-DELIMITER $$
-
-CREATE PROCEDURE `etl`.`generate_kenya_emr_hiv_summary_v15_12`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE DEFINER=`root`@`%` PROCEDURE `generate_kenya_emr_hiv_summary_v15_12`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
-                    set @primary_table := "flat_kenya_emr_hiv_summary_v15b";
+                    set @primary_table := "flat_hiv_summary_v15b";
                     set @query_type = query_type;
                     set @queue_table = "";
                     set @total_rows_written = 0;
@@ -19,7 +17,7 @@ BEGIN
 
                     
                     
-CREATE TABLE IF NOT EXISTS flat_kenya_emr_hiv_summary_v15b (
+CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     person_id INT,
     uuid VARCHAR(100),
@@ -36,6 +34,8 @@ CREATE TABLE IF NOT EXISTS flat_kenya_emr_hiv_summary_v15b (
     mdt_session_number INT,
     enrollment_date DATETIME,
     enrollment_location_id INT,
+     ovc_non_enrollment_reason INT,	
+    ovc_non_enrollment_date DATETIME,
     hiv_start_date DATETIME,
     death_date DATETIME,
     scheduled_visit INT,
@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS flat_kenya_emr_hiv_summary_v15b (
     condoms_provided_date DATETIME,
     modern_contraceptive_method_start_date DATETIME,
     contraceptive_method INT,
+    menstruation_status INT,	
+    is_mother_breastfeeding BOOLEAN,
     cur_who_stage INT,
     discordant_status INT,
     cd4_resulted DOUBLE,
@@ -104,6 +106,8 @@ CREATE TABLE IF NOT EXISTS flat_kenya_emr_hiv_summary_v15b (
     vl_1_date DATETIME,
     vl_2 INT,
     vl_2_date DATETIME,
+    height INT,	
+    weight INT,
     expected_vl_date SMALLINT,
     vl_order_date DATETIME,
     cd4_order_date DATETIME,
@@ -135,6 +139,17 @@ CREATE TABLE IF NOT EXISTS flat_kenya_emr_hiv_summary_v15b (
     home_outreach INT,
     outreach_attempts INT,
     outreach_missed_visit_reason INT,
+    travelled_outside_last_3_months INT,
+    travelled_outside_last_6_months INT,
+    travelled_outside_last_12_months INT,
+    last_cross_boarder_screening_datetime DATETIME,
+    is_cross_border_country INT,
+    cross_border_service_offered INT,
+    cross_border_country_travelled INT,
+    is_cross_border_county INT,
+    is_cross_border INT,
+    tb_tx_stop_date DATETIME,
+    country_of_residence INT,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -295,15 +310,16 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             
                             case
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163,218,219,222,235) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
                                 else null
                             end as is_clinical_encounter,
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186) then 10
-                                when t1.encounter_type in (129) then 5 
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138,140,153,154,158,162,163,186,242,241,240,239,238,237,236,235,234,233,232,231,230,229,228,227,226,225,224,223,222,221,220,219,217,216,215,214) then 10
+                                when t1.encounter_type in (218) then 19 
+                                when t1.encounter_type in (129) then 5
                                 else 1
                             end as encounter_type_sort_index,
 
@@ -312,7 +328,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
 								left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186)
+                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158,161,162,163,186,242,241,240,239,238,237,236,235,234,233,232,231,230,229,228,227,226,225,224,223,222,221,220,219,218,217,216,215,214)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -349,6 +365,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @prev_encounter_date = null;
                         set @cur_encounter_date = null;
                         set @enrollment_date = null;
+                        set @ovc_non_enrollment_reason = null;
+                        set @ovc_non_enrollment_date = null;
                         set @hiv_start_date = null;
                         set @cur_location = null;
                         set @cur_rtc_date = null;
@@ -380,6 +398,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @on_tb_tx = null;
                         set @tb_tx_start_date = null;
                         set @tb_tx_end_date = null;
+                        set @tb_tx_stop_date = null;
                         set @pcp_prophylaxis_start_date = null;
                         set @tb_screen = null;
                         set @tb_screening_result = null;
@@ -392,6 +411,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @condoms_provided_date = null;
                         set @modern_contraceptive_method_start_date = null;
                         set @contraceptive_method = null;
+                        set @menstruation_status = null;
+                        set @is_mother_breastfeeding = null;
 
                         
                         set @cur_who_stage = null;
@@ -402,6 +423,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @vl_2_date=null;
                         set @vl_resulted=null;
                         set @vl_resulted_date=null;
+                        set @height=null;
+                        set @weight=null;
 
                         set @cd4_resulted=null;
                         set @cd4_resulted_date=null;
@@ -508,6 +531,17 @@ SELECT @person_ids_count AS 'num patients to sync';
                              WHEN obs REGEXP '!!10792=10793!!' AND (@enrollment_location_id IS NULL || (@enrollment_location_id IS NOT NULL AND @prev_id != @cur_id)) THEN @enrollment_location_id := 9999
                              ELSE @enrollment_location_id:=NULL
                          END AS enrollment_location_id,
+                         case 
+                            when obs regexp "!!11219=6834" then @ovc_non_enrollment_reason := 6834
+                            when obs regexp "!!11219=1504" then @ovc_non_enrollment_reason := 1504                                                  
+                            when @prev_id = @cur_id then @ovc_non_enrollment_reason
+                            else @ovc_non_enrollment_reason := null
+                        end as ovc_non_enrollment_reason,
+                         case
+                            when  t1.encounter_type = 214  then @ovc_non_enrollment_date := encounter_datetime
+                            when @prev_id = @cur_id then @ovc_non_enrollment_date
+                            else null
+                        end as ovc_non_enrollment_date,
 
                             case
                                 when obs regexp "!!1246" then @scheduled_visit := date(GetValues(obs, '1246'))
@@ -578,6 +612,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case
                                 when p.dead or p.death_date then @death_date := p.death_date
+                                when obs regexp "!!1596=1593!!" then @death_date := date(encounter_datetime)
                                 when obs regexp "!!1570=" then @death_date := replace(replace((substring_index(substring(obs,locate("!!1570=",obs)),@sep,1)),"!!1570=",""),"!!","")
                                 when @prev_id != @cur_id or @death_date is null then
                                     case
@@ -642,7 +677,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 								
                                 when obs regexp "!!2157=" and not obs regexp "!!2157=1066" then @cur_arv_meds := normalize_arvs(obs,'2157')
                                 when obs regexp "!!10852=" then @cur_arv_meds := transform_kenya_emr_arvs(obs,'10852')
-                                    
+								when obs regexp "!!1193=" then @cur_arv_meds := transform_kenya_emr_arvs(obs,'1193')
                                 when @prev_id = @cur_id then @cur_arv_meds
                                 else @cur_arv_meds:= null
                             end as cur_arv_meds,
@@ -713,7 +748,19 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as cur_clinic_rtc_date,
 
                             
-                            CASE                             
+                            CASE   
+                                WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                        AND @cur_arv_meds IS NOT NULL AND obs regexp '!!10792=10647!!' 
+                                THEN
+                                    @arv_first_regimen_start_date:=DATE(encounter_datetime)
+								WHEN
+                                    (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
+                                        AND @cur_arv_meds IS NOT NULL AND encounter_type = 242 AND 
+                                        DATE(encounter_datetime) > DATE(@enrollment_date) 
+                                THEN
+                                    @arv_first_regimen_start_date:=DATE(encounter_datetime)
+                                    
                                 WHEN
                                     (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
 									AND obs REGEXP '!!1499='
@@ -740,7 +787,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 										AND (@prev_clinical_datetime is null 
 														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
                                 THEN
-                                    @arv_first_regimen_start_date:= "1900-01-01" #DATE(encounter_datetime)
+                                    @arv_first_regimen_start_date:= "1901-01-01" #DATE(encounter_datetime)
 
                                 WHEN
                                     (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
@@ -749,13 +796,13 @@ SELECT @person_ids_count AS 'num patients to sync';
 										AND (@prev_clinical_datetime is null 
 														or timestampdiff(day,ifnull(@prev_clinical_rtc_date,date_add(@prev_clinical_datetime, interval 90 day)),encounter_datetime) < 90)
                                 THEN
-                                    @arv_first_regimen_start_date:= "1900-01-01" # DATE(encounter_datetime)
-
+                                    @arv_first_regimen_start_date:= "1902-01-01" # DATE(encounter_datetime)
+								
                                 WHEN
                                     (@arv_first_regimen_start_date IS NULL || @prev_id != @cur_id)
                                         AND @cur_arv_meds IS NOT NULL
                                 THEN
-                                    @arv_first_regimen_start_date:='1900-01-01'
+                                    @arv_first_regimen_start_date:='1903-01-01'
                                 WHEN @prev_id = @cur_id THEN @arv_first_regimen_start_date
                                 WHEN @prev_id != @cur_id THEN @arv_first_regimen_start_date:=NULL
                                 ELSE @arv_first_regimen_start_date
@@ -829,7 +876,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as arv_first_regimen,
 */
 						
-							CASE                             
+							CASE    
+								WHEN
+                                    (@arv_first_regimen IS NULL || @prev_id != @cur_id)
+                                        AND @cur_arv_meds IS NOT NULL AND obs regexp '!!10792=10647!!' 
+                                 THEN
+                                    @arv_first_regimen := @cur_arv_meds
                                 WHEN
                                     (@arv_first_regimen IS NULL || @prev_id != @cur_id)
 									AND obs REGEXP '!!1499='
@@ -892,7 +944,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as arv_first_regimen_location_id,
 */
 
-							CASE                             
+							CASE  
+                                WHEN
+                                    (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
+                                        AND @cur_arv_meds IS NOT NULL AND obs regexp '!!10792=10647!!' 
+                                 THEN
+                                    @arv_first_regimen_location_id := location_id
                                 WHEN
                                     (@arv_first_regimen_location_id IS NULL || @prev_id != @cur_id)
 									AND obs REGEXP '!!1499='
@@ -1225,7 +1282,11 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as tb_tx_start_date,
 
                             
-                            
+                            case
+                                    when obs regexp "!!1268=(7043|7065|1259|44|7061|102|5622)!!" then @tb_tx_stop_date := encounter_datetime
+                                    when @cur_id = @prev_id then @tb_tx_stop_date
+                                    else @tb_tx_stop_date := null
+                            end as tb_tx_stop_date,
                             
                             case
                                     when obs regexp "!!2041=" then @tb_tx_end_date := date(replace(replace((substring_index(substring(obs,locate("!!2041=",obs)),@sep,1)),"!!2041=",""),"!!",""))
@@ -1351,7 +1412,16 @@ SELECT @person_ids_count AS 'num patients to sync';
                                         end
                                     else @vl_2_date:=null
                             end as vl_2_date,
-
+                            case 
+                                when obs regexp "!!5090=" then @height := cast(replace(replace((substring_index(substring(obs,locate("!!5090=",obs)),@sep,1)),"!!5090=",""),"!!","") as decimal(4,1))
+                                when @prev_id = @cur_id then @height
+                                else @height := null
+                            end as height,
+                            case 
+                                when obs regexp "!!5089=" then @weight := cast(replace(replace((substring_index(substring(obs,locate("!!5089=",obs)),@sep,1)),"!!5089=",""),"!!","") as decimal(4,1))
+                                when @prev_id = @cur_id then @weight
+                                else @weight := null
+                            end as weight,
                             case
                                 when t1.encounter_type = @lab_encounter_type and obs regexp "!!856=[0-9]" then @vl_date_resulted := date(encounter_datetime)
                                 when @prev_id = @cur_id and date(encounter_datetime) = @vl_date_resulted then @vl_date_resulted
@@ -1527,7 +1597,29 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @prev_id = @cur_id then @contraceptive_method
                                 else @contraceptive_method := null
                             end as contraceptive_method,
-                            
+                            case
+                                when obs regexp "!!2061=1115!!" then @menstruation_status := 1115	
+                                when obs regexp "!!2061=2060!!" then @menstruation_status := 2060	
+                                when obs regexp "!!2061=1116!!" then @menstruation_status := 1116	
+                                when obs regexp "!!2061=5990!!" then @menstruation_status := 5990	
+                                when obs regexp "!!2061=6496!!" then @menstruation_status := 6496	
+                                when obs regexp "!!2061=6497!!" then @menstruation_status := 6497	
+                                when obs regexp "!!2061=5993!!" then @menstruation_status := 5993	
+                                when obs regexp "!!2061=2416!!" then @menstruation_status := 2416	
+                                when obs regexp "!!2061=2415!!" then @menstruation_status := 2415	
+                                when obs regexp "!!2061=7023!!" then @menstruation_status := 7023	
+                                when obs regexp "!!2061=127!!" then @menstruation_status := 127	
+                                when obs regexp "!!2061=162!!" then @menstruation_status := 162	
+                                when obs regexp "!!2061=1461!!" then @menstruation_status := 1461	
+                                when obs regexp "!!2061=5622!!" then @menstruation_status := 5622	
+                                when obs regexp "!!2061=5989!!" then @menstruation_status := 5989	
+                                when @prev_id = @cur_id then @menstruation_status	
+                                else @menstruation_status := null	
+                            end as menstruation_status,
+                            case
+                                when obs regexp "!!5632=1065!!" then @is_mother_breastfeeding:=1
+                                else null
+                            end as is_mother_breastfeeding,
                             case
                                 when obs regexp "!!5356=(1204|1220)!!" then @cur_who_stage := 1
                                 when obs regexp "!!5356=(1205|1221)!!" then @cur_who_stage := 2
@@ -1607,7 +1699,66 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when obs regexp "!!9082=" then @outreach_missed_visit_reason :=GetValues(obs,'9082')
                                 else @outreach_missed_visit_reason := NULL
                             end
-                         end as outreach_missed_visit_reason   
+                         end as outreach_missed_visit_reason,   
+						
+                        case 
+                            when obs regexp "!!11237=1065" then @travelled_outside_last_3_months := 1
+                            when obs regexp "!!11237=1066" then @travelled_outside_last_3_months := 0 
+                            when @prev_id = @cur_id then @travelled_outside_last_3_months                                                
+                            else @travelled_outside_last_3_months := null
+                        end as travelled_outside_last_3_months,
+
+                        case 
+                            when obs regexp "!!11238=1065" then @travelled_outside_last_6_months := 1
+                            when obs regexp "!!11238=1066" then @travelled_outside_last_6_months := 0 
+                            when @prev_id = @cur_id then @travelled_outside_last_6_months                                                
+                            else @travelled_outside_last_6_months := null
+                        end as travelled_outside_last_6_months,
+
+                        case 
+                            when obs regexp "!!11239=1065" then @travelled_outside_last_12_months := 1
+                            when obs regexp "!!11239=1066" then @travelled_outside_last_12_months := 0
+                            when @prev_id = @cur_id then @travelled_outside_last_12_months                                                 
+                            else @travelled_outside_last_12_months := null
+                        end as travelled_outside_last_12_months,
+
+                        case
+                            when  t1.encounter_type = 218  then @last_cross_boarder_screening_datetime := encounter_datetime
+                            when @prev_id = @cur_id then @last_cross_boarder_screening_datetime
+                            else null
+                        end as last_cross_boarder_screening_datetime,
+						
+                        case
+                            when  @travelled_outside_last_3_months = 1 or @travelled_outside_last_6_months = 1 or @travelled_outside_last_12_months = 1  then @is_cross_border_country := 1
+                            else @is_cross_border_country := 0
+                        end as is_cross_border_country,
+
+                        case 
+                            when obs regexp "!!11243=10739" then @cross_border_service_offered := 10739
+                            when obs regexp "!!11243=10649" then @cross_border_service_offered := 10649
+                            when obs regexp "!!11243=5483" then @cross_border_service_offered := 5483
+                            when obs regexp "!!11243=2050" then @cross_border_service_offered := 2050
+                            when obs regexp "!!11243=11244" then @cross_border_service_offered := 11244
+                            when obs regexp "!!11243=1964" then @cross_border_service_offered := 1964
+                            when obs regexp "!!11243=7913" then @cross_border_service_offered := 7913
+                            when obs regexp "!!11243=5622" then @cross_border_service_offered := 5622                                                  
+                            when @prev_id = @cur_id then @cross_border_service_offered
+                            else @cross_border_service_offered := null
+                        end as cross_border_service_offered,
+
+						case 
+                            when obs regexp "!!11252=11197" then @country_of_residence := 11197
+                            when obs regexp "!!11252=11118" then @country_of_residence := 11118                                                
+                            when @prev_id = @cur_id then @country_of_residence
+                            else @country_of_residence := null
+                        end as country_of_residence,
+                        
+						null as is_cross_border_county,
+                        
+                        case
+                            when  @is_cross_border_country = 1  then @is_cross_border := 1
+                            else @is_cross_border := 0
+                        end as is_cross_border
                             
                             
 
@@ -1855,6 +2006,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
+                                when obs regexp "!!10792=10793!!" then @transfer_in := 1
                                 when prev_clinical_location_id != location_id then @transfer_in := 1
                                 when obs regexp "!!10793=1065" then @transfer_in:=1
                                 else @transfer_in := null
@@ -1862,17 +2014,19 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case 
                                 when obs regexp "!!7015=" then @transfer_in_date := date(encounter_datetime)
+                                 when obs regexp "!!10792=10793!!" then @transfer_in_date := date(encounter_datetime)
                                 when prev_clinical_location_id != location_id then @transfer_in_date := date(encounter_datetime)
                                 when @cur_id = @prev_id then @transfer_in_date
-                                when obs regexp "!!10793=1065" then @transfer_in_date := date(encounter_datetime)
+                                when obs regexp "!!10793=1065!!" then @transfer_in_date := date(encounter_datetime)
                                 else @transfer_in_date := null
                             end transfer_in_date,
                             
                             case 
                                 when obs regexp "!!7015=1287" then @transfer_in_location_id := 9999
+                                when obs regexp "!!10792=10793!!" then @transfer_in_location_id := 9999
                                 when prev_clinical_location_id != location_id then @transfer_in_location_id := prev_clinical_location_id
                                 when @cur_id = @prev_id then @transfer_in_location_id
-                                when obs regexp "!!10793=1065" then @transfer_in_location_id := 9999
+                                when obs regexp "!!10793=1065!!" then @transfer_in_location_id := 9999
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
 
@@ -1897,6 +2051,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case 
                                 /*KenyaEMR form submits freetext while AMRS value is coded*/
+                                when @transfer_out = 1 and encounter_type = 222 then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
                                 when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
                                 when next_clinical_location_id != location_id then @transfer_out_location_id := next_clinical_location_id
@@ -1906,6 +2061,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             
                             case 
+                                when @transfer_out = 1 and encounter_type = 222 then @transfer_out_date := date(encounter_datetime)
                                 when obs regexp "!!10651=" then @transfer_out_date := GetValues(obs,10651)
                                 when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
                                 when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
@@ -1948,7 +2104,9 @@ SELECT @total_rows_written;
                         visit_num,
                         mdt_session_number,
                         enrollment_date,                        
-                        enrollment_location_id,                                        
+                        enrollment_location_id,  
+                        ovc_non_enrollment_reason,
+                        ovc_non_enrollment_date, 
                         hiv_start_date,
                         death_date,
                         scheduled_visit,                        
@@ -1999,6 +2157,8 @@ SELECT @total_rows_written;
                         condoms_provided_date,
                         modern_contraceptive_method_start_date,
                         contraceptive_method,
+                        menstruation_status,
+                        is_mother_breastfeeding,
                         cur_who_stage,
                         discordant_status,
                         cd4_resulted,
@@ -2017,6 +2177,8 @@ SELECT @total_rows_written;
                         vl_1_date,
                         vl_2,
                         vl_2_date,
+                         height,
+                        weight,
                         expected_vl_date,
                         vl_order_date,
                         cd4_order_date,
@@ -2047,7 +2209,18 @@ SELECT @total_rows_written;
                         phone_outreach,
                         home_outreach,
 						outreach_attempts,
-                        outreach_missed_visit_reason
+                        outreach_missed_visit_reason,
+						travelled_outside_last_3_months,
+                        travelled_outside_last_6_months,
+                        travelled_outside_last_12_months,
+                        last_cross_boarder_screening_datetime,
+                        is_cross_border_country,
+                        cross_border_service_offered,
+                        null as cross_border_country_travelled,
+                        is_cross_border_county,
+                        is_cross_border,
+                        tb_tx_stop_date,
+                        country_of_residence
                         
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
@@ -2143,12 +2316,10 @@ SELECT
                  set @end = now();
                  #if (@query_type="sync") then
                  insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-                 #end if;
 SELECT 
     CONCAT(@table_version,
             ' : Time to complete: ',
             TIMESTAMPDIFF(MINUTE, @start, @end),
             ' minutes');
 
-        END$$
-DELIMITER ;
+        END
