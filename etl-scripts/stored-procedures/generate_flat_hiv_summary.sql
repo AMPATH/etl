@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     country_of_residence INT,
     ovc_exit_reason INT,
     ovc_exit_date DATETIME,
+    tb_tx_stop_reason INT,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -501,6 +502,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                         set @hiv_rapid_test_resulted=null;
                         set @hiv_rapid_test_resulted_date= null;
+                        set @tb_tx_stop_reason=null;
 
 
                         
@@ -588,10 +590,10 @@ SELECT @person_ids_count AS 'num patients to sync';
 								  when obs regexp "!!(10523|10524|10525|10526)" then @mdt_session_number:= 2
 								  when obs regexp "!!(10518|10519|10520|10521|10522)" then @mdt_session_number:= 1
 								  when @prev_id = @cur_id then @mdt_session_number
-								else null
-							  end
+								  else @mdt_session_number := null
+							    end
 							  when @prev_id = @cur_id then @mdt_session_number
-							  else null
+							  else @mdt_session_number := null
                             end as mdt_session_number,
 
                             case
@@ -1761,7 +1763,20 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_exit_date
                             else null
-                        end as ovc_exit_date
+                        end as ovc_exit_date,
+                        
+                        case 
+                            when obs regexp "!!1268=1267" then @tb_tx_stop_reason := 1267
+                            when obs regexp "!!1268=7043" then @tb_tx_stop_reason := 7043  
+                            when obs regexp "!!1268=7065" then @tb_tx_stop_reason := 7065
+                            when obs regexp "!!1268=1259" then @tb_tx_stop_reason := 1259  
+                            when obs regexp "!!1268=44" then @tb_tx_stop_reason := 44
+                            when obs regexp "!!1268=7061" then @tb_tx_stop_reason := 7061 
+                            when obs regexp "!!1268=102" then @tb_tx_stop_reason := 102
+                            when obs regexp "!!1268=5622" then @tb_tx_stop_reason := 5622 
+                            when @prev_id = @cur_id then @tb_tx_stop_reason
+                            else @tb_tx_stop_reason := null
+                        end as tb_tx_stop_reason
         
 
                         from flat_hiv_summary_0 t1
@@ -2260,7 +2275,8 @@ SELECT @total_rows_written;
                         tb_tx_stop_date,
                         country_of_residence,
                         ovc_exit_reason,
-                        ovc_exit_date
+                        ovc_exit_date,
+                        tb_tx_stop_reason
                         
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
@@ -2365,4 +2381,3 @@ SELECT
 
         END$$
 DELIMITER ;
-
