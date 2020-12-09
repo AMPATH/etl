@@ -7,7 +7,7 @@ BEGIN
                     set @total_rows_written = 0;
                     
                     set @start = now();
-                    set @table_version = "flat_hiv_summary_v2.24";
+                    set @table_version = "flat_hiv_summary_v2.25";
 
                     set session sort_buffer_size=512000000;
 
@@ -154,6 +154,10 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     ovc_exit_reason INT,
     ovc_exit_date DATETIME,
     tb_tx_stop_reason INT,
+    ca_cx_screen TINYINT,
+    ca_cx_screening_result INT,
+    ca_cx_screening_result_datetime DATETIME,
+    ca_cx_screening_datetime DATETIME,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -314,7 +318,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             
                             case
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163) then 1
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163,225,226) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
                                 when t1.encounter_type in (158) AND v.visit_type_id not in (104) AND v.visit_type_id is NOT NULL then 1
                                 else null
@@ -322,7 +326,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,218,220) then 10
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,218,220,225,226) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -336,7 +340,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
                                 left join etl.flat_orders t2 using(encounter_id)
 								left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,218,220)
+                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,218,220,225,226)
                                 AND NOT obs regexp "!!5303=(822|664|1067)!!"  
                                 AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -503,6 +507,11 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @hiv_rapid_test_resulted=null;
                         set @hiv_rapid_test_resulted_date= null;
                         set @tb_tx_stop_reason=null;
+                        
+                        set @ca_cx_screen = null;
+                        set @ca_cx_screening_result = null;
+                        set @ca_cx_screening_result_datetime = null;
+                        set @ca_cx_screening_datetime = null;
 
 
                         
@@ -1776,7 +1785,33 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when obs regexp "!!1268=5622" then @tb_tx_stop_reason := 5622 
                             when @prev_id = @cur_id then @tb_tx_stop_reason
                             else @tb_tx_stop_reason := null
-                        end as tb_tx_stop_reason
+                        end as tb_tx_stop_reason,
+                        
+                        case
+                          when obs regexp "!!10400=1066!!" then @ca_cx_screen := 0
+                          when obs regexp "!!10400=1065!!" then @ca_cx_screen := 1
+                          when obs regexp "!!10400=1175!!" then @ca_cx_screen := 3
+                          when obs regexp "!!10400=1118!!" then @ca_cx_screen := 4
+                        end as ca_cx_screen,
+                        
+                        case
+                          when obs regexp "!!10401=" then @ca_cx_screening_result := replace(replace((substring_index(substring(obs,locate("!!10401=",obs)),@sep,1)),"!!10401=",""),"!!","")
+                          when @prev_id != @cur_id then @ca_cx_screening_result := null
+                          else @ca_cx_screening_result
+                        end as ca_cx_screening_result,
+                        
+                         case
+                          when obs regexp "10546=" then @ca_cx_screening_result_datetime := replace(replace((substring_index(substring(obs,locate("!!10546=",obs)),@sep,1)),"!!10546=",""),"!!","")
+                          when @prev_id != @cur_id then @ca_cx_screening_result_datetime := null
+                          else @ca_cx_screening_result_datetime
+                        end as ca_cx_screening_result_datetime,
+                        
+                        
+                        case
+                          when obs regexp "!!10400=1065" then @ca_cx_screening_datetime := encounter_datetime 
+                          when @cur_id = @prev_id then @ca_cx_screening_datetime
+						  else @ca_cx_screening_datetime := null
+                        end as ca_cx_screening_datetime
         
 
                         from flat_hiv_summary_0 t1
@@ -2276,7 +2311,11 @@ SELECT @total_rows_written;
                         country_of_residence,
                         ovc_exit_reason,
                         ovc_exit_date,
-                        tb_tx_stop_reason
+                        tb_tx_stop_reason,
+						ca_cx_screen,
+                        ca_cx_screening_result,
+                        ca_cx_screening_result_datetime,
+                        ca_cx_screening_datetime
                         
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
@@ -2379,5 +2418,5 @@ SELECT
             TIMESTAMPDIFF(MINUTE, @start, @end),
             ' minutes');
 
-        END$$
+                END$$
 DELIMITER ;

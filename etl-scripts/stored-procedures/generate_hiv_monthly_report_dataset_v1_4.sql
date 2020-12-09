@@ -1,11 +1,10 @@
 use etl;
-drop procedure if exists generate_hiv_monthly_report_dataset_v1_4;
 DELIMITER $$
-CREATE  PROCEDURE `generate_hiv_monthly_report_dataset_v1_4`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
+CREATE PROCEDURE `generate_hiv_monthly_report_dataset_v1_4`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
 BEGIN
 
 			set @start = now();
-			set @table_version = "hiv_monthly_report_dataset_v1.4";
+			set @table_version = "hiv_monthly_report_dataset_v1.0";
 			set @last_date_created = (select max(date_created) from etl.flat_hiv_summary_v15b);
 
 			set @sep = " ## ";
@@ -154,6 +153,11 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				ovc_non_enrolment_out_of_catchment_area tinyint,
 				newly_exited_from_ovc_this_month tinyint,
 				exited_from_ovc_this_month tinyint,
+                ca_cx_screen tinyint,
+				ca_cx_screening_datetime datetime,
+				ca_cx_screening_result int,  
+                ca_cx_screened_this_visit_this_month tinyint,				
+                ca_cx_screened_active_this_month tinyint,
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
                 index person_report_date (person_id, endDate),
@@ -726,7 +730,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					end as travelled_outside_last_6_months,
                     
                     case
-						when (t2.travelled_outside_last_12_months = 1 or t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
+						when ( t2.travelled_outside_last_12_months = 1 or t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
 							AND timestampdiff(month,last_cross_boarder_screening_datetime,endDate) <= 12
                             then 1                            
 						else 0
@@ -768,7 +772,18 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					case
                         when t2.ovc_exit_date is not null then 1
                         else 0
-                    end as exited_from_ovc_this_month
+                    end as exited_from_ovc_this_month,
+                    ca_cx_screen,
+                    ca_cx_screening_datetime,
+                    ca_cx_screening_result,
+					case
+						when ca_cx_screening_datetime between date_format(endDate, "%Y-%m-01") and endDate then 1
+						else 0
+					end as ca_cx_screened_this_visit_this_month,
+					case
+						when ca_cx_screening_datetime between date_format(endDate, "%Y-%m-01") and endDate AND @status = "active"  then 1
+						else 0
+					end as ca_cx_screened_active_this_month
 					
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
@@ -1054,7 +1069,12 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				ovc_non_enrolment_declined,
 				ovc_non_enrolment_out_of_catchment_area,
 				newly_exited_from_ovc_this_month,
-				exited_from_ovc_this_month
+				exited_from_ovc_this_month,
+                ca_cx_screen,
+				ca_cx_screening_datetime,
+				ca_cx_screening_result,  
+                ca_cx_screened_this_visit_this_month,				
+                ca_cx_screened_active_this_month
 					from hiv_monthly_report_dataset_2 t1
                     join amrs.location t2 on (t2.location_id = t1.cur_location_id)
 				);
@@ -1108,4 +1128,4 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 			select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
         END$$
-DELIMITER ;
+DELIMITER;
