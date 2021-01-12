@@ -1,6 +1,7 @@
 DELIMITER $$
 CREATE PROCEDURE `generate_flat_breast_cancer_screening_v1_2`(IN query_type VARCHAR(50), IN queue_number INT, IN queue_size INT, IN cycle_size INT)
 BEGIN
+    -- 
     SET @primary_table := "flat_breast_cancer_screening";
     SET @query_type := query_type;
                      
@@ -28,85 +29,55 @@ BEGIN
         encounter_datetime datetime,
         visit_id int,
         location_id int,
-        location_uuid varchar (100),
-        gender char (100),
-        age int,
-        encounter_purpose int,
-        other_encounter_purpose varchar(1000),
-        menstruation_before_12 char,
-        menses_stopped_permanently char,
-        menses_stop_age int,
-        hrt_use char,
-        hrt_start_age int,
-        hrt_end_age int,
-        hrt_use_years int,
-        hrt_type_used int,
-        given_birth int,
-        age_first_birth int,
-        gravida int,
-        parity int,
-        cigarette_smoking int,
-        cigarette_smoked_day int,
-        tobacco_use int,
-        tobacco_use_duration_yrs int,
-        alcohol_drinking int,
-        alcohol_type int,
-        alcohol_use_period_yrs int,
-        breast_complaints_3months int,
-        breast_mass_location tinyint,
-        nipple_discharge_location tinyint,
-        nipple_retraction_location tinyint,
-        breast_erythrema_location tinyint,
-        breast_rash_location tinyint,
-        breast_pain_location tinyint,
-        other_changes_location tinyint,
+        location_uuid varchar(100),
+        gender char(100),
+        age tinyint,
+        encounter_purpose tinyint,
+        menstruation_before_12 tinyint,
+        menses_stopped_permanently tinyint,
+        menses_stop_age tinyint,
+        hrt_use tinyint,
+        hrt_use_years tinyint,
+        hrt_type_used tinyint,
+        ever_given_birth tinyint,
+        age_at_birth_of_first_child tinyint,
+        gravida tinyint,
+        parity tinyint,
+        cigarette_smoking tinyint,
+        cigarette_sticks_smoked_per_day tinyint,
+        tobacco_use tinyint,
+        tobacco_use_duration_in_years tinyint,
+        alcohol_consumption tinyint,
+        alcohol_type_used tinyint,
+        alcohol_use_duration_in_years tinyint,
+        hiv_status tinyint,
+        presence_of_chief_complaint tinyint,
+        history_of_clinical_breast_examination tinyint,
+        past_clinical_breast_exam_findings varchar(100),
         history_of_mammogram tinyint,
-        mammogram_results tinyint,
-        breast_ultrasound_history tinyint,
-        breast_ultrasound_result tinyint,
+        past_mammogram_results tinyint,
+        history_of_breast_ultrasound tinyint,
+        past_breast_ultrasound_results tinyint,
         history_of_breast_biopsy tinyint,
-        breast_biopsy_results tinyint,
-        number_of_biopsies tinyint,
-        biopsy_type tinyint,
-        prev_exam_results int,
-        fam_brca_history_bf50 int,
-        fam_brca_history_aft50 int,
-        fam_male_brca_history int,
-        fam_ovarianca_history int,
-        fam_relatedca_history int,
-        fam_otherca_specify int,
-        cur_physical_findings int,
-        lymph_nodes_findings int,
-        cur_screening_findings int,
-        #cur_screening_findings_date int,
-        patient_education int,
-        patient_education_other varchar(1000),
-        referrals_ordered int,
-        referred_date datetime,
-        procedure_done int,
-        next_app_date datetime,	
-        cbe_imaging_concordance int,
-        mammogram_workup_date datetime,
-        date_patient_notified_of_mammogram_results datetime,
-        ultrasound_results int,
-        ultrasound_workup_date datetime,
-        date_patient_notified_of_ultrasound_results datetime,
-        fna_results int,
-        fna_tumor_size int,
-        fna_degree_of_malignancy int,
-        fna_workup_date datetime,
-        date_patient_notified_of_fna_results datetime,
-        biopsy_tumor_size int,
-        biopsy_degree_of_malignancy int,
-        biopsy_workup_date datetime,
-        date_patient_notified_of_biopsy_results datetime,
-        biopsy_description varchar(1000),
-        diagnosis_date datetime,
-        date_patient_informed_and_referred_for_management datetime,
-        screening_mode int,
-        diagnosis int,
-        cancer_staging int,
-        hiv_status int,     
+        number_of_biopsies_done tinyint,
+        breast_biopsy_type varchar(200),
+        past_breast_biopsy_results tinyint,
+        history_of_radiation_treatment_to_the_chest tinyint,
+        past_breast_surgery_for_non_brca_reasons tinyint,
+        which_other_breast_surgery varchar(100),
+        any_family_member_diagnosed_with_ca_breast int,
+        breast_findings_this_visit varchar(150),
+        breast_finding_location varchar(150),
+        breast_finding_quadrant varchar(150),
+        breast_symmetry tinyint,
+        lymph_node_findings tinyint,
+        axillary_lymph_nodes_location tinyint,
+        clavicular_supra_location tinyint,
+        clavicular_infra_location tinyint,
+        patient_education varchar(200),
+        referrals_ordered tinyint,
+        referral_date datetime,
+        next_appointment_date datetime,
         prev_encounter_datetime_breast_cancer_screening datetime,
         next_encounter_datetime_breast_cancer_screening datetime,
         prev_encounter_type_breast_cancer_screening mediumint,
@@ -121,8 +92,8 @@ BEGIN
         index person_date (person_id, encounter_datetime),
         index location_enc_date (location_uuid,encounter_datetime),
         index enc_date_location (encounter_datetime, location_uuid),
-        index location_id_rtc_date (location_id,next_app_date),
-        index location_uuid_rtc_date (location_uuid,next_app_date),
+        index location_id_rtc_date (location_id,next_appointment_date),
+        index location_uuid_rtc_date (location_uuid,next_appointment_date),
         index loc_id_enc_date_next_clinical (location_id, encounter_datetime, next_clinical_datetime_breast_cancer_screening),
         index encounter_type (encounter_type),
         index date_created (date_created)
@@ -338,83 +309,53 @@ BEGIN
         ORDER BY
           person_id, DATE(encounter_datetime)
         );
-                        
+
         SET @encounter_purpose := null;
-        SET @other_encounter_purpose := null;
         SET @menstruation_before_12 := null;
         SET @menses_stopped_permanently := null;
         SET @menses_stop_age := null;
         SET @hrt_use := null;
-        SET @hrt_start_age := null;
-        SET @hrt_end_age := null;
         SET @hrt_use_years := null;
-        SET @hrt_type_used =null;
-        SET @given_birth := null;
-        SET @age_first_birth := null;
+        SET @hrt_type_used := null;
+        SET @ever_given_birth := null;
+        SET @age_at_birth_of_first_child := null;
         SET @gravida := null;
         SET @parity := null;
         SET @cigarette_smoking := null;
-        SET @cigarette_smoked_day := null;
+        SET @cigarette_sticks_smoked_per_day := null;
         SET @tobacco_use := null;
-        SET @tobacco_use_duration_yrs := null;
-        SET @alcohol_drinking := null;
-        SET @alcohol_type := null;
-        SET @alcohol_use_period_yrs := null;
-        SET @breast_complaints_3months := null;
-        SET @breast_mass_location := null;
-        SET @nipple_discharge_location := null;
-        SET @nipple_retraction_location := null;
-        SET @breast_erythrema_location := null;
-        SET @breast_rash_location := null;
-        SET @breast_pain_location := null;
-        SET @other_changes_location := null;
-        SET @history_of_mammogram := null;
-        SET @mammogram_results := null;
-        SET @breast_ultrasound_history := null;
-        SET @breast_ultrasound_result := null;
-        SET @history_of_breast_biopsy := null;
-        SET @breast_biopsy_results := null;
-        SET @number_of_biopsies := null;
-        SET @biopsy_type := null;
-        SET @prev_exam_results := null;
-        SET @fam_brca_history_bf50 := null;
-        SET @fam_brca_history_aft50 := null;
-        SET @fam_male_brca_history := null;
-        SET @fam_ovarianca_history := null;
-        SET @fam_relatedca_history := null;
-        SET @fam_otherca_specify := null;
-        SET @cur_physical_findings := null;
-        SET @lymph_nodes_findings := null;
-        SET @cur_screening_findings := null;
-        -- SET @cur_screening_findings_date := null;
-        SET @patient_education := null;
-        SET @patient_education_other := null;
-        SET @referrals_ordered := null; 
-        SET @procedure_done := null;
-        SET @referred_date := null;
-        SET @next_app_date := null;
-        SET @cbe_imaging_concordance := null;
-        SET @mammogram_workup_date := null; 
-        SET @date_patient_notified_of_mammogram_results := null;
-        SET @ultrasound_results := null;
-        SET @ultrasound_workup_date := null;
-        SET @date_patient_notified_of_ultrasound_results := null;
-        SET @fna_results := null;
-        SET @fna_tumor_size := null;
-        SET @fna_degree_of_malignancy := null;
-        SET @fna_workup_date := null;
-        SET @date_patient_notified_of_fna_results := null;
-        SET @biopsy_tumor_size := null;
-        SET @biopsy_degree_of_malignancy := null;
-        SET @biopsy_workup_date := null;
-        SET @date_patient_notified_of_biopsy_results := null;
-        SET @biopsy_description := null;
-        SET @diagnosis_date := null;
-        SET @date_patient_informed_and_referred_for_management := null;
-        SET @screening_mode := null;
-        SET @diagnosis := null;
-        SET @cancer_staging := null;
+        SET @tobacco_use_duration_in_years := null;
+        SET @alcohol_consumption := null;
+        SET @alcohol_type_used := null;
+        SET @alcohol_use_duration_in_years := null;
         SET @hiv_status := null;
+        SET @presence_of_chief_complaint := null;
+        SET @history_of_clinical_breast_examination := null;
+        SET @past_clinical_breast_exam_findings := null;
+        SET @history_of_mammogram := null;
+        SET @past_mammogram_results := null;
+        SET @history_of_breast_ultrasound := null;
+        SET @past_breast_ultrasound_results := null;
+        SET @history_of_breast_biopsy := null;
+        SET @number_of_biopsies_done := null;
+        SET @breast_biopsy_type := null;
+        SET @past_breast_biopsy_results := null;
+        SET @history_of_radiation_treatment_to_the_chest := null;
+        SET @past_breast_surgery_for_non_brca_reasons := null;
+        SET @which_other_breast_surgery := null;
+        SET @any_family_member_diagnosed_with_ca_breast := null;
+        SET @breast_findings_this_visit := null;
+        SET @breast_finding_location := null;
+        SET @breast_finding_quadrant := null;
+        SET @breast_symmetry := null;
+        SET @lymph_node_findings := null;
+        SET @axillary_lymph_nodes_location := null;
+        SET @clavicular_supra_location := null;
+        SET @clavicular_infra_location := null;
+        SET @patient_education := null;
+        SET @referrals_ordered := null;
+        SET @referral_date := null;
+        SET @next_appointment_date := null;
 
         DROP TEMPORARY TABLE IF EXISTS flat_breast_cancer_screening_1;
 
@@ -434,468 +375,251 @@ BEGIN
 				t1.is_clinical_encounter,
 				p.gender,
 				p.death_date,
-                case
+        case
 					when timestampdiff(year,birthdate,curdate()) > 0 then round(timestampdiff(year,birthdate,curdate()),0)
 					else round(timestampdiff(month,birthdate,curdate())/12,2)
 				end as age,
 				case
-					when obs regexp "!!1834=9651!!" then @encounter_purpose := 1
-					when obs regexp "!!1834=1154!!" then @encounter_purpose := 2
-					when obs regexp "!!1834=1246!!" then @encounter_purpose := 3
-					when obs regexp "!!1834=5622!!" then @encounter_purpose := 4
+					when t1.encounter_type = 86 and obs regexp "!!1834=9651!!" then @encounter_purpose := 1
+					when t1.encounter_type = 86 and obs regexp "!!1834=1154!!" then @encounter_purpose := 2
+					when t1.encounter_type = 86 and obs regexp "!!1834=1246!!" then @encounter_purpose := 3
+					when t1.encounter_type = 86 and obs regexp "!!1834=5622!!" then @encounter_purpose := 4
 					else @encounter_purpose := null
 				end as encounter_purpose,
 				case
-					when obs regexp "!!1915=" then @other_encounter_purpose := GetValues(obs,1915) 
-					else @other_encounter_purpose := null
-				end as other_encounter_purpose,
-				case
-				  when obs regexp "!!9560=1065!!" then @menstruation_before_12 := 1
-				  when obs regexp "!!9560=1066!!" then @menstruation_before_12 := 0
+				  when t1.encounter_type = 86 and obs regexp "!!9560=1066!!" then @menstruation_before_12 := 0
+				  when t1.encounter_type = 86 and obs regexp "!!9560=1065!!" then @menstruation_before_12 := 1
 				  else @menstruation_before_12 := null
 				end as menstruation_before_12,                           
 				case
-					when obs regexp "!!9561=1065!!" then @menses_stopped_permanently := 1
-					when obs regexp "!!9561=1066!!" then @menses_stopped_permanently := 0
-					when obs regexp "!!9561=9568!!" then @menses_stopped_permanently := 2
+					when t1.encounter_type = 86 and obs regexp "!!9561=1066!!" then @menses_stopped_permanently := 0
+					when t1.encounter_type = 86 and obs regexp "!!9561=1065!!" then @menses_stopped_permanently := 1
+					when t1.encounter_type = 86 and obs regexp "!!9561=9568!!" then @menses_stopped_permanently := 2
 					else @menses_stopped_permanently := null
 				end as menses_stopped_permanently,
 				case
-					when obs regexp "!!9562=[0-9]" and t1.encounter_type = @lab_encounter_type then @menses_stop_age:=cast(GetValues(obs,9562) as unsigned)
+					when t1.encounter_type = 86 and obs regexp "!!9562=" and t1.encounter_type = @lab_encounter_type then @menses_stop_age := GetValues(obs, 9562)
 					when @prev_id = @cur_id then @menses_stop_age
 					else @menses_stop_age := null
 				end as menses_stop_age,
 				case
-					when obs regexp "!!9626=1065!!" then @hrt_use := 1
-					when obs regexp "!!9626=1066!!" then @hrt_use := 0
-					when obs regexp "!!9626=9568!!" then @hrt_use := 2
+					when t1.encounter_type = 86 and obs regexp "!!9626=1066!!" then @hrt_use := 0
+					when t1.encounter_type = 86 and obs regexp "!!9626=1065!!" then @hrt_use := 1
+					when t1.encounter_type = 86 and obs regexp "!!9626=9568!!" then @hrt_use := 2
 					else @hrt_use := null
 				end as hrt_use,
 				case
-					when obs regexp "!!9627=[0-9]" then @hrt_start_age := cast(GetValues(obs,9627) as unsigned)
-					else @hrt_start_age := null
-				end as hrt_start_age,
-				case
-					when obs regexp "!!9723=[0-9]" then @hrt_end_age := cast(GetValues(obs,9723) as unsigned) 
-					else @hrt_end_age := null
-				end as hrt_end_age,
-				case
-					when obs regexp "!!97629=[0-9]" then @hrt_use_years := cast(GetValues(obs,9629) as unsigned) 
+					when t1.encounter_type = 86 and obs regexp "!!9629=" then @hrt_use_years := GetValues(obs, 9629) 
 					else @hrt_use_years := null
 				end as hrt_use_years,
 				case
-					when obs regexp "!!9630=9573!!" then @hrt_type_used := 1
-					when obs regexp "!!9630=6217!!" then @hrt_type_used := 2
-					when obs regexp "!!9630=6218!!" then @hrt_type_used := 3
+					when t1.encounter_type = 86 and obs regexp "!!9630=9573!!" then @hrt_type_used := 1
+					when t1.encounter_type = 86 and obs regexp "!!9630=6217!!" then @hrt_type_used := 2
+					when t1.encounter_type = 86 and obs regexp "!!9630=6218!!" then @hrt_type_used := 3
 					else @hrt_type_used := null
 				end as hrt_type_used,
-                case
-					when obs regexp "!!9563=1065!!" then @given_birth := 1
-					when obs regexp "!!9563=1066!!" then @given_birth := 0
-					else @given_birth := null
-				end as given_birth,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!9563=1066!!" then @ever_given_birth := 0
+					when t1.encounter_type = 86 and obs regexp "!!9563=1065!!" then @ever_given_birth := 1
+					else @ever_given_birth := null
+				end as ever_given_birth,
 				case
-					when obs regexp "!!5574=[0-9]" then @age_first_birth := cast(GetValues(obs,5574) as unsigned) 
-					else @age_first_birth := null
-				end as age_first_birth,
+					when t1.encounter_type = 86 and obs regexp "!!9564=" then @age_at_birth_of_first_child := GetValues(obs, 9564)
+					else @age_at_birth_of_first_child := null
+				end as age_at_birth_of_first_child,
 				case
-					when obs regexp "!!5624=[0-9]" then @gravida := cast(GetValues(obs,5624) as unsigned)
+					when t1.encounter_type = 86 and obs regexp "!!5624=" then @gravida := GetValues(obs, 5624)
 					else @gravida := null
 				end as gravida,
 				case
-					when obs regexp "!!1053=[0-9]" then @parity := cast(GetValues(obs,1053) as unsigned) 
+					when t1.encounter_type = 86 and obs regexp "!!1053=" then @parity := GetValues(obs, 1053)
 					else @parity := null
 				end as parity,
-				case
-					when obs regexp "!!9333=" then @cigarette_smoking := GetValues(obs,9333)
+        case
+					when t1.encounter_type = 86 and obs regexp "!!2065=1066!!" then @cigarette_smoking := 0 -- No
+					when t1.encounter_type = 86 and obs regexp "!!2065=1065!!" then @cigarette_smoking := 1 -- Yes
+					when t1.encounter_type = 86 and obs regexp "!!2065=1679!!" then @cigarette_smoking := 2 -- Stopped
 					else @cigarette_smoking := null
 				end as cigarette_smoking,
 				case
-					when obs regexp "!!2069=[0-9]" then @cigarette_smoked_day := cast(GetValues(obs,2069) as unsigned) 
-					else @cigarette_smoked_day := null
-				end as cigarette_smoked_day,
+					when t1.encounter_type = 86 and obs regexp "!!2069=" then @cigarette_sticks_smoked_per_day := GetValues(obs, 2069) 
+					else @cigarette_sticks_smoked_per_day := null
+				end as cigarette_sticks_smoked_per_day,
 				case
-					when obs regexp "!!7973=1065!!" then @tobacco_use := 1
-					when obs regexp "!!7973=1066!!" then @tobacco_use := 0
-					when obs regexp "!!7973=1679!!" then @tobacco_use := 2
+					when t1.encounter_type = 86 and obs regexp "!!7973=1066!!" then @tobacco_use := 0 -- No
+					when t1.encounter_type = 86 and obs regexp "!!7973=1065!!" then @tobacco_use := 1 -- Yes
+					when t1.encounter_type = 86 and obs regexp "!!7973=1679!!" then @tobacco_use := 2 -- Stopped
 					else @tobacco_use := null
 				end as tobacco_use,
-                case
-					when obs regexp "!!8144=[0-9]" then @tobacco_use_duration_yrs := cast(GetValues(obs, 8144) as unsigned) 
-					else @tobacco_use_duration_yrs := null
-				end as tobacco_use_duration_yrs,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!8144=" then @tobacco_use_duration_in_years := GetValues(obs, 8144) 
+					else @tobacco_use_duration_in_years := null
+				end as tobacco_use_duration_in_years,
 				case
-					when obs regexp "!!1684=1065!!" then @alcohol_drinking := 1
-					when obs regexp "!!1684=1066!!" then @alcohol_drinking := 0
-					when obs regexp "!!1684=1679!!" then @alcohol_drinking := 2
-					else @alcohol_drinking := null
-				end as alcohol_drinking,
+					when t1.encounter_type = 86 and obs regexp "!!1684=1066!!" then @alcohol_consumption := 0 -- No
+					when t1.encounter_type = 86 and obs regexp "!!1684=1065!!" then @alcohol_consumption := 1 -- Yes
+					when t1.encounter_type = 86 and obs regexp "!!1684=1679!!" then @alcohol_consumption := 2 -- Stopped
+					else @alcohol_consumption := null
+				end as alcohol_consumption,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!1685=1682!!" then @alcohol_type := 1 -- Chang'aa
+					when t1.encounter_type = 86 and obs regexp "!!1685=1681!!" then @alcohol_type := 2 -- Liquor
+					when t1.encounter_type = 86 and obs regexp "!!1685=1680!!" then @alcohol_type := 3 -- Beer
+					when t1.encounter_type = 86 and obs regexp "!!1685=1683!!" then @alcohol_type := 4 -- Busaa
+					when t1.encounter_type = 86 and obs regexp "!!1685=2059!!" then @alcohol_type := 5 -- Wine
+					when t1.encounter_type = 86 and obs regexp "!!1685=5622!!" then @alcohol_type := 6 -- Other (non-coded)
+        end as alcohol_type_used,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!8170=" then @alcohol_use_duration_in_years := GetValues(obs, 8170)
+        end as alcohol_use_duration_in_years,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!6709=664!!" then @hiv_status := 1 -- Negative
+					when t1.encounter_type = 86 and obs regexp "!!6709=703!!" then @hiv_status := 2 -- Positive
+					when t1.encounter_type = 86 and obs regexp "!!6709=1067!!" then @hiv_status := 3 -- Unknown
+					else @hiv_status := null
+				end as hiv_status,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9553=5006!!" then @presence_of_chief_complaint := 1 -- Asymptomatic
+					when t1.encounter_type = 86 and obs regexp "!!9553=1068!!" then @presence_of_chief_complaint := 2 -- Symptomatic
+					else @presence_of_chief_complaint := null
+        end as presence_of_chief_complaint,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9559=1066!!" then @history_of_clinical_breast_examination := 0 -- No
+          when t1.encounter_type = 86 and obs regexp "!!9559=1065!!" then @history_of_clinical_breast_examination := 1 -- Yes
+          when t1.encounter_type = 86 and obs regexp "!!9559=9568!!" then @history_of_clinical_breast_examination := 2 -- Not sure
+          else @history_of_clinical_breast_examination := null
+        end as history_of_clinical_breast_examination,
+        case
+          -- workaround necessary because this question and `breast_findings_this_visit` incorrectly share the same concept
+          when t1.encounter_type = 86 and obs regexp "!!9559=1065!!" and obs regexp "!!6251=" then @past_clinical_breast_exam_findings := SUBSTRING(GetValues(obs, 6251), 1, 4)
+          else @past_clinical_breast_exam_findings := null
+        end as past_clinical_breast_exam_findings,
 				case
-					when obs regexp "!!1685=1682!!" then @alcohol_type := 1
-					when obs regexp "!!1685=1681!!" then @alcohol_type := 2
-					when obs regexp "!!1685=1680!!" then @alcohol_type := 3
-					when obs regexp "!!1685=1683!!" then @alcohol_type := 4
-					when obs regexp "!!1685=2059!!" then @alcohol_type := 5
-					when obs regexp "!!1685=5622!!" then @alcohol_type := 6
-					else @alcohol_type := null
-				end as alcohol_type,
-				case
-					when obs regexp "!!8170=[0-9]"  then @alcohol_use_period_yrs := cast(GetValues(obs,8170) as unsigned) 
-					else @alcohol_use_period_yrs := null
-				end as alcohol_use_period_yrs,
-                case
-					when obs regexp "!!9553=5006!!" then @breast_complaints_3months := 1
-					when obs regexp "!!9553=1068!!" then @breast_complaints_3months := 2
-					else @breast_complaints_3months := null
-				end as breast_complaints_3months,
-				case
-					when obs regexp "!!6697=2399!!" then @breast_mass_location := 1
-					when obs regexp "!!6697=5139!!" then @breast_mass_location := 2
-					when obs regexp "!!6697=5141!!" then @breast_mass_location := 3
-					when obs regexp "!!6697=6589!!" then @breast_mass_location := 4
-					when obs regexp "!!6697=6590!!" then @breast_mass_location := 5
-					when obs regexp "!!6697=6591!!" then @breast_mass_location := 6
-					when obs regexp "!!6697=9625!!" then @breast_mass_location := 7
-					else @breast_mass_location := null
-				end as breast_mass_location,
-				case
-					when obs regexp "!!9557=5139!!" then @nipple_discharge_location := 1
-					when obs regexp "!!9557=5141!!" then @nipple_discharge_location := 2
-					when obs regexp "!!9557=9625!!" then @nipple_discharge_location := 3
-					else @nipple_discharge_location := null
-				end as nipple_discharge_location,
-				case
-					when obs regexp "!!9558=5139!!" then @nipple_retraction_location := 1
-					when obs regexp "!!9558=5141!!" then @nipple_retraction_location := 2
-					when obs regexp "!!9558=9625!!" then @nipple_retraction_location := 3
-					else @nipple_retraction_location := null
-				end as nipple_retraction_location,
-				case
-					when obs regexp "!!9574=5139!!" then @breast_erythrema_location := 1
-					when obs regexp "!!9574=5141!!" then @breast_erythrema_location := 2
-					when obs regexp "!!9574=9625!!" then @breast_erythrema_location := 3
-					else @breast_erythrema_location := null
-				end as breast_erythrema_location,
-				case
-					when obs regexp "!!9577=5139!!" then @breast_rash_location := 1
-					when obs regexp "!!9577=5141!!" then @breast_rash_location := 2
-					when obs regexp "!!9577=9625!!" then @breast_rash_location := 3
-					else @breast_rash_location := null
-				end as breast_rash_location,
-				case
-					when obs regexp "!!9577=5139!!" then @breast_pain_location := 1
-					when obs regexp "!!9577=5141!!" then @breast_pain_location := 2
-					when obs regexp "!!9577=9625!!" then @breast_pain_location := 3
-					else @breast_pain_location := null
-				end as breast_pain_location,
-				case
-					when obs regexp "!!9576=5139!!" then @other_changes_location := 1
-					when obs regexp "!!9576=5141!!" then @other_changes_location := 2
-					when obs regexp "!!9576=9625!!" then @other_changes_location := 3
-					else @other_changes_location := null
-				end as other_changes_location,
-				case
-					when obs regexp "!!9594=1066!!" then @history_of_mammogram := 0
-					when obs regexp "!!9594=1065!!" then @history_of_mammogram := 1
+					when t1.encounter_type = 86 and obs regexp "!!9594=1066!!" then @history_of_mammogram := 0 -- No
+					when t1.encounter_type = 86 and obs regexp "!!9594=1065!!" then @history_of_mammogram := 1 -- Yes
 					else @history_of_mammogram := null
 				end as history_of_mammogram,
-                case
-					when obs regexp "!!9595=1115!!" then @mammogram_results := 1
-					when obs regexp "!!9595=1116!!" then @mammogram_results := 2
-					when obs regexp "!!9595=1118!!" then @mammogram_results := 3
-					when obs regexp "!!9595=1138!!" then @mammogram_results := 4
-					when obs regexp "!!9595=1267!!" then @mammogram_results := 5
-					when obs regexp "!!9595=1067!!" then @mammogram_results := 6
-				  else @mammogram_results := null
-				end as mammogram_results,
-				case
-					when obs regexp "!!9597=1066!!" then @breast_ultrasound_history := 0		
-					when obs regexp "!!9597=1065!!" then @breast_ultrasound_history := 1
-					else @breast_ultrasound_history := null
-				end as breast_ultrasound_history,
-				case
-					when obs regexp "!!9596=1115!!" then @breast_ultrasound_result := 1
-					when obs regexp "!!9596=1116!!" then @breast_ultrasound_result := 2
-					when obs regexp "!!9596=1067!!" then @breast_ultrasound_result := 3
-					when obs regexp "!!9596=1118!!" then @breast_ultrasound_result := 4
-					else @breast_ultrasound_result := null
-				end as breast_ultrasound_result,
-				case
-					when obs regexp "!!9598=1066!!" then @history_of_breast_biopsy := 0
-					when obs regexp "!!9598=1065!!" then @history_of_breast_biopsy := 1
+        case
+					when t1.encounter_type = 86 and obs regexp "!!9595=1115!!" then @past_mammogram_results := 1 -- Normal
+					when t1.encounter_type = 86 and obs regexp "!!9595=1116!!" then @past_mammogram_results := 2 -- Abnormal
+					when t1.encounter_type = 86 and obs regexp "!!9595=1118!!" then @past_mammogram_results := 3 -- Not done
+					when t1.encounter_type = 86 and obs regexp "!!9595=1138!!" then @past_mammogram_results := 4 -- Indeterminate 
+					when t1.encounter_type = 86 and obs regexp "!!9595=1267!!" then @past_mammogram_results := 5 -- Completed
+					when t1.encounter_type = 86 and obs regexp "!!9595=1067!!" then @past_mammogram_results := 6 -- Unknown
+				  else @past_mammogram_results := null
+				end as past_mammogram_results,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!9597=1066!!" then @history_of_breast_ultrasound := 0 -- No
+					when t1.encounter_type = 86 and obs regexp "!!9597=1065!!" then @history_of_breast_ultrasound := 1 -- Yes
+					else @history_of_breast_ultrasound := null
+				end as history_of_breast_ultrasound,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!9596=1115!!" then @past_breast_ultrasound_results := 1 -- Normal
+					when t1.encounter_type = 86 and obs regexp "!!9596=1116!!" then @past_breast_ultrasound_results := 2 -- Abnormal
+					when t1.encounter_type = 86 and obs regexp "!!9596=1067!!" then @past_breast_ultrasound_results := 3 -- Unknown
+					when t1.encounter_type = 86 and obs regexp "!!9596=1118!!" then @past_breast_ultrasound_results := 4 -- Not done
+					else @past_breast_ultrasound_results := null
+				end as past_breast_ultrasound_results,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!9598=1066!!" then @history_of_breast_biopsy := 0 -- No
+					when t1.encounter_type = 86 and obs regexp "!!9598=1065!!" then @history_of_breast_biopsy := 1 -- Yes
 					else @history_of_breast_biopsy := null
 				end as history_of_breast_biopsy,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!9599=" then @number_of_biopsies_done := GetValues(obs, 9599)
+					else @number_of_biopsies_done := null
+				end as number_of_biopsies_done,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!6509=" then @breast_biopsy_type := GetValues(obs, 6509)
+					else @breast_biopsy_type := null             
+				end as breast_biopsy_type,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!8184=1115!!" then @past_breast_biopsy_results := 1 -- Normal
+					when t1.encounter_type = 86 and obs regexp "!!8184=1116!!" then @past_breast_biopsy_results := 2 -- Abnormal
+					when t1.encounter_type = 86 and obs regexp "!!8184=1118!!" then @past_breast_biopsy_results := 3 -- Not done
+					when t1.encounter_type = 86 and obs regexp "!!8184=1067!!" then @past_breast_biopsy_results := 4 -- Unknown
+					when t1.encounter_type = 86 and obs regexp "!!8184=9691!!" then @past_breast_biopsy_results := 5 -- Benign
+					when t1.encounter_type = 86 and obs regexp "!!8184=10052!!" then @past_breast_biopsy_results := 6 -- Malignant
+					else @past_breast_biopsy_results := null
+				end as past_breast_biopsy_results,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9566=1066!!" then @history_of_radiation_treatment_to_the_chest := 0 -- No
+          when t1.encounter_type = 86 and obs regexp "!!9566=1065!!" then @history_of_radiation_treatment_to_the_chest := 1 -- Yes
+          when t1.encounter_type = 86 and obs regexp "!!9566=1679!!" then @history_of_radiation_treatment_to_the_chest := 2 -- Not sure
+          else @history_of_radiation_treatment_to_the_chest := null
+        end as history_of_radiation_treatment_to_the_chest,
+        -- reason_for_radiation_treatment -- freetext field
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9644=1066!!" then @past_breast_surgery_for_non_brca_reasons := 0 -- No
+          when t1.encounter_type = 86 and obs regexp "!!9644=1065!!" then @past_breast_surgery_for_non_brca_reasons := 1 -- Yes
+          when t1.encounter_type = 86 and obs regexp "!!9644=1679!!" then @past_breast_surgery_for_non_brca_reasons := 2 -- Not sure
+          else @past_breast_surgery_for_non_brca_reasons := null
+        end as past_breast_surgery_for_non_brca_reasons,
+        case 
+          when t1.encounter_type = 86 and obs regexp "!!9566=1065!!" and obs regexp "!!9649=" then @which_other_breast_surgery := GetValues(obs, 9649) 
+        end as which_other_breast_surgery,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!10172=1066!!" then @any_family_member_diagnosed_with_ca_breast := 0 -- No
+          when t1.encounter_type = 86 and obs regexp "!!10172=1065!!" then @any_family_member_diagnosed_with_ca_breast := 1 -- Yes
+          when t1.encounter_type = 86 and obs regexp "!!10172=1067!!" then @any_family_member_diagnosed_with_ca_breast := 2 -- Unknown
+          else @any_family_member_diagnosed_with_ca_breast := null
+        end as any_family_member_diagnosed_with_ca_breast,          
 				case
-					when obs regexp "!!8184=1115!!" then @breast_biopsy_results := 1
-					when obs regexp "!!8184=1116!!" then @breast_biopsy_results := 2
-					when obs regexp "!!8184=1118!!" then @breast_biopsy_results := 3
-					when obs regexp "!!8184=1067!!" then @breast_biopsy_results := 4
-					when obs regexp "!!8184=9691!!" then @breast_biopsy_results := 5
-					when obs regexp "!!8184=10052!!" then @breast_biopsy_results := 6
-					else @breast_biopsy_results := null
-				end as breast_biopsy_results,
-                case
-					when obs regexp "!!9599=" then @number_of_biopsies := GetValues(obs, 9599)
-					else @number_of_biopsies := null
-				end as number_of_biopsies,
-               case
-					when obs regexp "!!6509=6510!!" then @biopsy_type := 1
-					when obs regexp "!!6509=6511!!" then @biopsy_type := 2
-					when obs regexp "!!6509=6512!!" then @biopsy_type := 3
-					when obs regexp "!!6509=6513!!" then @biopsy_type := 4
-					when obs regexp "!!6509=7190!!" then @biopsy_type := 5
-					when obs regexp "!!6509=8184!!" then @biopsy_type := 6
-					when obs regexp "!!6509=10075!!" then @biopsy_type := 7
-					when obs regexp "!!6509=10076!!" then @biopsy_type := 8   
-					else @biopsy_type := null             
-				end as biopsy_type,
-                case
-					when obs regexp "!!9694=1115!!" then @prev_exam_results := 1
-					when obs regexp "!!9694=1116!!" then @prev_exam_results := 0
-					when obs regexp "!!9694=1067!!" then @prev_exam_results := 2
-					else @prev_exam_results := null
-				end as prev_exam_results,
-				case
-					when obs regexp "!!9631=1672!!" then @fam_brca_history_bf50 := 1
-					when obs regexp "!!9631=1107!!" then @fam_brca_history_bf50 := 0
-					when obs regexp "!!9631=978!!" then @fam_brca_history_bf50 := 2
-					when obs regexp "!!9631=972!!" then @fam_brca_history_bf50 := 3
-					when obs regexp "!!9631=1671!!" then @fam_brca_history_bf50 := 4
-					when obs regexp "!!9631=1393!!" then @fam_brca_history_bf50 := 5
-					when obs regexp "!!9631=1392!!" then @fam_brca_history_bf50 := 6
-					when obs regexp "!!9631=1395!!" then @fam_brca_history_bf50 := 7
-					when obs regexp "!!9631=1394!!" then @fam_brca_history_bf50 := 8
-					else @fam_brca_history_bf50 := null
-				end as fam_brca_history_bf50,
-				case
-					when obs regexp "!!9632=978!!" then @fam_brca_history_aft50 := 1
-					when obs regexp "!!9632=1672!!" then @fam_brca_history_aft50 := 2
-					when obs regexp "!!9632=972!!" then @fam_brca_history_aft50 := 3
-					when obs regexp "!!9632=1671!!" then @fam_brca_history_aft50 := 4
-					when obs regexp "!!9632=1393!!" then @fam_brca_history_aft50 := 5
-					when obs regexp "!!9632=1392!!" then @fam_brca_history_aft50 := 6
-					when obs regexp "!!9632=1395!!" then @fam_brca_history_aft50 := 7
-					when obs regexp "!!9632=1394!!" then @fam_brca_history_aft50 := 8
-					else @fam_brca_history_aft50 := null
-				end as fam_brca_history_aft50,
-				case
-					when obs regexp "!!9633=978!!" then @fam_male_brca_history := 1
-					when obs regexp "!!9633=1672!!" then @fam_male_brca_history := 2
-					when obs regexp "!!9633=972!!" then @fam_male_brca_history := 3
-					when obs regexp "!!9633=1671!!" then @fam_male_brca_history := 4
-					when obs regexp "!!9633=1393!!" then @fam_male_brca_history := 5
-					when obs regexp "!!9633=1392!!" then @fam_male_brca_history := 6
-					when obs regexp "!!9633=1395!!" then @fam_male_brca_history := 7
-					when obs regexp "!!9633=1394!!" then @fam_male_brca_history := 8
-					else @fam_male_brca_history := null
-				end as fam_male_brca_history,
-				case
-					when obs regexp "!!9634=978!!" then @fam_ovarianca_history := 1
-					when obs regexp "!!9634=1672!!" then @fam_ovarianca_history := 2
-					when obs regexp "!!9634=972!!" then @fam_ovarianca_history := 3
-					when obs regexp "!!9634=1671!!" then @fam_ovarianca_history := 4
-					when obs regexp "!!9634=1393!!" then @fam_ovarianca_history := 5
-					when obs regexp "!!9634=1392!!" then @fam_ovarianca_history := 6
-					when obs regexp "!!9634=1395!!" then @fam_ovarianca_history := 7
-					when obs regexp "!!9634=1394!!" then @fam_ovarianca_history := 8
-					else @fam_ovarianca_history := null
-				end as fam_ovarianca_history,
-				case
-					when obs regexp "!!9635=978!!" then @fam_relatedca_history:= 1
-					when obs regexp "!!9635=1672!!" then @fam_relatedca_history := 2
-					when obs regexp "!!9635=972!!" then @fam_relatedca_history := 3
-					when obs regexp "!!9635=1671!!" then @fam_relatedca_history := 4
-					when obs regexp "!!9635=1393!!" then @fam_relatedca_history := 5
-					when obs regexp "!!9635=1392!!" then @fam_relatedca_history := 6
-					when obs regexp "!!9635=1395!!" then @fam_relatedca_history := 7
-					when obs regexp "!!9635=1394!!" then @fam_relatedca_history := 8
-					else @fam_relatedca_history := null
-				end as fam_relatedca_history,
-				case
-					when obs regexp "!!7176=6529!!" then @fam_otherca_specify := 1
-					when obs regexp "!!7176=9636!!" then @fam_otherca_specify := 2
-					when obs regexp "!!7176=9637!!" then @fam_otherca_specify := 3
-					when obs regexp "!!7176=6485!!" then @fam_otherca_specify := 4
-					when obs regexp "!!7176=9638!!" then @fam_otherca_specify := 5
-					when obs regexp "!!7176=9639!!" then @fam_otherca_specify := 6
-					when obs regexp "!!7176=6522!!" then @fam_otherca_specify := 7
-					when obs regexp "!!7176=216!!" then @fam_otherca_specify := 8
-					else @fam_otherca_specify := null
-				end as fam_otherca_specify,
-				case
-					when obs regexp "!!6251=1115!!" then @cur_physical_findings:= 0
-					when obs regexp "!!6251=115!!" then @cur_physical_findings := 1
-					when obs regexp "!!6251=6250!!" then @cur_physical_findings := 2
-					when obs regexp "!!6251=6249!!" then @cur_physical_findings := 3
-					when obs regexp "!!6251=5622!!" then @cur_physical_findings := 4
-					when obs regexp "!!6251=582!!" then @cur_physical_findings := 5
-					when obs regexp "!!6251=6493!!" then @cur_physical_findings := 6
-					when obs regexp "!!6251=6499!!" then @cur_physical_findings := 7
-					when obs regexp "!!6251=1118!!" then @cur_physical_findings := 8
-					when obs regexp "!!6251=1481!!" then @cur_physical_findings := 9
-					when obs regexp "!!6251=6729!!" then @cur_physical_findings := 10
-					when obs regexp "!!6251=1116!!" then @cur_physical_findings := 11
-					when obs regexp "!!6251=8188!!" then @cur_physical_findings := 12
-					when obs regexp "!!6251=8189!!" then @cur_physical_findings := 13
-					when obs regexp "!!6251=1067!!" then @cur_physical_findings := 14
-					when obs regexp "!!6251=9689!!" then @cur_physical_findings := 15
-					when obs regexp "!!6251=9690!!" then @cur_physical_findings := 16
-					when obs regexp "!!6251=9687!!" then @cur_physical_findings := 17
-					when obs regexp "!!6251=9688!!" then @cur_physical_findings := 18
-					when obs regexp "!!6251=5313!!" then @cur_physical_findings := 19
-					when obs regexp "!!6251=9691!!" then @cur_physical_findings := 20
-					else @cur_physical_findings := null
-				end as cur_physical_findings,
-                case
-					when obs regexp "!!1121=1115!!" then @lymph_nodes_findings := 1
-					when obs regexp "!!1121=161!!" then @lymph_nodes_findings := 2
-					when obs regexp "!!1121=9675!!" then @lymph_nodes_findings:= 3
-					when obs regexp "!!1121=9676!!" then @lymph_nodes_findings:= 4
-					else @lymph_nodes_findings := null
-				end as lymph_nodes_findings,
-				case
-					when obs regexp "!!9748=1115!!" then @cur_screening_findings := 1
-					when obs regexp "!!9748=9691!!" then @cur_screening_findings := 3
-					when obs regexp "!!9748=1116!!" then @cur_screening_findings := 2
-					else @cur_screening_findings := null
-				end as cur_screening_findings,
-				case
-					when obs regexp "!!6327=9651!!" then @patient_education := 1
-					when obs regexp "!!6327=2345!!" then @patient_education := 2
-					when obs regexp "!!6327=9692!!" then @patient_education:= 3
-					when obs regexp "!!6327=5622!!" then @patient_education:= 4
+					when t1.encounter_type = 86 and obs regexp "!!6251=" then @breast_findings_this_visit := SUBSTRING(GetValues(obs, 6251), -4)
+					else @breast_findings_this_visit := null
+				end as breast_findings_this_visit,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9696=" then @breast_finding_location := GetValues(obs, 9696)
+          else @breast_finding_location := null
+        end as breast_finding_location,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!8268=" then @breast_finding_quadrant := GetValues(obs, 8268)
+          else @breast_finding_quadrant := null
+        end as breast_finding_quadrant,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9681=1066!!" then @breast_symmetry := 0 -- No
+          when t1.encounter_type = 86 and obs regexp "!!9681=1065!!" then @breast_symmetry := 1 -- Yes
+          else @breast_symmetry := null
+        end as breast_symmetry,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!1121=1115!!" then @lymph_node_findings := 1 -- Within normal limit
+          when t1.encounter_type = 86 and obs regexp "!!1121=161!!" then @lymph_node_findings := 2 -- Enlarged / Lymphadenopathy
+          when t1.encounter_type = 86 and obs regexp "!!1121=9675!!" then @lymph_node_findings := 3 -- Fixed
+          when t1.encounter_type = 86 and obs regexp "!!1121=9676!!" then @lymph_node_findings := 4 -- Mobile
+          else @lymph_node_findings := null
+        end as lymph_node_findings,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9678=5141!!" then @axillary_lymph_nodes_location := 1 -- Right
+          when t1.encounter_type = 86 and obs regexp "!!9678=5139!!" then @axillary_lymph_nodes_location := 2 -- Left
+          else @axillary_lymph_nodes_location := null
+        end as axillary_lymph_nodes_location,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9679=5141!!" then @clavicular_supra_location := 1 -- Right
+          when t1.encounter_type = 86 and obs regexp "!!9679=5139!!" then @clavicular_supra_location := 2 -- Left
+          else @clavicular_supra_location := null
+        end as clavicular_supra_location,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!9680=5141!!" then @clavicular_infra_location := 1 -- Right
+          when t1.encounter_type = 86 and obs regexp "!!9680=5139!!" then @clavicular_infra_location := 2 -- Left
+          else @clavicular_infra_location := null
+        end as clavicular_infra_location,
+        case
+					when t1.encounter_type = 86 and obs regexp "!!6327=" then @patient_education := GetValues(obs, 6327)
 					else @patient_education := null
 				end as patient_education,
-				case
-					when obs regexp "!!1915=" then @patient_education_other := GetValues(obs,1915) 
-					else @patient_education_other := null
-				end as patient_education_other,                            
-				case
-					when obs regexp "!!1272=1107!!" then @referrals_ordered := 0
-					when obs regexp "!!1272=1496!!" then @referrals_ordered:= 1
+        case
+					when t1.encounter_type = 86 and obs regexp "!!1272=1107!!" then @referrals_ordered := 0
+					when t1.encounter_type = 86 and obs regexp "!!1272=1496!!" then @referrals_ordered := 1
 					else @referrals_ordered := null
 				end as referrals_ordered,
+        case
+          when t1.encounter_type = 86 and obs regexp "!!1272=1496!!" and obs regexp "!!9158=" then @referral_date := GetValues(obs, 9158)
+          else @referral_date := null
+        end as referral_date,
 				case
-					when obs regexp "!!1272=9596!!" then @procedure_done := 1
-					when obs regexp "!!1272=9595!!" then @procedure_done:= 2
-					when obs regexp "!!1272=6510!!" then @procedure_done := 3
-					when obs regexp "!!1272=7190!!" then @procedure_done:= 4
-					when obs regexp "!!1272=6511!!" then @procedure_done := 5
-					when obs regexp "!!1272=9997!!" then @procedure_done:= 6
-					else @procedure_done := null
-				end as procedure_done,
-				case
-					when obs regexp "!!9158=" then @referred_date := GetValues(obs,9158) 
-					else @referred_date := null
-				end as referred_date,
-				case
-					when obs regexp "!!5096=" then @next_app_date := GetValues(obs,5096) 
-					else @next_app_date := null
-				end as next_app_date,
-				case
-					when obs regexp "!!9702=9703!!" then @cbe_imaging_concordance := 1
-					when obs regexp "!!9702=9704!!" then @cbe_imaging_concordance := 2
-					when obs regexp "!!9702=1175!!" then @cbe_imaging_concordance := 3
-					else @cbe_imaging_concordance := null
-				end as cbe_imaging_concordance,
-				case
-					when obs regexp "!!9708=" then @mammogram_workup_date := GetValues(obs,9708)
-					else @mammogram_workup_date := null
-				end as mammogram_workup_date,                    
-				case
-					when obs regexp "!!9705=" then @date_patient_notified_of_mammogram_results := GetValues(obs,9705) 
-					else @date_patient_notified_of_mammogram_results := null
-				end as date_patient_notified_of_mammogram_results,
-				case
-					when obs regexp "!!9596=1115!!" then @ultrasound_results := 1
-					when obs regexp "!!9596=1116!!" then @ultrasound_results := 2
-					when obs regexp "!!9596=1067!!" then @ultrasound_results := 3
-					when obs regexp "!!9596=1118!!" then @ultrasound_results := 4
-					else @ultrasound_results := null
-				end as ultrasound_results,
-				case
-					when obs regexp "!!9708=" then @ultrasound_workup_date := GetValues(obs,9708) 
-					else @ultrasound_workup_date := null
-				end as ultrasound_workup_date,
-				case
-					when obs regexp "!!10047=" then @date_patient_notified_of_ultrasound_results := GetValues(obs,10047) 
-					else @date_patient_notified_of_ultrasound_results := null
-				end as date_patient_notified_of_ultrasound_results,
-				case
-					when obs regexp "!!10051=9691!!" then @fna_results := 1
-					when obs regexp "!!10051=10052!!" then @fna_results := 2
-					when obs regexp "!!9596=1118!!" then @fna_results := 3
-					else @fna_results := null
-				end as fna_results,                               
-				case
-					when obs regexp "!!10053=[0-9]" then @fna_tumor_size:= cast(GetValues(obs,10053) as unsigned) 
-					else @fna_tumor_size := null
-				end as fna_tumor_size,
-				case
-					when obs regexp "!!10054=10055!!" then @fna_degree_of_malignancy := 1
-					when obs regexp "!!10054=10056!!" then @fna_degree_of_malignancy := 2
-					else @fna_degree_of_malignancy := null
-				end as fna_degree_of_malignancy,
-				case
-					when obs regexp "!!10057=" then @fna_workup_date := GetValues(obs,10057) 
-					else @fna_workup_date := null
-				end as fna_workup_date,                                    
-				case
-					when obs regexp "!!10059=" then @date_patient_notified_of_fna_results := GetValues(obs,10059)
-					else @date_patient_notified_of_fna_results := null
-				end as date_patient_notified_of_fna_results,
-				case
-					when obs regexp "!!10053=[0-9]" then @biopsy_tumor_size:= cast(GetValues(obs,10053) as unsigned) 
-					else @biopsy_tumor_size := null
-				end as biopsy_tumor_size,                                        
-				case
-					when obs regexp "!!10054=10055!!" then @biopsy_degree_of_malignancy := 1
-					when obs regexp "!!10054=10056!!" then @biopsy_degree_of_malignancy := 2
-					else @biopsy_degree_of_malignancy := null
-				end as biopsy_degree_of_malignancy,                            
-				case
-					when obs regexp "!!10060=" then @biopsy_workup_date := GetValues(obs,10060) 
-					else @biopsy_workup_date := null
-				end as biopsy_workup_date,
-				case
-					when obs regexp "!!10061=" then @date_patient_notified_of_biopsy_resultse := GetValues(obs,10061) 
-					else @date_patient_notified_of_biopsy_results := null
-				end as date_patient_notified_of_biopsy_results,
-				case
-					when obs regexp "!!7400=" then @biopsy_description := GetValues(obs,7400)
-					else @biopsy_description := null
-				end as biopsy_description,
-				case
-					when obs regexp "!!9728=" then @diagnosis_date := GetValues(obs, 9728)
-					else @diagnosis_date := null
-				end as diagnosis_date,
-				case
-					when obs regexp "!!9706=" then @date_patient_informed_and_referred_for_management := GetValues(obs, 9706) 
-					else @date_patient_informed_and_referred_for_management := null
-				end as date_patient_informed_and_referred_for_management,
-				case
-					when obs regexp "!!10068=9595!!" then @screening_mode := 1
-					when obs regexp "!!10068=10067!!" then @screening_mode := 2
-					when obs regexp "!!10068=9596!!" then @screening_mode := 3
-				  else @screening_mode := null
-				end as screening_mode,
-				case
-					when obs regexp "!!6042=" then @diagnosis := GetValues(obs,6042) 
-					else @diagnosis := null
-				end as diagnosis,                          
-				case
-					when obs regexp "!!9868=9852!!" then @cancer_staging := 1
-					when obs regexp "!!9868=9856!!" then @cancer_staging := 2
-					when obs regexp "!!9868=9860!!" then @cancer_staging := 3
-					when obs regexp "!!9868=9864!!" then @cancer_staging := 4
-					else @cancer_staging := null
-				end as cancer_staging,
-				case
-					when obs regexp "!!6709=664!!" then @hiv_status := 1
-					when obs regexp "!!6709=703!!" then @hiv_status := 2
-					when obs regexp "!!6709=1067!!" then @hiv_status := 3
-					else @hiv_status := null
-				end as hiv_status
+					when t1.encounter_type = 86 and obs regexp "!!5096=" then @next_appointment_date := GetValues(obs, 5096) 
+					else @next_appointment_date := null
+				end as next_appointment_date
           FROM 
               flat_breast_cancer_screening_0 t1
 			    JOIN amrs.person p using (person_id)
@@ -965,7 +689,7 @@ BEGIN
             end as next_clinical_rtc_date_breast_cancer_screening,
 
             case
-              when is_clinical_encounter then @cur_clinical_rtc_date := next_app_date
+              when is_clinical_encounter then @cur_clinical_rtc_date := next_appointment_date
               when @prev_id = @cur_id then @cur_clinical_rtc_date
               else @cur_clinical_rtc_date:= null
             end as cur_clinical_rtc_date
@@ -1035,7 +759,7 @@ BEGIN
             end as prev_clinical_rtc_date_breast_cancer_screening,
 
             case
-              when is_clinical_encounter then @cur_clinical_rtc_date := next_app_date
+              when is_clinical_encounter then @cur_clinical_rtc_date := next_appointment_date
               when @prev_id = @cur_id then @cur_clinical_rtc_date
               else @cur_clinical_rtc_date:= null
             end as cur_clinic_rtc_date
@@ -1067,82 +791,52 @@ BEGIN
                     t2.uuid as location_uuid,
                     gender,
                     age,
-                    encounter_purpose,	
-                    other_encounter_purpose,
+                    encounter_purpose,
                     menstruation_before_12,
                     menses_stopped_permanently,
                     menses_stop_age,
                     hrt_use,
-                    hrt_start_age,
-                    hrt_end_age,
                     hrt_use_years,
                     hrt_type_used,
-                    given_birth,
-                    age_first_birth,
+                    ever_given_birth,
+                    age_at_birth_of_first_child,
                     gravida,
                     parity,
                     cigarette_smoking,
-                    cigarette_smoked_day,
+                    cigarette_sticks_smoked_per_day,
                     tobacco_use,
-                    tobacco_use_duration_yrs,
-                    alcohol_drinking,
-                    alcohol_type,
-                    alcohol_use_period_yrs,
-                    breast_complaints_3months,
-                    breast_mass_location,
-                    nipple_discharge_location,
-                    nipple_retraction_location,
-                    breast_erythrema_location,
-                    breast_rash_location,
-                    breast_pain_location,
-                    other_changes_location,
-                    history_of_mammogram,
-                    mammogram_results,
-                    breast_ultrasound_history,
-                    breast_ultrasound_result,
-                    history_of_breast_biopsy,
-                    breast_biopsy_results,
-                    number_of_biopsies,
-                    biopsy_type,
-                    prev_exam_results,
-                    fam_brca_history_bf50,
-                    fam_brca_history_aft50,
-                    fam_male_brca_history,
-                    fam_ovarianca_history,
-                    fam_relatedca_history,
-                    fam_otherca_specify,
-                    cur_physical_findings,
-                    lymph_nodes_findings,
-                    cur_screening_findings,
-                    #cur_screening_findings_date,
-                    patient_education,
-                    patient_education_other,
-                    referrals_ordered,
-                    referred_date,
-                    procedure_done,
-                    next_app_date,
-                    cbe_imaging_concordance,
-                    mammogram_workup_date,
-                    date_patient_notified_of_mammogram_results,
-                    ultrasound_results,
-                    ultrasound_workup_date,
-                    date_patient_notified_of_ultrasound_results,
-                    fna_results,
-                    fna_tumor_size,
-                    fna_degree_of_malignancy,
-                    fna_workup_date,
-                    date_patient_notified_of_fna_results,
-                    biopsy_tumor_size,
-                    biopsy_degree_of_malignancy,
-                    biopsy_workup_date,
-                    date_patient_notified_of_biopsy_results,
-                    biopsy_description,
-                    diagnosis_date,
-                    date_patient_informed_and_referred_for_management,
-                    screening_mode,
-                    diagnosis,
-                    cancer_staging,
+                    tobacco_use_duration_in_years,
+                    alcohol_consumption,
+                    alcohol_type_used,
+                    alcohol_use_duration_in_years,
                     hiv_status,
+                    presence_of_chief_complaint,
+                    history_of_clinical_breast_examination,
+                    past_clinical_breast_exam_findings,
+                    history_of_mammogram,
+                    past_mammogram_results,
+                    history_of_breast_ultrasound,
+                    past_breast_ultrasound_results,
+                    history_of_breast_biopsy,
+                    number_of_biopsies_done,
+                    breast_biopsy_type,
+                    past_breast_biopsy_results,
+                    history_of_radiation_treatment_to_the_chest,
+                    past_breast_surgery_for_non_brca_reasons,
+                    which_other_breast_surgery,
+                    any_family_member_diagnosed_with_ca_breast,
+                    breast_findings_this_visit,
+                    breast_finding_location,
+                    breast_finding_quadrant,
+                    breast_symmetry,
+                    lymph_node_findings,
+                    axillary_lymph_nodes_location,
+                    clavicular_supra_location,
+                    clavicular_infra_location,
+                    patient_education,
+                    referrals_ordered,
+                    referral_date,
+                    next_appointment_date,
                     prev_encounter_datetime_breast_cancer_screening,
                     next_encounter_datetime_breast_cancer_screening,
                     prev_encounter_type_breast_cancer_screening,
