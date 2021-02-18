@@ -158,6 +158,7 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
 				ca_cx_screening_result int,  
                 ca_cx_screened_this_visit_this_month tinyint,				
                 ca_cx_screened_active_this_month tinyint,
+				confirmed_tb_positive_this_month tinyint,
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
                 index person_report_date (person_id, endDate),
@@ -740,14 +741,14 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                     
 					case
 						when @status="active"
-                            AND @age<=15
+                            AND @age<19
                             then 1
 						else 0
 					end as active_and_eligible_for_ovc,
 
 					case
 						when (@status="defaulter" OR @status="ltfu")
-                            AND @age<=15
+                            AND @age<=19
                             then 1
 						else 0
 					end as inactive_and_eligible_for_ovc,
@@ -783,7 +784,13 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					case
 						when ca_cx_screening_datetime between date_format(endDate, "%Y-%m-01") and endDate AND @status = "active"  then 1
 						else 0
-					end as ca_cx_screened_active_this_month
+					end as ca_cx_screened_active_this_month,
+
+					case
+						when tb_screening_result = 6137
+							AND tb_screening_datetime between date_format(endDate,"%Y-%m-01")  and endDate then 1
+                        else 0
+                    end as confirmed_tb_positive_this_month
 					
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
@@ -1074,7 +1081,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				ca_cx_screening_datetime,
 				ca_cx_screening_result,  
                 ca_cx_screened_this_visit_this_month,				
-                ca_cx_screened_active_this_month
+                ca_cx_screened_active_this_month,
+				confirmed_tb_positive_this_month
 					from hiv_monthly_report_dataset_2 t1
                     join amrs.location t2 on (t2.location_id = t1.cur_location_id)
 				);
