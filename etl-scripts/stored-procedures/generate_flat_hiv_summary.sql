@@ -338,11 +338,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                             t2.orders
                             from etl.flat_obs t1
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
-                                left join etl.flat_orders t2 using(encounter_id)
-								left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158, 161,162,163,186,212,214,218,220,225,226)
-                                AND NOT obs regexp "!!5303=(822|664|1067)!!"  
-                                AND NOT obs regexp "!!9082=9036!!"
+							    left join etl.flat_orders t2 using(encounter_id)
+							    left join amrs.visit v on (v.visit_id = t1.visit_id)
+							where (t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158,161,162,163,212,214,218,220,225,226)
+							    or (t1.encounter_type in (186) and v.visit_type_id not in (80,104)))
+							    AND NOT obs regexp "!!5303=(822|664|1067)!!"  
+							    AND NOT obs regexp "!!9082=9036!!"
                         );
 
                         insert into flat_hiv_summary_0a
