@@ -315,7 +315,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                             t1.location_id,
                             t1.obs,
                             t1.obs_datetimes,
-
                             
                             case
                                 when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163,225,226) then 1
@@ -330,6 +329,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
+                            
 							case
                                when t1.obs regexp "!!7013=" then 2
                                else 1
@@ -573,7 +573,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                          case
                             when  t1.encounter_type = 214  then @ovc_non_enrollment_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_non_enrollment_date
-                            else null
+                            else @ovc_non_enrollment_date := null
                         end as ovc_non_enrollment_date,
 
                             
@@ -1760,7 +1760,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             else @is_cross_border := 0
                         end as is_cross_border,
                         
-                        case 
+						case 
                             when obs regexp "!!1596=8204" then @ovc_exit_reason := 8204
                             when obs regexp "!!1596=11292" then @ovc_exit_reason := 11292  
                             when obs regexp "!!1596=10119" then @ovc_exit_reason := 10119
@@ -1769,12 +1769,11 @@ SELECT @person_ids_count AS 'num patients to sync';
                             else @ovc_exit_reason := null
                         end as ovc_exit_reason,
 
-                        case
+                    	case
                             when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_exit_date
-                            else null
+                            else @ovc_exit_date := null
                         end as ovc_exit_date,
-                        
                         case 
                             when obs regexp "!!1268=1267" then @tb_tx_stop_reason := 1267
                             when obs regexp "!!1268=7043" then @tb_tx_stop_reason := 7043  
@@ -1787,7 +1786,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when @prev_id = @cur_id then @tb_tx_stop_reason
                             else @tb_tx_stop_reason := null
                         end as tb_tx_stop_reason,
-                        
                         case
                           when obs regexp "!!10400=1066!!" then @ca_cx_screen := 0
                           when obs regexp "!!10400=1065!!" then @ca_cx_screen := 1
@@ -2313,7 +2311,7 @@ SELECT @total_rows_written;
                         ovc_exit_reason,
                         ovc_exit_date,
                         tb_tx_stop_reason,
-						ca_cx_screen,
+                        ca_cx_screen,
                         ca_cx_screening_result,
                         ca_cx_screening_result_datetime,
                         ca_cx_screening_datetime
@@ -2411,7 +2409,7 @@ SELECT
                 
                  set @end = now();
                  #if (@query_type="sync") then
-                 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+                 #insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
                  #end if;
 SELECT 
     CONCAT(@table_version,

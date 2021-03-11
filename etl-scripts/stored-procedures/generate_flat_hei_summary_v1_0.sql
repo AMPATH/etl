@@ -14,8 +14,6 @@ BEGIN
                     set @lab_encounter_type := 99999;
                     set @death_encounter_type := 31;
                     set @last_date_created := (select max(max_date_created) from etl.flat_obs);
-                    set @encounter_types := "(21,67,110,115,168,186)";
-                    set @clinical_encounter_types := "(115,186)";
                     
 SELECT 'Initializing variables successfull ...';
 
@@ -98,6 +96,13 @@ CREATE TABLE IF NOT EXISTS flat_hei_summary (
 );
 
 SELECT 'created table successfully ...';
+
+                    drop temporary table if exists hei_patients;
+					 create temporary table hei_patients (person_id int NOT NULL) 
+                    (
+                         select distinct patient_id from amrs.encounter e
+							where e.encounter_type in (115)
+                    );
                     
                     
                                         
@@ -117,14 +122,80 @@ SELECT 'created table successfully ...';
                             EXECUTE s1; 
                             DEALLOCATE PREPARE s1;  
                             
-                            /*
+                            
                             SET @dyn_sql=CONCAT('delete t1 from flat_hei_summary_build_queue t1 join ',@queue_table, ' t2 using (person_id);'); 
                             PREPARE s1 from @dyn_sql; 
                             EXECUTE s1; 
                             DEALLOCATE PREPARE s1;  
-                            */
+                            
 
                     end if;
+                    
+					if (@query_type="sync") then
+                            select 'SYNCING..........................................';
+                            set @write_table = "flat_hei_summary";
+                            set @queue_table = "flat_hei_summary_sync_queue";
+                            CREATE TABLE IF NOT EXISTS flat_hei_summary_sync_queue (
+                                person_id INT PRIMARY KEY
+                            );                            
+                                                        
+
+                            set @last_update := null;
+                            
+                            SELECT 
+                                MAX(date_updated)
+                            INTO @last_update FROM
+                                etl.flat_log
+                            WHERE
+                                table_name = @table_version;
+                                
+							#set @last_update = '2020-11-13 10:00:00';
+                                
+							SELECT CONCAT('Last Update ..', @last_update);
+
+                            replace into flat_hei_summary_sync_queue
+                            (select distinct patient_id
+                                from amrs.encounter e
+                                join hei_patients h using (patient_id)
+                                where e.date_changed > @last_update
+                            );
+
+                            replace into flat_hei_summary_sync_queue
+                            (select distinct o.person_id
+                                from etl.flat_obs o
+                                join hei_patients h on (h.patient_id = o.person_id)
+                                where o.max_date_created > @last_update
+                            );
+
+                            replace into flat_hei_summary_sync_queue
+                            (select distinct l.person_id
+                                from etl.flat_lab_obs l
+                                join hei_patients h on (h.patient_id = l.person_id)
+                                where l.max_date_created > @last_update
+                            );
+
+                            replace into flat_hei_summary_sync_queue
+                            (select distinct o.person_id
+                                from etl.flat_orders o
+								join hei_patients h on (h.patient_id = o.person_id)
+                                where o.max_date_created > @last_update
+                            );
+                            
+                            replace into flat_hei_summary_sync_queue
+                            (select p.person_id from 
+                                amrs.person p
+                                join hei_patients h on (h.patient_id = p.person_id)
+                                where p.date_voided > @last_update);
+
+
+                            replace into flat_hei_summary_sync_queue
+                            (select p2.person_id from 
+                                amrs.person p2
+                                join hei_patients h on (h.patient_id = p2.person_id)
+                                where p2.date_changed > @last_update);
+                                
+
+                      end if;
     
 					SELECT 'Removing test patients ...';
                     
@@ -141,7 +212,7 @@ SELECT 'created table successfully ...';
                     EXECUTE s1; 
                     DEALLOCATE PREPARE s1;
 
-SELECT @person_ids_count AS 'num patients to sync';
+                    SELECT @person_ids_count AS 'num patients to sync';
 
 
 
@@ -187,13 +258,13 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             
                             case
-                                when t1.encounter_type in (3,4,114,115) then 1
+                                when t1.encounter_type in (3,4,114,115,154,158,186) then 1
                                 else null
                             end as is_clinical_encounter,
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (3,4,9,114,115,214,220) then 10
+                                when t1.encounter_type in (3,4,9,114,115,154,158,186,214,220) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -201,11 +272,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                             t2.orders
                             from etl.flat_obs t1
                                 join flat_hei_summary_build_queue__0 t0 using (person_id)
+                                join hei_patients h on (t1.person_id = h.patient_id)
                                 join amrs.location l using (location_id)
                                 left join etl.flat_orders t2 using(encounter_id)
                                 left join amrs.visit v on (v.visit_id = t1.visit_id)
-                            where t1.encounter_type in (21,67,110,114,115,168,186,116,214,220)
-                            AND NOT obs regexp "!!5303=703!!"
+								where t1.encounter_type in (21,67,110,111,114,115,116,121,123,154,158,168,186,116,212,214,220)
+								AND NOT obs regexp "!!5303=703!!"
                         );
                         
                         SELECT 'creating  flat_hei_summary_0a from flat_lab_obs...';
@@ -228,6 +300,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             null
                             from etl.flat_lab_obs t1
                                 join flat_hei_summary_build_queue__0 t0 using (person_id)
+								join hei_patients h on (t1.person_id = h.patient_id)
                         );
 
                         drop temporary table if exists flat_hei_summary_0;
@@ -721,7 +794,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @newborn_arv_meds:= null
                             end as newborn_arv_meds,
                             
-                                                     case
+                        case
                             when obs regexp "!!11219=6834" then @ovc_non_enrolment_reason := 6834
                             when obs regexp "!!11219=1504" then @ovc_non_enrolment_reason := 1504
                             when @prev_id = @cur_id then @ovc_non_enrolment_reason
@@ -731,7 +804,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                          case
                             when  t1.encounter_type = 214  then @ovc_non_enrolment_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_non_enrolment_date
-                            else null
+                            else @ovc_non_enrolment_date := null
                         end as ovc_non_enrolment_date,
 
                         case 
@@ -746,7 +819,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         case
                             when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_exit_date
-                            else null
+                            else @ovc_exit_date := null
                         end as ovc_exit_date
 
                         from flat_hei_summary_0 t1
@@ -1111,6 +1184,7 @@ SELECT
             ' second(s)');
                 
                  set @end = now();
+                 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 SELECT 
     CONCAT(@table_version,
             ' : Time to complete: ',
