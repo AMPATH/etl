@@ -1,6 +1,7 @@
-CREATE DEFINER=`fmaiko`@`%` PROCEDURE `etl`.`generate_flat_family_testing`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
+DELIMITER $$
+CREATE DEFINER=`fmaiko`@`%` PROCEDURE `generate_flat_family_testing_741`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int , IN log boolean)
 BEGIN
-	set @primary_table := "flat_family_testing";
+	set @primary_table := "flat_family_testing_741";
 	set @query_type = query_type;
 	set @queue_table = "";
 	set @total_rows_written = 0;
@@ -12,7 +13,7 @@ BEGIN
 	set @last_date_created = (select max(max_date_created) from etl.flat_obs);
 
 
-CREATE TABLE IF NOT EXISTS `flat_family_testing` (
+CREATE TABLE IF NOT EXISTS `flat_family_testing_741` (
   `patient_id` int(11) NOT NULL DEFAULT '0',
   `patient_uuid` varchar(200) DEFAULT NULL,
   `obs_group_id` int(11) NOT NULL DEFAULT '0',
@@ -20,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `flat_family_testing` (
   `person_name` varchar(200) DEFAULT NULL,
   `age` int(11) NOT NULL DEFAULT '0',
   `phone_number` varchar(200) DEFAULT NULL,
-  `nearest_center` varchar(200) DEFAULT NULL,
+  `nearest_center` text DEFAULT NULL,
   `patient_program_name` varchar(200) DEFAULT NULL,
   `fm_name` varchar(200) DEFAULT NULL,
   `relationship_type` varchar(200) DEFAULT NULL,
@@ -46,6 +47,8 @@ CREATE TABLE IF NOT EXISTS `flat_family_testing` (
   `test_result` int(11) DEFAULT '0',
   `preferred_testing_date`  varchar(100) DEFAULT NULL,
   `facility_enrolled`  varchar(100) DEFAULT NULL,
+  `patient_program_uuid`  varchar(100) DEFAULT NULL,
+  `date_elicited`  varchar(100) DEFAULT NULL,
     primary key elastic_id (`patient_id`,`obs_group_id`)
 );
     
@@ -71,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `flat_family_testing` (
 	end if;
     
     if (query_type = "sync") then
-		set @write_table = concat("flat_family_testing");
+		set @write_table = concat("flat_family_testing_741");
 		set @queue_table = "flat_family_testing_sync_queue";                                
 		create table if not exists flat_family_testing_sync_queue (person_id int primary key);
 		
@@ -100,7 +103,7 @@ CREATE TABLE IF NOT EXISTS `flat_family_testing` (
 
   #create backup table for contacts with uuids
   #DROP TABLE IF EXISTS flat_family_testing_backup;
-  SET @dyn_sql=CONCAT('CREATE TABLE IF NOT EXISTS flat_family_testing_backup like flat_family_testing'); 
+  SET @dyn_sql=CONCAT('CREATE TABLE IF NOT EXISTS flat_family_testing_backup like flat_family_testing_741'); 
                     PREPARE s1 from @dyn_sql; 
                     EXECUTE s1; 
                     DEALLOCATE PREPARE s1;
@@ -183,8 +186,10 @@ set @cycle_number = 0;
                 `patient_program_name`, 
                 t2.value_text                                                  AS 
                 `fm_name`, 
-                cn3.name                                                       AS 
-                `relationship_type`, 
+                case when t3.value_coded = 1669 then 'PARTNER-SPOUSE'
+                when t3.value_coded = 1670 then 'PARTNER-OTHER'
+                else cn3.name
+                end as `relationship_type`,
                 age.value_numeric                                              AS 
                 `fm_age`, 
                 cn4.name                                                       AS 
@@ -216,8 +221,10 @@ set @cycle_number = 0;
                 0 as is_registered,
                 null as fm_uuid,
                 t10.value_coded as test_result,
-                ccc.value_datetime as `preferred_testing_date`,
-                facility.value_text as `facility_enrolled`
+                ptd.value_datetime as `preferred_testing_date`,
+                facility.value_text as `facility_enrolled`, 
+                pt.uuid AS `patient_program_uuid`, 
+                t2.date_created as `date_elicited`
             FROM   etl.family_testing_obs_stage_1 t1 
                 LEFT JOIN (SELECT * 
                             FROM   etl.family_testing_obs_stage_1 
@@ -286,6 +293,10 @@ set @cycle_number = 0;
                         WHERE  concept_id = 9775) `ccc` 
                     ON ( t1.obs_group_id = ccc.obs_group_id )
                 LEFT JOIN (SELECT * 
+                        FROM   etl.family_testing_obs_stage_1 
+                        WHERE  concept_id = 10790) `ptd` 
+                    ON ( t1.obs_group_id = ptd.obs_group_id )
+                LEFT JOIN (SELECT * 
                             FROM   etl.family_testing_obs_stage_1 
                             WHERE  concept_id = 9701) `t9` 
                         ON ( t1.obs_group_id = t9.obs_group_id ) 
@@ -324,12 +335,12 @@ set @cycle_number = 0;
                         ON ( t1.person_id = contacts.person_id 
                             AND ( contacts.voided IS NULL 
                                     || contacts.voided = 0 ) 
-                            AND contacts.person_attribute_type_id IN ( 10, 48 ) ) 
+                            AND contacts.person_attribute_type_id IN ( 10, 48 ) )
                 LEFT JOIN amrs.person_address `pa` 
                         ON ( t1.person_id = pa.person_id ) 
                 LEFT JOIN amrs.patient_program `pp` 
                         ON ( pp.patient_id = p.person_id 
-                            AND pp.date_completed IS NULL ) 
+                            AND pp.date_completed IS NULL  AND program_id in ( 25,42,28,3,29,9,8,11,44,10,4,19,1,26,27 )) 
                 LEFT JOIN amrs.program `pt` 
                         ON ( pp.program_id = pt.program_id )
                 LEFT JOIN amrs.location l ON (l.location_id = t1.location_id) 
@@ -340,7 +351,7 @@ set @cycle_number = 0;
              SELECT CONCAT('Deleting voided contacts ...');
 		     DROP temporary table if exists flat_family_testing_stage_3;
 		
-		     CREATE temporary TABLE flat_family_testing_stage_3 like flat_family_testing;
+		     CREATE temporary TABLE flat_family_testing_stage_3 like flat_family_testing_741;
 		     Replace into flat_family_testing_stage_3(
 		     select * from flat_family_testing_stage_2 where obs_group_id not in  
 		     (select obs_id from amrs.obs o
@@ -358,7 +369,7 @@ set @cycle_number = 0;
 				            flat_family_testing_backup.patient_id = flat_family_testing_stage_3.patient_id
 				                AND flat_family_testing_backup.obs_group_id = flat_family_testing_stage_3.obs_group_id);
                 
-		SET @dyn_sql=CONCAT('replace into flat_family_testing'                                             
+		SET @dyn_sql=CONCAT('replace into flat_family_testing_741'                                             
 				'(select 
 				patient_id,
                 patient_uuid,
@@ -392,7 +403,9 @@ set @cycle_number = 0;
 				fm_uuid,
 				test_result,
 				preferred_testing_date,
-				facility_enrolled
+				facility_enrolled,
+                patient_program_uuid,
+                date_elicited
 				
 				from flat_family_testing_stage_3 t1)');
         
@@ -489,4 +502,5 @@ set @cycle_number = 0;
 					' : Time to complete: ',
 					TIMESTAMPDIFF(MINUTE, @start, @end),
 					' minutes');
-   END
+   END$$
+DELIMITER ;
