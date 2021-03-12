@@ -8,6 +8,7 @@ BEGIN
 			set @sep = " ## ";
 			set @lab_encounter_type = 99999;
 			set @death_encounter_type = 31;
+            set @last_date_created = (select max(date_created) from etl.flat_hei_summary);
             
 CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
     infection_status_this_month INT,
     mother_alive_this_month SMALLINT,
     mother_alive_on_child_enrollment SMALLINT,
-    age INT,
+	age int(11) DEFAULT NULL,
 	active_and_eligible_for_ovc tinyint,
 	inactive_and_eligible_for_ovc tinyint,
 	enrolled_in_ovc_this_month tinyint,
@@ -86,14 +87,18 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 					CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset_sync_queue (
     person_id INT PRIMARY KEY
 );
+                       set @last_update := null;
                     
 									SELECT 
+
     @last_update:=(SELECT 
             MAX(date_updated)
         FROM
             etl.flat_log
         WHERE
             table_name = @table_version);
+            select IF(@last_update IS NULL,@last_update := '1900-00-00',@last_update);
+            SELECT CONCAT('Last update date ', @last_update);
 
 					replace into hei_monthly_report_dataset_sync_queue
                     (select distinct person_id from flat_hei_summary where date_created >= @last_update);
@@ -210,9 +215,9 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
                     case
 						when date_format(t1.endDate, "%Y-%m-01") > t2.death_date then @retention_status := "dead"
                         when date_format(t1.endDate, "%Y-%m-01") > t2.transfer_out_date then @retention_status := "transfer_out"
-						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),t1.endDate) <= 28 then @retention_status := "active"
-						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),t1.endDate) between 29 and 90 then @retention_status := "defaulter"
-						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 28 day)),t1.endDate) > 90 then @retention_status := "ltfu"
+						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 30 day)),t1.endDate) <= 30 then @retention_status := "active"
+						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 30 day)),t1.endDate) between 31 and 90 then @retention_status := "defaulter"
+						when timestampdiff(day,if(t2.rtc_date,t2.rtc_date,date_add(t2.encounter_datetime, interval 30 day)),t1.endDate) > 90 then @retention_status := "ltfu"
 						else @retention_status := "unknown"
 					end as retention_status,
                     t2.hei_outcome as hei_outcome_this_month,
@@ -239,14 +244,14 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 					end as age,
 					case
 						when @retention_status="active"
-                            AND @age<=15
+                            AND @age<=19
                             then 1
 						else 0
 					end as active_and_eligible_for_ovc,
 
 					case
-						when @retention_status="defaulter" OR @retention_status="ltfu"
-                            AND @age<=15
+						when @retention_status="ltfu" OR @retention_status="defaulter"
+                            AND @age<=19
                             then  1
 						else 0
 					end as inactive_and_eligible_for_ovc,
@@ -434,7 +439,13 @@ SELECT
 					DEALLOCATE PREPARE s1;  
 			end if;            
 
-			set @end = now();
+            SELECT 
+    CONCAT('Average Cycle Length: ',
+            @ave_cycle_length,
+            ' second(s)');
+                
+                 set @end = now();
+                 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 SELECT 
     CONCAT(@table_version,
             ' : Time to complete: ',
