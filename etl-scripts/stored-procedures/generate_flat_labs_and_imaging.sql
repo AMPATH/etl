@@ -1,11 +1,11 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_flat_labs_and_imaging`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_flat_labs_and_imaging`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 				set session sort_buffer_size=512000000;
 				set session group_concat_max_len=100000;
 				set @start = now();
 				set @primary_table := "flat_labs_and_imaging";
-				SELECT @table_version:='flat_labs_and_imaging_v4.5';
+				SELECT @table_version:='flat_labs_and_imaging_v4.6';
 				set @total_rows_written = 0;
 				set @query_type = query_type;
                 set @queue_number = queue_number;
@@ -47,6 +47,10 @@ BEGIN
 				# 10196 = LAMBDA LIGHT CHAINS
 				# 10197 = RATIO OF KAPPA LAMBDA
 				# 6342 = ANTIBODY SCREEN
+                # 9434,9590 = VIA
+                # 885 = PAP SMEAR
+                # 2322 = HPV TEST
+                # 885 = PAP SMEAR
 
                 /*
 				679	RBC
@@ -82,12 +86,16 @@ BEGIN
         10304  GENEXPERT, IMAGE
         10313  DRUG SENSITIVITY TEST, IMAGE
 				6342 = ANTIBODY SCREEN
+                9434 = VIA
+                7423 = PAP SMEAR
+                2322 = HPV TEST
+                885 = PAP SMEAR
 			*/
 
                 set @concept_ids = '(1030, 1040, 856, 5497, 730, 21,653,790,12,6126,887,6252,1537,1271,9239,9020,857
 													679,21,851,1018,1017,1016,729,678,1330,790,1132,1133,1134,655,1297,6123,
                                                     653,654,717,848,785,1014,10249,10250,10251,9010,9011,9699,9012,9812,10304,10313,8731,8595
-													1984,2339,6337,7276,2340,9307,1327,8732,8733,8734,8735,10195,10196,10197,6342
+													1984,2339,6337,7276,2340,9307,1327,8732,8733,8734,8735,10195,10196,10197,6342,9434,7423,2322,885
                 )';
 
 #set @queue_number = 1;
@@ -170,6 +178,9 @@ BEGIN
 							kappa_l_c decimal,
 							lambda_l_c decimal,
 							ratio_l_c decimal,
+                            via_or_via_vili int,
+							pap_smear int,
+							hpv int,
 							tests_ordered varchar(1000),
 							primary key encounter_id (encounter_id),
 							index person_date (person_id, test_datetime),
@@ -371,6 +382,13 @@ WHERE
 										if(obs regexp "!!10195=",cast(getValues(obs,10195) as decimal(5,2)),null) as kappa_l_c,
 										if(obs regexp "!!10196=",cast(getValues(obs,10196) as decimal(5,2)),null) as lambda_l_c,
 										if(obs regexp "!!10197=",cast(getValues(obs,10197) as decimal(5,2)),null) as ratio_l_c,
+                                        CASE
+                                          WHEN obs regexp "!!9434=" THEN cast(replace(replace((substring_index(substring(obs,locate("9434=",obs)),@sep,1)),"9434=",""),"!!","") as unsigned)
+                                          WHEN obs regexp "!!9590=" THEN cast(replace(replace((substring_index(substring(obs,locate("9590=",obs)),@sep,1)),"9590=",""),"!!","") as unsigned)
+                                          ELSE NULL
+                                        END AS via_or_via_vili,
+										if(obs regexp "!!885=",cast(replace(replace((substring_index(substring(obs,locate("885=",obs)),@sep,1)),"885=",""),"!!","") as unsigned),null) as pap_smear,
+										if(obs regexp "!!2322=",cast(replace(replace((substring_index(substring(obs,locate("2322=",obs)),@sep,1)),"2322=",""),"!!","") as unsigned),null) as hpv,
 										CONCAT(
 											case
 												when obs regexp "!!1271=" then getValues(obs,1271)
@@ -489,6 +507,9 @@ WHERE
 							kappa_l_c,
 							lambda_l_c,
 							ratio_l_c,
+                            via_or_via_vili,
+							pap_smear,
+							hpv,
 							tests_ordered
 							from flat_labs_and_imaging_0 t1
 							join amrs.person t2 using (person_id)
