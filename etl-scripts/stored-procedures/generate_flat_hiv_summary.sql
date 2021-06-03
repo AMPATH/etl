@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     is_cross_border_country INT,
     cross_border_service_offered INT,
     cross_border_country_travelled INT,
-	is_cross_border_county INT,
+    is_cross_border_county INT,
     is_cross_border INT,
     tb_tx_stop_date DATETIME,
     country_of_residence INT,
@@ -158,6 +158,9 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     ca_cx_screening_result INT,
     ca_cx_screening_result_datetime DATETIME,
     ca_cx_screening_datetime DATETIME,
+    tb_modality_test INT,
+    tb_test_result INT,
+    tb_test_date DATETIME,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -172,10 +175,10 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
                     
                     
                                         
-                    if(@query_type="build") then
+                   if(@query_type="build") then
                             select 'BUILDING..........................................';
                             set @write_table = concat("flat_hiv_summary_temp_",queue_number);
-                            set @queue_table = concat("flat_hiv_summary_build_queue_",queue_number);                                                                    
+                            set @queue_table = concat("flat_hiv_summary_build_queue_",queue_number);  
 
                             SET @dyn_sql=CONCAT('Create table if not exists ',@write_table,' like ',@primary_table);
                             PREPARE s1 from @dyn_sql; 
@@ -183,13 +186,13 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
                             DEALLOCATE PREPARE s1;  
 
                             
-                            SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_hiv_summary_build_queue limit ', queue_size, ');'); 
+                            SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_hiv_summary_sync_queue limit ', queue_size, ');'); 
                             PREPARE s1 from @dyn_sql; 
                             EXECUTE s1; 
                             DEALLOCATE PREPARE s1;  
                             
                             
-                            SET @dyn_sql=CONCAT('delete t1 from flat_hiv_summary_build_queue t1 join ',@queue_table, ' t2 using (person_id);'); 
+                            SET @dyn_sql=CONCAT('delete t1 from flat_hiv_summary_sync_queue t1 join ',@queue_table, ' t2 using (person_id);'); 
                             PREPARE s1 from @dyn_sql; 
                             EXECUTE s1; 
                             DEALLOCATE PREPARE s1;  
@@ -316,7 +319,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             t1.obs,
                             t1.obs_datetimes,
                             
-                            case
+							case
                                 when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163,225,226) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
                                 when t1.encounter_type in (158) AND v.visit_type_id not in (104) AND v.visit_type_id is NOT NULL then 1
@@ -341,7 +344,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 							    left join etl.flat_orders t2 using(encounter_id)
 							    left join amrs.visit v on (v.visit_id = t1.visit_id)
 							where (t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158,161,162,163,212,214,218,220,225,226)
-							    or (t1.encounter_type in (186) and v.visit_type_id not in (80,104)))
+							    or (t1.encounter_type in (186) and (v.visit_type_id not in (80,104) OR v.visit_type_id IS NULL) ))
 							    AND NOT obs regexp "!!5303=(822|664|1067)!!"  
 							    AND NOT obs regexp "!!9082=9036!!"
                         );
@@ -513,6 +516,9 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @ca_cx_screening_result = null;
                         set @ca_cx_screening_result_datetime = null;
                         set @ca_cx_screening_datetime = null;
+                        set @tb_modality_test = null;
+						set @tb_test_result = null;
+						set @tb_test_date = null;
 
 
                         
@@ -1810,7 +1816,42 @@ SELECT @person_ids_count AS 'num patients to sync';
                           when obs regexp "!!10400=1065" then @ca_cx_screening_datetime := encounter_datetime 
                           when @cur_id = @prev_id then @ca_cx_screening_datetime
 						  else @ca_cx_screening_datetime := null
-                        end as ca_cx_screening_datetime
+                        end as ca_cx_screening_datetime,
+                        
+                        case 
+                            when obs regexp "!!8070=" then @tb_modality_test := 8070
+                            when obs regexp "!!307=" then @tb_modality_test := 307
+                            when obs regexp "!!2311=" then @tb_modality_test := 2311
+                            when obs regexp "!!1506=" then @tb_modality_test := 1506
+                            when obs regexp "!!12=" then @tb_modality_test := 12
+							when @prev_id = @cur_id then @tb_modality_test
+							else @tb_modality_test := 0
+						end as tb_modality_test,
+                        
+                        case
+							when obs regexp "!!8070=" then @tb_test_result := 
+								replace(replace((substring_index(substring(obs,locate("!!8070=",obs)),@sep,1)),"!!8070=",""),"!!","")
+							when obs regexp "!!307=" then @tb_test_result := 
+								replace(replace((substring_index(substring(obs,locate("!!307=",obs)),@sep,1)),"!!307=",""),"!!","")
+							when obs regexp "!!2311=" then @tb_test_result := 
+								replace(replace((substring_index(substring(obs,locate("!!2311=",obs)),@sep,1)),"!!2311=",""),"!!","")
+                            when obs regexp "!!1506=" then @tb_test_result := 
+								replace(replace((substring_index(substring(obs,locate("!!1506=",obs)),@sep,1)),"!!1506=",""),"!!","")
+                            when obs regexp "!!12=" then @tb_test_result := 
+								replace(replace((substring_index(substring(obs,locate("!!12=",obs)),@sep,1)),"!!12=",""),"!!","")
+							when @prev_id = @cur_id then @tb_test_result
+							else @tb_test_result := 0
+						end as tb_test_result,
+                        
+                        case 
+                            when obs regexp "!!8070=" then @tb_test_date := date(encounter_datetime)
+                            when obs regexp "!!307=" then @tb_test_date := date(encounter_datetime)
+                            when obs regexp "!!2311=" then @tb_test_date := date(encounter_datetime)
+                            when obs regexp "!!1506=" then @tb_test_date := date(encounter_datetime)
+                            when obs regexp "!!12=" then @tb_test_date := date(encounter_datetime)
+                            when @prev_id = @cur_id then @tb_test_date
+							else @tb_test_date := null
+						end as tb_test_date
         
 
                         from flat_hiv_summary_0 t1
@@ -2314,7 +2355,10 @@ SELECT @total_rows_written;
                         ca_cx_screen,
                         ca_cx_screening_result,
                         ca_cx_screening_result_datetime,
-                        ca_cx_screening_datetime
+                        ca_cx_screening_datetime,
+						tb_modality_test,
+                        tb_test_result,
+                        tb_test_date
                         
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
@@ -2408,9 +2452,6 @@ SELECT
             ' second(s)');
                 
                  set @end = now();
-                 #if (@query_type="sync") then
-                 #insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-                 #end if;
 SELECT 
     CONCAT(@table_version,
             ' : Time to complete: ',
