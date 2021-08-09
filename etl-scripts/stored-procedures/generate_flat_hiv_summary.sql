@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     is_transit INT,
     is_clinical_encounter INT,
     location_id INT,
+    last_non_transit_location_id INT NULL,
     location_uuid VARCHAR(100),
     visit_num INT,
     mdt_session_number INT,
@@ -161,6 +162,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     tb_modality_test INT,
     tb_test_result INT,
     tb_test_date DATETIME,
+    gbv_screening_result INT NULL,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -186,7 +188,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
                             DEALLOCATE PREPARE s1;  
 
                             
-                            SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_hiv_summary_sync_queue limit ', queue_size, ');'); 
+                            SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_hiv_summary_build_queue limit ', queue_size, ');'); 
                             PREPARE s1 from @dyn_sql; 
                             EXECUTE s1; 
                             DEALLOCATE PREPARE s1;  
@@ -433,6 +435,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @ovc_exit_date = null;
                         set @hiv_start_date = null;
                         set @cur_location = null;
+                        set @cur_last_non_transit_location_id = null;
                         set @cur_rtc_date = null;
                         set @prev_rtc_date = null;
                         set @med_pickup_rtc_date = null;
@@ -519,6 +522,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @tb_modality_test = null;
 						set @tb_test_result = null;
 						set @tb_test_date = null;
+                        set @gbv_screening_result = null;
 
 
                         
@@ -593,7 +597,11 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @prev_id = @cur_id then @cur_location
                                 else null
                             end as location_id,
-
+                            case
+                                when @prev_id = @cur_id and @cur_last_non_transit_location_id is not null and visit_type in (23, 24, 119, 124, 129,43,80,118,120,123) then @cur_last_non_transit_location_id
+                                when location_id then @cur_last_non_transit_location_id := location_id
+                                else null
+                            end as last_non_transit_location_id,
                             case
                                 when @prev_id=@cur_id and t1.encounter_type not in (5,6,7,8,9,21) then @visit_num:= @visit_num + 1
                                 when @prev_id != @cur_id then @visit_num := 1
@@ -1851,8 +1859,16 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when obs regexp "!!12=" then @tb_test_date := date(encounter_datetime)
                             when @prev_id = @cur_id then @tb_test_date
 							else @tb_test_date := null
-						end as tb_test_date
-        
+						end as tb_test_date,
+                        
+						case 
+                            when obs regexp "!!11866=1065" OR obs regexp "!!11565=1065" OR obs regexp "!!11865=1065" OR obs regexp "!!11855=1065"
+								 OR obs regexp "!!9303=1065"  OR obs regexp "!!11867=1065" then @gbv_screening_result := 1
+							when obs regexp "!!11866=1066" OR obs regexp "!!11565=1066" OR obs regexp "!!11865=1066" OR obs regexp "!!11855=1066"
+								 OR obs regexp "!!9303=1066"  OR obs regexp "!!11867=1066" then @gbv_screening_result := 0
+                            when @prev_id = @cur_id then @gbv_screening_result
+                            else @gbv_screening_result := null
+                        end as gbv_screening_result
 
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
@@ -2155,20 +2171,20 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
-                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in := 1
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,124)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in := 1
                                 else @transfer_in := null
                             end as transfer_in,
 
                             case 
                                 when obs regexp "!!7015=" then @transfer_in_date := date(encounter_datetime)
-                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33)) and (prev_visit_type is null or prev_visit_type not in (23,24,33))  then @transfer_in_date := date(encounter_datetime)
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,124)) and (prev_visit_type is null or prev_visit_type not in (23,24,33))  then @transfer_in_date := date(encounter_datetime)
                                 when @cur_id = @prev_id then @transfer_in_date
                                 else @transfer_in_date := null
                             end transfer_in_date,
                             
                             case 
                                 when obs regexp "!!7015=1287" then @transfer_in_location_id := 9999
-                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in_location_id := cur_clinical_location_id
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,124)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in_location_id := cur_clinical_location_id
                                 when @cur_id = @prev_id then @transfer_in_location_id
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
@@ -2228,6 +2244,7 @@ SELECT @total_rows_written;
                         is_transit,
                         is_clinical_encounter,
                         location_id,
+                        last_non_transit_location_id,
                         t2.uuid as location_uuid,
                         visit_num,
                         mdt_session_number,
@@ -2358,7 +2375,8 @@ SELECT @total_rows_written;
                         ca_cx_screening_datetime,
 						tb_modality_test,
                         tb_test_result,
-                        tb_test_date
+                        tb_test_date,
+                        gbv_screening_result
                         
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
