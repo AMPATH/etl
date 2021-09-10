@@ -295,7 +295,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 							and arv_first_regimen_start_date between date_format(endDate,"%Y-%m-01")  and endDate then arv_first_regimen_location_id
                         else location_id
                     end as location_id,                  
-                    
+                    last_non_transit_location_id,
                     
 					encounter_type,
 					date(t2.death_date) as death_date,
@@ -770,10 +770,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                         else 0
                     end as newly_exited_from_ovc_this_month,
 
-					case
-                        when t2.ovc_exit_date is not null then 1
-                        else 0
-                    end as exited_from_ovc_this_month,
+					
+                    t2.ovc_exit_date,
                     ca_cx_screen,
                     ca_cx_screening_datetime,
                     ca_cx_screening_result,
@@ -829,11 +827,9 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
                         else @prev_location_id := null
 					end as next_location_id,
                     
-                    					case
-						when @prev_id=@cur_id and (visit_type = 23 or visit_type = 119) then	
-						@cur_location_id := @cur_location_id	
-						else 	
-                    	@cur_location_id := location_id 	
+					case
+						when @prev_id=@cur_id and visit_type in (23, 24, 119, 124, 129,43,80,118,120,123) then @cur_location_id := last_non_transit_location_id	
+						else @cur_location_id := location_id 	
 					end as cur_location_id,
                     
 					case
@@ -862,21 +858,26 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					t1.*,
 					@prev_id := @cur_id as prev_id,
 					@cur_id := t1.person_id as cur_id,
-					case when t3.in_ovc_this_month
+					case when t3.in_ovc_this_month = 1
 						then 1
                         else 0
 					end as enrolled_in_ovc_this_month,
+                    
+                    case
+                        when t1.ovc_exit_date is null then 0
+                        when t1.ovc_exit_date is not null and t3.in_ovc_this_month = 1 then 0
+                        when t1.ovc_exit_date is not null then 1
+                        else 0
+                    end as exited_from_ovc_this_month,
                     
                     case
 						when @prev_id=@cur_id then @prev_location_id := @cur_location_id
                         else @prev_location_id := null
 					end as prev_location_id,
                     
-                    case 
-						when @prev_id=@cur_id and (visit_type = 23 or visit_type = 119) then
-						@cur_location_id := @cur_location_id
-						else 
-                    	@cur_location_id := location_id 
+                   case 
+						when @prev_id=@cur_id and  visit_type in (23, 24, 119, 124, 129,43,80,118,120,123) then @cur_location_id := last_non_transit_location_id
+						else @cur_location_id := location_id 
 					end as cur_location_id,
                     
 					case
@@ -1136,4 +1137,4 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 			select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
         END$$
-DELIMITER;
+DELIMITER ;
