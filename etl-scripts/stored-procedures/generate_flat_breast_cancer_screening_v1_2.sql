@@ -26,6 +26,7 @@ BEGIN
     encounter_datetime DATETIME,
     visit_id INT,
     location_id INT,
+    location_uuid VARCHAR(100),
     gender CHAR(4),
     age INT,
     death_date DATETIME,
@@ -347,7 +348,7 @@ BEGIN
         t2.orders
       FROM etl.flat_obs t1
         JOIN flat_breast_cancer_screening_build_queue__0 t0 USING (person_id)
-        left JOIN etl.flat_orders t2 USING(encounter_id)
+        LEFT JOIN etl.flat_orders t2 USING (encounter_id)
       WHERE t1.encounter_type in ',@encounter_types,');'
     );
                             
@@ -558,6 +559,7 @@ BEGIN
       t1.encounter_datetime,
       t1.visit_id,
       t1.location_id,
+      l.uuid as `location_uuid`,
       t1.is_clinical_encounter,
       p.gender,
       CASE
@@ -1356,6 +1358,7 @@ BEGIN
 
       FROM flat_breast_cancer_screening_0 t1
       JOIN amrs.person p USING (person_id)
+      JOIN amrs.location l USING (location_id)
       ORDER BY person_id, date(encounter_datetime) desc, encounter_type_sort_index desc
     );
 
@@ -1521,6 +1524,7 @@ BEGIN
           encounter_datetime,
           visit_id,
           location_id,
+          location_uuid,
           gender,
           age,
           death_date,
