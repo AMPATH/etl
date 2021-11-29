@@ -3,7 +3,7 @@ CREATE PROCEDURE `generate_prep_summary_v1_1_prod`(IN query_type varchar(50), IN
 BEGIN
 
 					select @start := now();
-					select @table_version := "flat_prep_summary_v1_1";
+					select @table_version := "flat_prep_summary_v1_2";
                     set @primary_table := "flat_prep_summary_v1_1";
                     set @query_type = query_type;
                     
@@ -53,6 +53,7 @@ BEGIN
 					  `sub_population_type` INT DEFAULT NULL,
                       `hiv_rapid_test_result` INT DEFAULT NULL,
                       `hiv_rapid_test_date` date DEFAULT NULL,
+                      `gbv_screening_result` INT NULL,
 					  PRIMARY KEY (`encounter_id`),
 					  KEY `person_date` (`person_id`,`encounter_datetime`),
 					  KEY `location_rtc` (`location_id`,`rtc_date`),
@@ -558,18 +559,25 @@ BEGIN
 								else @hiv_rapid_test_result := null
 							end as hiv_rapid_test_result,
                             
-                            case
-                                when @hiv_rapid_test_result is not null
-                                        and (@hiv_rapid_test_date is null or abs(datediff(replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!",""),@hiv_rapid_test_date)) > 30)
-                                        and (@hiv_rapid_test_date is null or (replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!","")) > @hiv_rapid_test_date)
-                                    then @hiv_rapid_test_date := replace(replace((substring_index(substring(obs_datetimes,locate("!!1040=",obs_datetimes)),@sep,1)),"!!1040=",""),"!!","")
-                                when @prev_id=@cur_id then @hiv_rapid_test_date
-                                else @hiv_rapid_test_date:=null
-                            end as hiv_rapid_test_date
+                             CASE
+								when obs regexp "!!1040=" then @hiv_rapid_test_date := etl.GetValues(obs_datetimes, 1040)
+								when @prev_id = @cur_id then @hiv_rapid_test_date
+								else @hiv_rapid_test_date := null
+							END AS  hiv_rapid_test_date,
+                            
+                            case 
+								when obs regexp "!!11866=1065" OR obs regexp "!!11565=1065" OR obs regexp "!!11865=1065" OR obs regexp "!!11855=1065"
+									 OR obs regexp "!!9303=1065"  OR obs regexp "!!11867=1065" then @gbv_screening_result := 1
+								when obs regexp "!!11866=1066" OR obs regexp "!!11565=1066" OR obs regexp "!!11865=1066" OR obs regexp "!!11855=1066"
+									 OR obs regexp "!!9303=1066"  OR obs regexp "!!11867=1066" then @gbv_screening_result := 0
+								when @prev_id = @cur_id then @gbv_screening_result
+								else @gbv_screening_result := null
+							end as gbv_screening_result
 							
 
 						from flat_prep_summary_0 t1
 							join amrs.person p using (person_id)
+                            order by t1.person_id asc,t1.encounter_datetime ASC
 						);
 						
                         replace into flat_prep_summary_v1_1
@@ -754,10 +762,13 @@ BEGIN
 							@remaining_time AS 'Est time remaining (min)';
 
 				 end while;
-
-				 select @end := now();
-				# insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
-				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
+                 
+				select @end := now();
+                
+				if(log = true) then
+				insert into flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+				end if;
+				select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
 		END$$
 DELIMITER ;
