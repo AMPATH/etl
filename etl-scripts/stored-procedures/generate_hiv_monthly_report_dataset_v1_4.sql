@@ -159,6 +159,7 @@ create table if not exists hiv_monthly_report_dataset_v1_2 (
                 ca_cx_screened_this_visit_this_month tinyint,				
                 ca_cx_screened_active_this_month tinyint,
 				confirmed_tb_positive_this_month tinyint,
+                with_pregnancy_intentions_this_month int,
                 primary key elastic_id (elastic_id),
 				index person_enc_date (person_id, encounter_date),
                 index person_report_date (person_id, endDate),
@@ -693,7 +694,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					end as modern_contraception_since_active,
 
 					case
-						when modern_contraceptive_method_start_date <= date(encounter_datetime)
+						when on_modern_contraceptive = 1
 							AND @status="active"
 							AND gender="F"
                             AND @age>=15
@@ -788,7 +789,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when tb_screening_result = 6137
 							AND tb_screening_datetime between date_format(endDate,"%Y-%m-01")  and endDate then 1
                         else 0
-                    end as confirmed_tb_positive_this_month
+                    end as confirmed_tb_positive_this_month,
+                    t2.with_pregnancy_intentions as with_pregnancy_intentions_this_month
 					
 					from etl.dates t1
 					join etl.flat_hiv_summary_v15b t2 
@@ -1083,7 +1085,8 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 				ca_cx_screening_result,  
                 ca_cx_screened_this_visit_this_month,				
                 ca_cx_screened_active_this_month,
-				confirmed_tb_positive_this_month
+				confirmed_tb_positive_this_month,
+                with_pregnancy_intentions_this_month
 					from hiv_monthly_report_dataset_2 t1
                     join amrs.location t2 on (t2.location_id = t1.cur_location_id)
 				);
