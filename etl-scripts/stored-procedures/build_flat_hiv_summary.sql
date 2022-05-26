@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     transfer_out_date_type TINYINT,
     tb_prophylaxis_duration INT,
     outreach_result INT DEFAULT NULL,
-    tb_prophylaxis_medication VARCHAR(200) NULL,
+     tb_prophylaxis_medication VARCHAR(200) NULL,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -424,10 +424,63 @@ SELECT @person_ids_count AS 'num patients to sync';
                         from flat_hiv_summary_0a
                         order by person_id, enrollment_sort_index desc, date(encounter_datetime), encounter_type_sort_index desc 
                         );
+                        
+						alter table etl.flat_hiv_summary_enrollment drop prev_id ,drop cur_id;
+                        
+                                 ## set rtc date
+                            
+                            set @cur_id = null;
+							set @prev_id = null;
+							set @cur_clinical_rtc_date  := null;
+							set @cur_rtc_date := null;
+                            
+                            drop temporary table if exists etl.flat_rtc;                          
+							create temporary table etl.flat_rtc(
+								SELECT 
+								t1.*,
+								@prev_id:=@cur_id AS prev_id,
+								@cur_id:=t1.person_id AS cur_id,
+								CASE
+									WHEN t1.obs REGEXP '!!5096=' THEN @cur_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
+									ELSE NULL
+								END AS rtc_date_lag,
+								 CASE
+									WHEN t1.obs REGEXP '!!5096=' AND t1.is_clinical_encounter = 1 THEN @cur_clinical_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
+									WHEN @prev_id = @cur_id THEN @cur_clinical_rtc_date
+									ELSE @cur_clinical_rtc_date:= null
+								END AS clinical_rtc_date_lag
+							FROM
+								etl.flat_hiv_summary_enrollment t1
+							ORDER BY t1.person_id , t1.encounter_datetime ASC
+							);
+                            
+						alter table etl.flat_rtc drop prev_id ,drop cur_id;
+                        
+                         ## set null rtc to clinical rtc date
+                            
+                             set @cur_id = null;
+                             set @prev_id = null;
+                             
+                             drop temporary table if exists etl.flat_rtc_lag;                          
+							 create temporary table etl.flat_rtc_lag(
+									SELECT 
+									t1.*,
+									@prev_id:=@cur_id AS prev_id,
+									@cur_id:=t1.person_id AS cur_id,
+									CASE
+										 WHEN t1.rtc_date_lag IS NULL THEN t1.clinical_rtc_date_lag
+										 ELSE t1.rtc_date_lag
+									 END AS cur_rtc_lag_date
+								FROM
+									etl.flat_rtc t1
+								ORDER BY t1.person_id , t1.encounter_datetime ASC
+								);
+                                
+						alter table etl.flat_rtc_lag drop prev_id ,drop cur_id , drop rtc_date_lag, drop clinical_rtc_date_lag;
 
                         drop temporary table if exists flat_hiv_summary_0;
                         create temporary table flat_hiv_summary_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
-                        (select * from flat_hiv_summary_enrollment
+                        (select * from etl.flat_rtc_lag
                         order by person_id, date(encounter_datetime), encounter_type_sort_index
                         );
 
@@ -638,10 +691,9 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             
                             case
-                                when obs regexp "!!5096=" then @cur_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
-                                when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
-                                else @cur_rtc_date := null
-                            end as cur_rtc_date,
+								when t1.cur_rtc_lag_date IS NOT NULL then @cur_rtc_date := t1.cur_rtc_lag_date
+								ELSE @cur_rtc_date:= NULL
+							end as cur_rtc_date,
                             
                             case
 									when obs regexp "!!9605=" then @med_pickup_rtc_date := replace(replace((substring_index(substring(obs,locate("!!9605=",obs)),@sep,1)),"!!9605=",""),"!!","")
@@ -799,10 +851,10 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as prev_clinical_rtc_date_hiv,
 
                             case
-                                when is_clinical_encounter then @cur_clinical_rtc_date := @cur_rtc_date
-                                when @prev_id = @cur_id then @cur_clinical_rtc_date
-                                else @cur_clinical_rtc_date:= null
-                            end as cur_clinic_rtc_date,
+								when is_clinical_encounter then @cur_clinical_rtc_date := t1.cur_rtc_lag_date
+								when @prev_id = @cur_id then @cur_clinical_rtc_date
+							    else @cur_clinical_rtc_date:= null
+							end as cur_clinic_rtc_date,
 
                             
                             CASE                             

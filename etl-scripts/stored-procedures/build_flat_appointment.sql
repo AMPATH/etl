@@ -236,6 +236,56 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
                                 left outer join etl.program_visit_map t8 ON (t8.visit_type_id = t1.visit_type_id)
 							);
                             
+                              ## lag rtc date
+                            
+              set @cur_id = null;
+							set @prev_id = null;
+							set @cur_clinical_rtc_date  := null;
+							set @cur_rtc_date := null;
+                            
+drop temporary table if exists etl.flat_rtc_lag;                          
+create temporary table etl.flat_rtc_lag(
+    SELECT 
+    t1.*,
+    @prev_id:=@cur_id AS prev_id,
+    @cur_id:=t1.person_id AS cur_id,
+    CASE
+        WHEN t1.obs REGEXP '!!5096=' THEN @cur_rtc_date:=etl.GetValues(t1.obs,5096)
+		ELSE NULL
+    END AS rtc_date_lag,
+     CASE
+        WHEN t1.obs REGEXP '!!5096=' AND t1.is_clinical = 1 THEN @cur_clinical_rtc_date:=etl.GetValues(t1.obs,5096)
+		WHEN @prev_id = @cur_id THEN @cur_clinical_rtc_date
+        ELSE @cur_clinical_rtc_date:= null
+    END AS clinical_rtc_date_lag
+FROM
+    etl.mapping_data t1
+ORDER BY t1.person_id , t1.encounter_datetime ASC
+);
+
+ alter table etl.flat_rtc_lag drop prev_id ,drop cur_id ;
+ 
+ 
+ set @cur_id = null;
+ set @prev_id = null;
+
+drop temporary table if exists etl.flat_rtc_lag_2;                          
+create temporary table etl.flat_rtc_lag_2(
+    SELECT 
+    t1.*,
+    @prev_id:=@cur_id AS prev_id,
+    @cur_id:=t1.person_id AS cur_id,
+    CASE
+		 WHEN t1.rtc_date_lag IS NULL THEN t1.clinical_rtc_date_lag
+		 ELSE t1.rtc_date_lag
+     END AS cur_rtc_lag_date
+FROM
+    etl.flat_rtc_lag t1
+ORDER BY t1.person_id , t1.encounter_datetime ASC
+);
+
+                                   alter table etl.flat_rtc_lag_2 drop prev_id ,drop cur_id , drop rtc_date_lag, drop clinical_rtc_date_lag;
+                            
 
 									#### Add "next" columns
 									set @cur_id = null;
@@ -266,9 +316,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 
 										# 5096 = return visit date
 										case
-											when obs regexp "!!5096=" then @cur_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
-											when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
-											else @cur_rtc_date := null
+											when t1.cur_rtc_lag_date IS NOT NULL then @cur_rtc_date := t1.cur_rtc_lag_date
+                                            ELSE @cur_rtc_date:= NULL
 										end as cur_rtc_date,
 
 										case
@@ -317,7 +366,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 											end as next_clinical_rtc_date,
 
 											case
-												when is_clinical then @cur_clinical_rtc_date := @cur_rtc_date
+												when is_clinical then @cur_clinical_rtc_date := t1.cur_rtc_lag_date
 												when @prev_id = @cur_id then @cur_clinical_rtc_date
 												else @cur_clinical_rtc_date:= null
 											end as cur_clinical_rtc_date,
@@ -334,7 +383,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 											end as cur_clinical_encounter_type            
 
 										
-										from etl.mapping_data t1
+										from etl.flat_rtc_lag_2 t1
 										order by person_id, encounter_datetime desc
 									 );   
 
@@ -403,9 +452,8 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_sync_queue (
 
 										# 5096 = return visit date
 										case
-											when obs regexp "!!5096=" then @cur_rtc_date := replace(replace((substring_index(substring(obs,locate("!!5096=",obs)),@sep,1)),"!!5096=",""),"!!","")
-											when @prev_id = @cur_id then if(@cur_rtc_date > encounter_datetime,@cur_rtc_date,null)
-											else @cur_rtc_date := null
+											when t1.cur_rtc_lag_date IS NOT NULL then @cur_rtc_date := t1.cur_rtc_lag_date
+                                            ELSE NULL
 										end as cur_rtc_date,
 
 										case
