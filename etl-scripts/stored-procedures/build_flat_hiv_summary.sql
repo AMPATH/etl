@@ -163,6 +163,14 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     tb_test_result INT,
     tb_test_date DATETIME,
     gbv_screening_result INT NULL,
+    on_modern_contraceptive INT,
+    modern_contraceptive_reporting_date DATETIME,
+    continue_on_fp INT,
+    with_pregnancy_intentions INT,
+    transfer_out_date_type TINYINT,
+    tb_prophylaxis_duration INT,
+    outreach_result INT DEFAULT NULL,
+    tb_prophylaxis_medication VARCHAR(200) NULL,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX person_uuid (uuid),
@@ -345,7 +353,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
 							    left join etl.flat_orders t2 using(encounter_id)
 							    left join amrs.visit v on (v.visit_id = t1.visit_id)
-							where (t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158,161,162,163,212,214,218,220,225,226)
+							where (t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158,161,162,163,212,214,218,220,225,226,253,243)
 							    or (t1.encounter_type in (186) and (v.visit_type_id not in (80,104) OR v.visit_type_id IS NULL) ))
 							    AND NOT obs regexp "!!5303=(822|664|1067)!!"  
 							    AND NOT obs regexp "!!9082=9036!!"
@@ -523,6 +531,9 @@ SELECT @person_ids_count AS 'num patients to sync';
 						set @tb_test_result = null;
 						set @tb_test_date = null;
                         set @gbv_screening_result = null;
+                        set @gbv_screening_result = null;
+                        set @tb_prophylaxis_duration = null;
+						set @on_modern_contraceptive = null;
 
 
                         
@@ -1260,7 +1271,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when obs regexp "!!1265=(1256|1850)!!" then @ipt_start_date := encounter_datetime
                                 when obs regexp "!!1265=(1257|981|1406|1849)!!" and @ipt_start_date is null then @ipt_start_date := encounter_datetime
                                 when obs regexp "!!10591=1065" AND obs regexp "!!6984=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!6984=",obs)),@sep,1)),"!!6984=",""),"!!","")
-								when obs regexp "!!10591=1065" and obs regexp "!!1190=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!","")
+								-- when obs regexp "!!10591=1065" and obs regexp "!!1190=" then @ipt_start_date := replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!","")
                                 when @cur_id != @prev_id then @ipt_start_date := null
                                 else @ipt_start_date
                             end as ipt_start_date,
@@ -1588,21 +1599,18 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @condoms_provided_date := null
                             end as condoms_provided_date,
                                 
-                            
-                            
-                            
-                            
-
                             case
-                                when obs regexp "!!7240=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217)!!"
-                                    then @modern_contraceptive_method_start_date := date(encounter_datetime)
-                                when obs regexp "!!7240=!!"
-                                    then @modern_contraceptive_method_start_date := null
-                                when obs regexp "!!374=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217)!!" and obs regexp "!!1190="
+								when obs regexp "!!374=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217)!!" and obs regexp "!!1190="
                                     then @modern_contraceptive_method_start_date :=  date(replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!",""))
                                 when obs regexp "!!374=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217)!!"
                                     then @modern_contraceptive_method_start_date :=  date(encounter_datetime)
-                                when obs regexp "!!374=!!"
+                                when obs regexp "!!7240=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217)!!" and obs regexp "!!1190="
+                                    then @modern_contraceptive_method_start_date :=  date(replace(replace((substring_index(substring(obs,locate("!!1190=",obs)),@sep,1)),"!!1190=",""),"!!",""))
+                                when obs regexp "!!7240=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217)!!"
+                                    then @modern_contraceptive_method_start_date := date(encounter_datetime)
+								when obs regexp "!!374=!!"
+                                    then @modern_contraceptive_method_start_date := null
+                                when obs regexp "!!7240=!!"
                                     then @modern_contraceptive_method_start_date := null
                                 when @prev_id = @cur_id then @modern_contraceptive_method_start_date
                                 else @modern_contraceptive_method_start_date := null
@@ -1610,15 +1618,59 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             
                             case
-                                when obs regexp "!!9738=1066!!" then @contraceptive_method := null
-                                when obs regexp "!!7240=1107!!" then @contraceptive_method := null
-                                when obs regexp "!!7240="
+                                when obs regexp "!!7240=1107!!" or obs regexp "!!374=1107!!"  then @contraceptive_method := 1107
+                                when (obs regexp "!!9737=!!" or obs regexp "!!9737=1065!!") and obs regexp "!!7240="
                                     then @contraceptive_method := replace(replace((substring_index(substring(obs,locate("!!7240=",obs)),@sep,1)),"!!7240=",""),"!!","")
                                 when obs regexp "!!374="
                                     then @contraceptive_method :=  replace(replace((substring_index(substring(obs,locate("!!374=",obs)),@sep,1)),"!!374=",""),"!!","")
+								when obs regexp "!!9738=1066!!" then @contraceptive_method := 1107
                                 when @prev_id = @cur_id then @contraceptive_method
                                 else @contraceptive_method := null
                             end as contraceptive_method,
+                            
+                           case
+							when obs regexp "!!374=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217|5279|8300)!!"
+                                    then @modern_contraceptive_reporting_date :=  date(encounter_datetime)
+                                when obs regexp "!!7240=(5275|6220|780|5279|907|6218|6700|6701|5274|9510|9511|9734|9735|6217|5279|8300)!!"
+                                    then @modern_contraceptive_reporting_date := date(encounter_datetime)
+								when (obs regexp "!!7240=!!" or obs regexp "!!7240=1107!!")
+                                    then @modern_contraceptive_reporting_date := null
+                                when (obs regexp "!!374=!!" or obs regexp "!!374=1107!!")
+                                    then @modern_contraceptive_reporting_date := null
+                                when @prev_id = @cur_id then @modern_contraceptive_reporting_date
+                                else @modern_contraceptive_reporting_date := null
+                            end as modern_contraceptive_reporting_date,
+                            
+                            case
+								when obs regexp "!!9737=1066!!" then @continue_fp := 0
+                                when obs regexp "!!9737=1065!!" then @continue_fp := 1
+                                when @prev_id = @cur_id then @continue_fp
+                                else @continue_fp := 0
+                            end as continue_fp,
+                            
+                             case
+								when (@contraceptive_method = 1107 or @contraceptive_method is null) then @on_modern_contraceptive := null
+                                when @contraceptive_method in (6701, 5276) and @continue_fp = 1 and @modern_contraceptive_method_start_date <= date(encounter_datetime) then @on_modern_contraceptive := 1
+                                when @contraceptive_method = 9510 and @continue_fp = 1  and date(encounter_datetime) between @modern_contraceptive_method_start_date and date_add(@modern_contraceptive_method_start_date, interval 3 year)  
+									and date(encounter_datetime) between @modern_contraceptive_reporting_date and date_add(@modern_contraceptive_reporting_date, interval 6 month) then @on_modern_contraceptive := 1
+                                when  @contraceptive_method = 9511  and @continue_fp = 1 and date(encounter_datetime) between @modern_contraceptive_method_start_date and date_add(@modern_contraceptive_method_start_date, interval 5 year)  
+									and date(encounter_datetime) between @modern_contraceptive_reporting_date and date_add(@modern_contraceptive_reporting_date, interval 6 month) then @on_modern_contraceptive := 1
+                                when @contraceptive_method in (9734,9735) and @continue_fp = 1 and date(encounter_datetime) between @modern_contraceptive_method_start_date and date_add(@modern_contraceptive_method_start_date, interval 10 year)  
+									and date(encounter_datetime) between @modern_contraceptive_reporting_date and date_add(@modern_contraceptive_reporting_date, interval 6 month) then @on_modern_contraceptive := 1
+                                when @contraceptive_method = 8300 and date(encounter_datetime) between @modern_contraceptive_method_start_date and date_add(@modern_contraceptive_method_start_date, interval 6 month)   
+									and date(encounter_datetime) between @modern_contraceptive_reporting_date and date_add(@modern_contraceptive_reporting_date, interval 3 month) then @on_modern_contraceptive := 1
+								when @contraceptive_method = 5279 and @continue_fp = 1  and date(encounter_datetime) between @modern_contraceptive_method_start_date and date_add(@modern_contraceptive_method_start_date, interval 3 month)  then @on_modern_contraceptive := 1
+                                when @contraceptive_method in (6218,6217) and date(encounter_datetime) <= date(@cur_rtc_date)  then @on_modern_contraceptive := 1
+                                when @prev_id = @cur_id and @contraceptive_method in (6701, 5276) then @on_modern_contraceptive
+                                else @on_modern_contraceptive := null
+                            end as on_modern_contraceptive,
+                            
+                            case 
+								when  obs regexp "!!11887=1065!!" then @with_pregnancy_intentions := 1
+                                when obs regexp "!!6687=11662!!" then  @with_pregnancy_intentions := 1
+								when @prev_id = @cur_id then @with_pregnancy_intentions	
+                                else @with_pregnancy_intentions := null	
+                            end as with_pregnancy_intentions,	
 
                             case
                                 when obs regexp "!!2061=1115!!" then @menstruation_status := 1115	
@@ -1704,6 +1756,18 @@ SELECT @person_ids_count AS 'num patients to sync';
 										end
 								else @home_outreach := null
                             end as home_outreach,
+                            
+                            case
+								when @phone_outreach is not null and obs regexp "!!10348=" then @outreach_result := 
+									replace(replace((substring_index(substring(obs,locate("!!10348=",obs)),@sep,1)),"!!10348=",""),"!!","")                                
+								when @home_outreach is not null and obs regexp "!!1552=" then @outreach_result := 
+									replace(replace((substring_index(substring(obs,locate("!!1552=",obs)),@sep,1)),"!!1552=",""),"!!","")
+								when @home_outreach is not null and obs regexp "!!9069=" then @outreach_result := 
+									replace(replace((substring_index(substring(obs,locate("!!9069=",obs)),@sep,1)),"!!9069=",""),"!!","")
+								when @phone_outreach = 1 then @outreach_result := 1065
+								when @home_outreach = 1 then @outreach_result := 1065
+								else @outreach_result := null
+							end as outreach_result,
                             
 						 case when encounter_type = 21 then obs regexp 
                            case
@@ -1868,7 +1932,17 @@ SELECT @person_ids_count AS 'num patients to sync';
 								 OR obs regexp "!!9303=1066"  OR obs regexp "!!11867=1066" then @gbv_screening_result := 0
                             when @prev_id = @cur_id then @gbv_screening_result
                             else @gbv_screening_result := null
-                        end as gbv_screening_result
+                        end as gbv_screening_result,
+                        
+                        case
+							when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs REGEXP "!!11883_drug=607"  then @tb_prophylaxis_duration := 3
+                            when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs REGEXP "!!1194_drug=608"  then @tb_prophylaxis_duration := 3
+                            when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs REGEXP "!!1194_drug=282"  then @tb_prophylaxis_duration := 3
+							when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs regexp "!!656_drug=59" then @tb_prophylaxis_duration := 6
+                            when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs regexp "!!656_drug=60" then @tb_prophylaxis_duration := 6
+							when @cur_id != @prev_id then @tb_prophylaxis_duration := null
+							else @tb_prophylaxis_duration
+						end as tb_prophylaxis_duration
         
 
                         from flat_hiv_summary_0 t1
@@ -2172,20 +2246,20 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             case
                                 when obs regexp "!!7015=" then @transfer_in := 1
-                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,124)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in := 1
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,43,80,119,124,129,118,120,123)) and (prev_visit_type is null or prev_visit_type not in (23,24,33,43,80,119,124,129,118,120,123)) then @transfer_in := 1
                                 else @transfer_in := null
                             end as transfer_in,
 
                             case 
                                 when obs regexp "!!7015=" then @transfer_in_date := date(encounter_datetime)
-                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,124)) and (prev_visit_type is null or prev_visit_type not in (23,24,33))  then @transfer_in_date := date(encounter_datetime)
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,43,80,119,124,129,118,120,123)) and (prev_visit_type is null or prev_visit_type not in (23,24,33,43,80,119,124,129,118,120,123))  then @transfer_in_date := date(encounter_datetime)
                                 when @cur_id = @prev_id then @transfer_in_date
                                 else @transfer_in_date := null
                             end transfer_in_date,
                             
                             case 
                                 when obs regexp "!!7015=1287" then @transfer_in_location_id := 9999
-                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,124)) and (prev_visit_type is null or prev_visit_type not in (23,24,33)) then @transfer_in_location_id := cur_clinical_location_id
+                                when prev_clinical_location_id != location_id and (visit_type is null or visit_type not in (23,24,33,43,80,119,124,129,118,120,123)) and (prev_visit_type is null or prev_visit_type not in (23,24,33,43,80,119,124,129,118,120,123)) then @transfer_in_location_id := cur_clinical_location_id
                                 when @cur_id = @prev_id then @transfer_in_location_id
                                 else @transfer_in_location_id := null
                             end transfer_in_location_id,
@@ -2206,11 +2280,21 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
 
-                            
+                            /*
                             case 
                                 when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
                                 when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
                                 when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
+                                else @transfer_out_date := null
+                            end transfer_out_date
+                            
+                            */
+                            
+                             case 
+                                when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
+                                when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
+                                when transfer_transfer_out_bncd then @transfer_out_date := date(IF(cur_rtc_date > transfer_transfer_out_bncd,cur_rtc_date,transfer_transfer_out_bncd))
+								-- when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
                                 else @transfer_out_date := null
                             end transfer_out_date
 
@@ -2377,8 +2461,15 @@ SELECT @total_rows_written;
 						tb_modality_test,
                         tb_test_result,
                         tb_test_date,
-                        gbv_screening_result
-                        
+                        gbv_screening_result,
+                        on_modern_contraceptive,
+                        modern_contraceptive_reporting_date,
+                        continue_fp as continue_on_fp,
+                        with_pregnancy_intentions,
+                        NULL AS transfer_out_date_type,
+                        tb_prophylaxis_duration,
+                        outreach_result,
+                        NULL AS tb_prophylaxis_medication
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
 
