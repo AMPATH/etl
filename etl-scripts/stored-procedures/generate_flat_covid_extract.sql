@@ -33,9 +33,14 @@ CREATE TABLE IF NOT EXISTS flat_covid_extract (
     `booster_dose` INT NULL,
     `booster_dose_verified` VARCHAR(50) NULL,
     `sequence` VARCHAR(50) NULL,
+    `covid_screening_outcome_this_visit` INT NULL,
+    `fever` int null,
+    `cough` int null,
+    `difficulty_breathing` int null,
     `covid_19_test_result` VARCHAR(20) NULL,
     `covid_19_test_date` DATETIME NULL,
     `patient_status` VARCHAR(50) NULL,
+    `ever_hopsitalized` smallint null,
     `hospital_admission` VARCHAR(50) NULL,
     `admission_unit` VARCHAR(100) NULL,
     `missed_appointment_due_to_covid_19` VARCHAR(100) NULL,
@@ -52,7 +57,6 @@ CREATE TABLE IF NOT EXISTS flat_covid_extract (
     `tracing_final_outcome` VARCHAR(100) NULL,
     `cause_of_death` VARCHAR(100) NULL,
     `DateCreated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    ever_hopsitalized smallint,
     INDEX patient_covid_person_id (person_id),
     INDEX patient_covid_location_id (location_id),
     INDEX patient_covid_encounter_date (encounter_datetime),
@@ -604,7 +608,23 @@ SELECT CONCAT('Creating flat_covid_screening_data');
 	  WHEN o.obs regexp "!!6419=1065!!" THEN 1
 	  when @prev_id = @cur_id then @EverHospitalized 
 	  else @EverHospitalized  := null
-	END AS 'ever_hopsitalized'
+	END AS 'ever_hopsitalized',
+    CASE
+	  WHEN o.obs regexp "!!11140=" THEN etl.GetValues(o.obs,11140)
+	  else null
+	END AS 'covid_screening_outcome_this_visit',
+    CASE
+	  WHEN o.obs regexp "!!5945=" THEN etl.GetValues(o.obs,5945)
+	  else null
+	END AS 'fever',
+    CASE
+	  WHEN o.obs regexp "!!107=" THEN etl.GetValues(o.obs,107)
+	  else null
+	END AS 'cough',
+    CASE
+	  WHEN o.obs regexp "!!2296=" THEN etl.GetValues(o.obs,2296)
+	  else null
+	END AS 'difficulty_breathing'
     from  
     etl.flat_covid_encounters_temp t
     join etl.flat_obs o on (o.person_id = t.person_id AND t.encounter_id = o.encounter_id)
@@ -641,6 +661,7 @@ create temporary table flat_covid_immunization_booster_screening(
      b.booster_dose_date,
      b.booster_dose,
      NULL AS 'sequence',
+     s.covid_screening_outcome_this_visit,
      s.covid_19_test_result,
      b.booster_dose_verified,
      s.covid_19_test_date,
@@ -660,7 +681,10 @@ create temporary table flat_covid_immunization_booster_screening(
      s.ever_covid_19_positive,
      NULL AS tracing_final_outcome,
      NULL AS cause_of_death,
-     s.ever_hopsitalized
+     s.ever_hopsitalized,
+     s.fever,
+     s.cough,
+     s.difficulty_breathing
     FROM
     etl.flat_covid_extract_build_queue__0 q
     join etl.flat_covid_encounters_temp t on (t.person_id = q.person_id)
@@ -926,6 +950,7 @@ select
      booster_dose_lag as booster_dose,
      booster_dose_verified_lag as booster_dose_verified,
      sequence,
+     covid_screening_outcome_this_visit,
      covid_19_test_result,
      covid_19_test_date,
      patient_status,
@@ -945,7 +970,10 @@ select
      tracing_final_outcome,
      NULL AS cause_of_death,
      NULL AS DateCreated,
-     ever_hopsitalized
+     ever_hopsitalized,
+     fever,
+     cough,
+     difficulty_breathing
      from etl.covid_lag
 );
 
