@@ -333,12 +333,12 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) > 90 then @status := "ltfu"
 						else @status := "unknown"
 					end as status,
-					
+
 					case 
 						when arv_first_regimen_location_id is not null then arv_first_regimen_location_id 
 						when arv_first_regimen_location_id is null and arv_first_regimen_start_date is not null then location_id else
                     null end as arv_first_regimen_location_id,
-                    
+										
 					arv_first_regimen,
                     get_arv_names(arv_first_regimen) as arv_first_regimen_names,
 					date(arv_first_regimen_start_date) as arv_first_regimen_start_date,
@@ -830,7 +830,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					end as next_location_id,
                     
 					case
-						when @prev_id=@cur_id and visit_type in (23, 24, 119, 124, 129,43,80,118,120,123) then @cur_location_id := last_non_transit_location_id	
+						when @prev_id=@cur_id and visit_type in (23, 24, 119, 124, 129,43,80,118,120,123,140) then @cur_location_id := last_non_transit_location_id	
 						else @cur_location_id := location_id 	
 					end as cur_location_id,
                     
@@ -878,7 +878,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					end as prev_location_id,
                     
                    case 
-						when @prev_id=@cur_id and  visit_type in (23, 24, 119, 124, 129,43,80,118,120,123) then @cur_location_id := last_non_transit_location_id
+						when @prev_id=@cur_id and  visit_type in (23, 24, 119, 124, 129,43,80,118,120,123,140) then @cur_location_id := last_non_transit_location_id
 						else @cur_location_id := location_id 
 					end as cur_location_id,
                     
