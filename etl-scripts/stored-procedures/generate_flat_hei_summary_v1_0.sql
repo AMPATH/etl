@@ -88,6 +88,14 @@ CREATE TABLE IF NOT EXISTS flat_hei_summary (
     ovc_non_enrolment_date DATETIME,
     ovc_exit_reason INT,
     ovc_exit_date DATETIME,
+	travelled_outside_last_3_months INT,
+    travelled_outside_last_6_months INT,
+    travelled_outside_last_12_months INT,
+    last_cross_boarder_screening_datetime DATETIME,
+    is_cross_border_country INT,
+    cross_border_service_offered INT,
+    is_cross_border INT,
+    country_of_residence INT,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX location_id_rtc_date (location_id),
@@ -225,7 +233,7 @@ SELECT 'created table successfully ...';
                     set @total_time=0;
                     set @cycle_number = 0;
                     
-
+                    
                     while @person_ids_count > 0 do
 
                         set @loop_start_time = now();
@@ -276,7 +284,7 @@ SELECT 'created table successfully ...';
                                 join amrs.location l using (location_id)
                                 left join etl.flat_orders t2 using(encounter_id)
                                 left join amrs.visit v on (v.visit_id = t1.visit_id)
-								where t1.encounter_type in (21,67,110,111,114,115,116,121,123,154,158,168,186,116,212,214,220)
+								where t1.encounter_type in (21,67,110,111,114,115,116,121,123,154,158,168,186,116,212,214,220,218)
 								AND NOT obs regexp "!!5303=703!!"
                         );
                         
@@ -820,7 +828,64 @@ SELECT 'created table successfully ...';
                             when  t1.encounter_type = 220  then @ovc_exit_date := encounter_datetime
                             when @prev_id = @cur_id then @ovc_exit_date
                             else @ovc_exit_date := null
-                        end as ovc_exit_date
+                        end as ovc_exit_date,
+                        
+                        case 
+                            when obs regexp "!!11237=1065" then @travelled_outside_last_3_months := 1
+                            when obs regexp "!!11237=1066" then @travelled_outside_last_3_months := 0 
+                            when @prev_id = @cur_id then @travelled_outside_last_3_months                                                
+                            else @travelled_outside_last_3_months := null
+                        end as travelled_outside_last_3_months,
+
+                        case 
+                            when obs regexp "!!11238=1065" then @travelled_outside_last_6_months := 1
+                            when obs regexp "!!11238=1066" then @travelled_outside_last_6_months := 0 
+                            when @prev_id = @cur_id then @travelled_outside_last_6_months                                                
+                            else @travelled_outside_last_6_months := null
+                        end as travelled_outside_last_6_months,
+
+                        case 
+                            when obs regexp "!!11239=1065" then @travelled_outside_last_12_months := 1
+                            when obs regexp "!!11239=1066" then @travelled_outside_last_12_months := 0
+                            when @prev_id = @cur_id then @travelled_outside_last_12_months                                                 
+                            else @travelled_outside_last_12_months := null
+                        end as travelled_outside_last_12_months,
+
+                        case
+                            when  t1.encounter_type = 218  then @last_cross_boarder_screening_datetime := encounter_datetime
+                            when @prev_id = @cur_id then @last_cross_boarder_screening_datetime
+                            else @last_cross_boarder_screening_datetime := null
+                        end as last_cross_boarder_screening_datetime,
+						
+                        case
+                            when  @travelled_outside_last_3_months = 1 or @travelled_outside_last_6_months = 1 or @travelled_outside_last_12_months = 1  then @is_cross_border_country := 1
+                            else @is_cross_border_country := 0
+                        end as is_cross_border_country,
+
+                        case 
+                            when obs regexp "!!11243=10739" then @cross_border_service_offered := 10739
+                            when obs regexp "!!11243=10649" then @cross_border_service_offered := 10649
+                            when obs regexp "!!11243=5483" then @cross_border_service_offered := 5483
+                            when obs regexp "!!11243=2050" then @cross_border_service_offered := 2050
+                            when obs regexp "!!11243=11244" then @cross_border_service_offered := 11244
+                            when obs regexp "!!11243=1964" then @cross_border_service_offered := 1964
+                            when obs regexp "!!11243=7913" then @cross_border_service_offered := 7913
+                            when obs regexp "!!11243=5622" then @cross_border_service_offered := 5622                                                  
+                            when @prev_id = @cur_id then @cross_border_service_offered
+                            else @cross_border_service_offered := null
+                        end as cross_border_service_offered,
+
+						case 
+                            when obs regexp "!!11252=11197" then @country_of_residence := 11197
+                            when obs regexp "!!11252=11118" then @country_of_residence := 11118                                                
+                            when @prev_id = @cur_id then @country_of_residence
+                            else @country_of_residence := null
+                        end as country_of_residence,
+                        
+                        case
+                            when  @is_cross_border_country = 1  then @is_cross_border := 1
+                            else @is_cross_border := 0
+                        end as is_cross_border
 
                         from flat_hei_summary_0 t1
                             join amrs.person p using (person_id)
@@ -1087,7 +1152,15 @@ SELECT @total_rows_written;
                         ovc_non_enrolment_reason,
                         ovc_non_enrolment_date,
                         ovc_exit_reason,
-                        ovc_exit_date
+                        ovc_exit_date,
+						travelled_outside_last_3_months,
+						travelled_outside_last_6_months,
+						travelled_outside_last_12_months,
+						last_cross_boarder_screening_datetime,
+						is_cross_border_country,
+						cross_border_service_offered,
+						is_cross_border,
+						country_of_residence
                         from flat_hei_summary_4 t1)');
 
                     PREPARE s1 from @dyn_sql; 

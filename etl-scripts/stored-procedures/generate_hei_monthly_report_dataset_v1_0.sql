@@ -61,6 +61,14 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 	ovc_non_enrolment_out_of_catchment_area tinyint,
 	newly_exited_from_ovc_this_month tinyint,
 	exited_from_ovc_this_month tinyint,
+	is_cross_border_country_this_month int,
+	is_cross_border_county_this_month int,
+	is_cross_border_this_month int,
+	last_cross_boarder_screening_datetime date,
+	travelled_outside_last_3_months int,
+	travelled_outside_last_6_months int,
+	travelled_outside_last_12_months int,
+	country_of_residence int,
     PRIMARY KEY elastic_id (elastic_id),
     INDEX person_enc_date (person_id , encounter_date),
     INDEX person_report_date (person_id , endDate),
@@ -281,7 +289,40 @@ CREATE TABLE IF NOT EXISTS hei_monthly_report_dataset (
 					case
                         when t2.ovc_exit_date is not null then 1
                         else 0
-                    end as exited_from_ovc_this_month
+                    end as exited_from_ovc_this_month,
+                    t2.is_cross_border_country as is_cross_border_country_this_month,
+                    
+                    case
+						when t2.is_cross_border_country = 0 and t2.location_id in (20,19,55,83,12,23,100,130,78,91,106,65,90) and t4.address1 != 'Busia' then @is_cross_border_county_this_month := 1
+						else @is_cross_border_county_this_month := 0
+					end as is_cross_border_county_this_month,
+                    
+                    IF(t2.is_cross_border_country = 1 or @is_cross_border_county_this_month = 1, 1, 0) as is_cross_border_this_month,
+                    
+                    date(t2.last_cross_boarder_screening_datetime) as last_cross_boarder_screening_datetime,
+                    
+					case
+						when t2.travelled_outside_last_3_months = 1
+							AND timestampdiff(month,t2.last_cross_boarder_screening_datetime,t1.endDate) <= 3
+                            then 1                            
+						else 0
+					end as travelled_outside_last_3_months,
+                    
+                    case
+						when (t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
+							AND timestampdiff(month,t2.last_cross_boarder_screening_datetime,t1.endDate) <= 6
+                            then 1                            
+						else 0
+					end as travelled_outside_last_6_months,
+                    
+                    case
+						when ( t2.travelled_outside_last_12_months = 1 or t2.travelled_outside_last_6_months = 1 or t2.travelled_outside_last_3_months = 1)
+							AND timestampdiff(month,t2.last_cross_boarder_screening_datetime,t1.endDate) <= 12
+                            then 1                            
+						else 0
+					end as travelled_outside_last_12_months,
+                    
+                    t2.country_of_residence
 					
 					from etl.dates t1
 					join etl.flat_hei_summary t2 
@@ -392,7 +433,15 @@ FROM
 				ovc_non_enrolment_declined,
 				ovc_non_enrolment_out_of_catchment_area,
 				newly_exited_from_ovc_this_month,
-				exited_from_ovc_this_month
+				exited_from_ovc_this_month,
+				is_cross_border_country_this_month,
+				is_cross_border_county_this_month,
+				is_cross_border_this_month,
+                last_cross_boarder_screening_datetime,
+				travelled_outside_last_3_months,
+				travelled_outside_last_6_months,
+				travelled_outside_last_12_months,
+                country_of_residence
 					from hei_monthly_report_dataset_2
 				);
                 

@@ -35,6 +35,13 @@ CREATE TABLE if not exists `patient_monthly_enrollment` (
     `newly_enrolled_ovc_this_month` int(4) DEFAULT NULL,
     `exited_ovc_this_month` int(4) DEFAULT NULL,
     `in_ovc_this_month` int(0) DEFAULT NULL,
+    `pmtct_date_enrolled` datetime DEFAULT NULL,
+    `pmtct_date_completed` datetime DEFAULT NULL,
+    `pmtct_location_id` int(11) DEFAULT NULL,
+    `pmtct_patient_program_id` int(11) DEFAULT '0',
+    `newly_enrolled_pmtct_this_month` int(4) DEFAULT NULL,
+    `exited_pmtct_this_month` int(4) DEFAULT NULL,
+    `in_pmtct_this_month` int(0) DEFAULT NULL,
     KEY `person_id` (`person_id`),
     KEY `person_id_2` (`person_id`, `endDate`),
     KEY `endDate` (`endDate`)
@@ -197,7 +204,6 @@ while @person_ids_count > 0 do
                         ) p 
                 group by person_id, endDate);
     select count(*) from ovc_patient_date_enrollments;
-    select * from ovc_patient_date_enrollments;
 
     set @prev_id = -1;
     set @cur_id = -1;
@@ -232,7 +238,71 @@ while @person_ids_count > 0 do
     ovc_patient_date_enrollments e
     );
     select count(*) from ovc_patient_enrollments_1;
-    select * from ovc_patient_enrollments_1;
+    
+    drop temporary table if exists pmtct_patient_date_enrollments;
+    create temporary table pmtct_patient_date_enrollments               
+    (index (person_id), index (endDate),  UNIQUE e_person_id_date(person_id, endDate))
+                ( 
+                select 
+                    person_id, 
+                    endDate, 
+                    date_enrolled as pmtct_date_enrolled,
+                    date_completed as pmtct_date_completed,
+                    program_id as pmtct_program_id,
+                    location_id as pmtct_location_id,
+                    patient_program_id as pmtct_patient_program_id
+                    from 
+                        (select 
+                        h.person_id,
+                        d.endDate, 
+                        date_enrolled,
+                        date_completed,
+                        patient_program_id,
+                        program_id,
+                        location_id
+                        from 
+                        dates d
+                        join
+                        enrollments_in_queue h
+                        WHERE
+                        h.date_enrolled < DATE_ADD(endDate, INTERVAL 1 DAY)
+                        and program_id IN (4)
+                        ORDER BY h.person_id , d.endDate, h.date_enrolled desc
+                        ) p 
+                group by person_id, endDate);
+    
+	set @prev_id = -1;
+    set @cur_id = -1;
+    drop temporary table if exists pmtct_patient_enrollments_1;
+    create temporary table pmtct_patient_enrollments_1               
+    (index (person_id), index (endDate),  UNIQUE e_person_id_date(person_id, endDate))
+    ( 
+    select
+    e.*,
+    @prev_id := @cur_id AS prev_id,
+    @cur_id := person_id AS cur_id,
+    case
+        when EXTRACT( YEAR_MONTH FROM endDate ) = EXTRACT( YEAR_MONTH FROM pmtct_date_enrolled ) then 
+        @newly_enrolled_pmtct_this_month := 1
+        else
+        @newly_enrolled_pmtct_this_month := 0
+    end as newly_enrolled_pmtct_this_month,
+    case
+        when EXTRACT( YEAR_MONTH FROM endDate ) = EXTRACT( YEAR_MONTH FROM pmtct_date_completed ) then 
+        @exited_pmtct_this_month := 1
+        else
+        @exited_pmtct_this_month := 0
+    end as exited_pmtct_this_month,
+    case
+        when EXTRACT( YEAR_MONTH FROM pmtct_date_enrolled ) <= EXTRACT( YEAR_MONTH FROM endDate ) and
+        (!(EXTRACT( YEAR_MONTH FROM pmtct_date_completed ) <= EXTRACT( YEAR_MONTH FROM endDate )) or pmtct_date_completed is null)  then
+        1
+        else
+        0
+    end as in_pmtct_this_month
+    from
+    pmtct_patient_date_enrollments e
+    );
 
     drop temporary table if exists retention_patient_date_enrollments;
     create temporary table retention_patient_date_enrollments               
@@ -266,7 +336,6 @@ while @person_ids_count > 0 do
                         ) p 
                 group by person_id, endDate);
     select count(*) from retention_patient_date_enrollments;
-    select * from retention_patient_date_enrollments;
 
     set @prev_id = -1;
     set @cur_id = -1;
@@ -301,7 +370,6 @@ while @person_ids_count > 0 do
     retention_patient_date_enrollments e
     );
     select count(*) from retention_patient_enrollments_1;
-    select * from retention_patient_enrollments_1;
 
     drop temporary table if exists patient_dates;
     create temporary table patient_dates               
@@ -309,7 +377,9 @@ while @person_ids_count > 0 do
     (select * from
     (select person_id, endDate from retention_patient_enrollments_1
     union
-    select person_id, endDate from ovc_patient_enrollments_1) pd
+    select person_id, endDate from ovc_patient_enrollments_1
+    union
+    select person_id, endDate from pmtct_patient_enrollments_1) pd
     );
 
     replace into patient_monthly_enrollment
@@ -330,11 +400,19 @@ while @person_ids_count > 0 do
         ovc_patient_program_id,
         newly_enrolled_ovc_this_month,
         exited_ovc_this_month,
-        in_ovc_this_month
+        in_ovc_this_month,
+        pmtct_date_enrolled,
+		pmtct_date_completed,
+		pmtct_location_id,
+		pmtct_patient_program_id,
+		newly_enrolled_pmtct_this_month,
+		exited_pmtct_this_month,
+		in_pmtct_this_month
         from 
         patient_dates  pd
         left outer join retention_patient_enrollments_1 re on (pd.person_id = re.person_id and pd.endDate = re.endDate)
         left outer join ovc_patient_enrollments_1 ovc on (pd.person_id = ovc.person_id and pd.endDate = ovc.endDate)
+        left outer join pmtct_patient_enrollments_1 pmtct on (pd.person_id = pmtct.person_id and pd.endDate = pmtct.endDate)
         order by pd.person_id, pd.endDate
     );
 
