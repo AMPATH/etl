@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     tb_test_result INT,
     tb_test_date DATETIME,
     gbv_screening_result INT NULL,
+  patient_category INT NULL,
     on_modern_contraceptive INT,
     modern_contraceptive_reporting_date DATETIME,
     continue_on_fp INT,
@@ -330,7 +331,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             t1.obs_datetimes,
                             
 							case
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163,225,226) then 1
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,117,120,127,128,138,140,153,154,158,162,163,225,226,265,266) then 1
                                 when t1.encounter_type in (186) AND v.visit_type_id not in (24,25,80,104) AND v.visit_type_id is NOT NULL then 1
                                 when t1.encounter_type in (158) AND v.visit_type_id not in (104) AND v.visit_type_id is NOT NULL then 1
                                 else null
@@ -338,7 +339,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
                             case
                                 when t1.encounter_type in (116) then 20
-                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,218,220,225,226) then 10
+                                when t1.encounter_type in (1,2,3,4,10,14,15,17,19,26,32,33,34,47,105,106,112,113,114,115,117,120,127,128,138, 140, 153,154,158,162,163,186,212,214,218,220,225,226,265,266) then 10
                                 when t1.encounter_type in (129) then 5 
                                 else 1
                             end as encounter_type_sort_index,
@@ -353,7 +354,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 join flat_hiv_summary_build_queue__0 t0 using (person_id)
 							    left join etl.flat_orders t2 using(encounter_id)
 							    left join amrs.visit v on (v.visit_id = t1.visit_id)
-							where (t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158,161,162,163,212,214,218,220,225,226,253,243)
+							where (t1.encounter_type in (1,2,3,4,10,14,15,17,19,22,23,26,32,33,43,47,21,105,106,110,111,112,113,114,116,117,120,127,128,129,138,140,153,154,158,161,162,163,212,214,218,220,225,226,253,243,265,266)
 							    or (t1.encounter_type in (186) and (v.visit_type_id not in (80,104) OR v.visit_type_id IS NULL) ))
 							    AND NOT obs regexp "!!5303=(822|664|1067)!!"  
 							    AND NOT obs regexp "!!9082=9036!!"
@@ -584,6 +585,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 						set @tb_test_result = null;
 						set @tb_test_date = null;
                         set @gbv_screening_result = null;
+                        set @patient_category = null;
                         set @gbv_screening_result = null;
                         set @tb_prophylaxis_duration = null;
 						set @on_modern_contraceptive = null;
@@ -1986,6 +1988,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                             else @gbv_screening_result := null
                         end as gbv_screening_result,
                         
+                        case 
+                            when obs regexp "!!1724=9070"  then @patient_category := 1
+							when obs regexp "!!1724=11550"  then @patient_category := 2
+                            when @prev_id = @cur_id then @patient_category
+                            else @patient_category := null
+                        end as patient_category,
                         case
 							when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs REGEXP "!!11883_drug=607"  then @tb_prophylaxis_duration := 3
                             when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs REGEXP "!!1194_drug=608"  then @tb_prophylaxis_duration := 3
@@ -2514,6 +2522,7 @@ SELECT @total_rows_written;
                         tb_test_result,
                         tb_test_date,
                         gbv_screening_result,
+                        patient_category,
                         on_modern_contraceptive,
                         modern_contraceptive_reporting_date,
                         continue_fp as continue_on_fp,
