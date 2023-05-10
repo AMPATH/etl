@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS flat_hiv_summary_v15b (
     tb_test_result INT,
     tb_test_date DATETIME,
     gbv_screening_result INT NULL,
-  patient_category INT NULL,
+    patient_category INT NULL,
     on_modern_contraceptive INT,
     modern_contraceptive_reporting_date DATETIME,
     continue_on_fp INT,
@@ -1989,8 +1989,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                         end as gbv_screening_result,
                         
                         case 
-                            when obs regexp "!!1724=9070"  then @patient_category := 1
-							when obs regexp "!!1724=11550"  then @patient_category := 2
+                            when obs regexp "!!1724=9070"  then @patient_category := 9070
+							when obs regexp "!!1724=11550"  then @patient_category := 11550
                             when @prev_id = @cur_id then @patient_category
                             else @patient_category := null
                         end as patient_category,
