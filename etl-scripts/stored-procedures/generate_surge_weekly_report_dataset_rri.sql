@@ -343,8 +343,8 @@ while @person_ids_count > 0 do
             vl_1_date,
             end_date,
             week,
-            if(vl_1=0 or (vl_1 >= 0 and vl_1 <= 400),1,0 ) as is_suppressed,
-            if(vl_1>400,1,0 ) as is_un_suppressed,
+            if(vl_1=0 or (vl_1 >= 0 and vl_1 <= 200),1,0 ) as is_suppressed,
+            if(vl_1>200,1,0 ) as is_un_suppressed,
             if(yearweek(vl_1_date)=week,1,0 ) as has_vl_this_week,
             TIMESTAMPDIFF(DAY,
                 vl_1_date,
@@ -1414,7 +1414,7 @@ while @person_ids_count > 0 do
 					or age < 20
 					or @cur_status != 'active' 
 					or TIMESTAMPDIFF(MONTH,arv_first_regimen_start_date,end_date) < 12
-					or vl_1 > 400 
+					or vl_1 > 200 
 					THEN @not_elligible_for_dc := 1
 						ELSE
 					@not_elligible_for_dc := 0

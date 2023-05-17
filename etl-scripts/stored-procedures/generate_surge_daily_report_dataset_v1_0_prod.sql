@@ -376,8 +376,8 @@ while @person_ids_count > 0 do
 				vl_2 as second_last_viralload,
 				vl_1_date as second_last_viralload_date,
 				
-				 if(vl_1 >= 0 and vl_1 < 400,1,0 ) as is_suppressed,
-				 if(vl_1>=400,1,0 ) as is_unsuppressed,
+				 if(vl_1 >= 0 and vl_1 < 200,1,0 ) as is_suppressed,
+				 if(vl_1>=200,1,0 ) as is_unsuppressed,
 				 if(DATE(vl_1_date)=_date,1,0 ) as has_vl_today,
 				 
 				 TIMESTAMPDIFF(DAY,vl_1_date, _date) AS days_since_last_vl,
@@ -804,7 +804,7 @@ while @person_ids_count > 0 do
 						 AND @cur_status = 'active'
 						 AND days_since_starting_arvs > 364
 						 AND last_viralload >= 0
-						 AND last_viralload <= 400 
+						 AND last_viralload <= 200 
 				         THEN @eligible_and_on_dc := 1
 				         ELSE @eligible_and_on_dc := 0
 			         END AS eligible_and_on_dc,
@@ -821,7 +821,7 @@ while @person_ids_count > 0 do
 						 AND @cur_status = 'active'
 						 AND days_since_starting_arvs > 364
 						 AND last_viralload >= 0
-						 AND last_viralload <= 400 
+						 AND last_viralload <= 200 
 				         THEN @eligible_not_on_dc := 1
 				         ELSE @eligible_not_on_dc := 0
 			         END AS eligible_not_on_dc,
@@ -843,7 +843,7 @@ while @person_ids_count > 0 do
 						 AND @cur_status = 'active'
 						 AND days_since_starting_arvs > 364
 						 AND last_viralload >= 0
-						 AND last_viralload < 400,
+						 AND last_viralload < 200,
 					 1,
 					 0) AS dc_eligible_cumulative,
 					 
