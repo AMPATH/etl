@@ -2011,7 +2011,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 						end as tb_prophylaxis_duration
 
                         case
-                            when obs regexp "!!1264=" then @tb_prophylaxis_medication := t1.value_drug
+                            when obs regexp "!!1264=" then @tb_prophylaxis_medication := t2.value_drug
                             when @cur_id != @prev_id then  @tb_prophylaxis_medication := null
                             else @tb_prophylaxis_medication
                         end as tb_prophylaxis_medication
