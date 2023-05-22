@@ -298,7 +298,7 @@ set @cycle_number = 0;
 					WHEN is_pregnant=1 AND @patient_is_on_art=1 AND @started_arv_after_pregnancy=1 and @months_since_arv_first_regimen_start_date >=3 and vl_1_date is null then 1
 					WHEN is_pregnant=1 AND @patient_is_on_art=1 AND @started_arv_after_pregnancy=1 and @months_since_arv_first_regimen_start_date >=3 and TIMESTAMPDIFF(MONTH,vl_1_date,@date_pregnant)>=1 then 1
 					WHEN is_pregnant=1 AND @patient_is_on_art=1 AND @started_arv_after_pregnancy=1 and @months_since_arv_first_regimen_start_date >=3 and @months_since_last_vl >=6  then 1
-                    WHEN is_pregnant=1 AND t1.vl_1 <= 400 AND @months_since_last_vl >= 6 then 1
+                    WHEN is_pregnant=1 AND t1.vl_1 <= 200 AND @months_since_last_vl >= 6 then 1
 					
 					#breast feeding      
 					WHEN is_mother_breastfeeding=1 AND @patient_is_on_art=1 and (@months_since_arv_first_regimen_start_date >=6 or @months_since_arv_start_date >=6) and vl_1_date is null then 1
