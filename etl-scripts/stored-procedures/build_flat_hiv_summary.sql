@@ -485,6 +485,19 @@ SELECT @person_ids_count AS 'num patients to sync';
                         order by person_id, date(encounter_datetime), encounter_type_sort_index
                         );
 
+                        drop temporary table if exists tb_prophylaxis_medication_obs;
+                        create temporary table tb_prophylaxis_medication_obs(
+                           select
+                            b.person_id,
+                            b.encounter_id,
+                            o.concept_id,
+                            o.value_drug
+                           from
+                           flat_hiv_summary_0 b
+                           join amrs.obs o on (b.person_id = o.person_id and b.encounter_id = o.encounter_id)
+                           where o.concept_id in (1264)
+                        );
+
 
                         set @prev_id = -1;
                         set @cur_id = -1;
@@ -588,6 +601,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         set @patient_category = null;
                         set @gbv_screening_result = null;
                         set @tb_prophylaxis_duration = null;
+                        set @tb_prophylaxis_medication = null;
 						set @on_modern_contraceptive = null;
 
 
@@ -2003,10 +2017,18 @@ SELECT @person_ids_count AS 'num patients to sync';
 							when @cur_id != @prev_id then @tb_prophylaxis_duration := null
 							else @tb_prophylaxis_duration
 						end as tb_prophylaxis_duration
+
+                        case
+                            when obs regexp "!!1264=" then @tb_prophylaxis_medication := t2.value_drug
+                            when @cur_id != @prev_id then  @tb_prophylaxis_medication := null
+                            else @tb_prophylaxis_medication
+                        end as tb_prophylaxis_medication
+                            
         
 
                         from flat_hiv_summary_0 t1
                             join amrs.person p using (person_id)
+                            left join tb_prophylaxis_medication_obs t2 on (t2.encounter_id = t1.encounter_id)
                         );
                         
 						alter table flat_hiv_summary_1 drop prev_id, drop cur_id, drop cur_clinical_datetime, drop cur_clinic_rtc_date;
@@ -2530,7 +2552,7 @@ SELECT @total_rows_written;
                         NULL AS transfer_out_date_type,
                         tb_prophylaxis_duration,
                         outreach_result,
-                        NULL AS tb_prophylaxis_medication
+                        tb_prophylaxis_medication
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
 
