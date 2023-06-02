@@ -484,7 +484,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                         (select * from etl.flat_rtc_lag
                         order by person_id, date(encounter_datetime), encounter_type_sort_index
                         );
-
+                        
                         drop temporary table if exists tb_prophylaxis_medication_obs;
                         create temporary table tb_prophylaxis_medication_obs(
                            select
@@ -598,10 +598,10 @@ SELECT @person_ids_count AS 'num patients to sync';
 						set @tb_test_result = null;
 						set @tb_test_date = null;
                         set @gbv_screening_result = null;
-                        set @patient_category = null;
                         set @gbv_screening_result = null;
-                        set @tb_prophylaxis_duration = null;
+                        set @patient_category = null;
                         set @tb_prophylaxis_medication = null;
+                        set @tb_prophylaxis_duration = null;
 						set @on_modern_contraceptive = null;
 
 
@@ -679,7 +679,7 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as location_id,
                             case
                                 when @prev_id = @cur_id and @cur_last_non_transit_location_id is not null and visit_type in (23, 24, 119, 124, 129,43,80,118,120,123,140) then @cur_last_non_transit_location_id
-                                when location_id then @cur_last_non_transit_location_id := location_id
+                                when location_id and is_clinical_encounter = 1 then @cur_last_non_transit_location_id := location_id
                                 else null
                             end as last_non_transit_location_id,
                             case
@@ -1111,18 +1111,54 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when @prev_id=@cur_id then @prev_arv_line := @cur_arv_line
                                 else @prev_arv_line := null
                             end as prev_arv_line,
+                            
+                            case
+                                when obs regexp "!!6976=6693!!" then @cur_arv_line_reported := 1
+                                when obs regexp "!!6976=6694!!" then @cur_arv_line_reported := 2
+                                when obs regexp "!!6976=6695!!" then @cur_arv_line_reported := 3
+
+                                when obs regexp "!!6744=6693!!" then @cur_arv_line_reported := 1
+                                when obs regexp "!!6744=6694!!" then @cur_arv_line_reported := 2
+                                when obs regexp "!!6744=6695!!" then @cur_arv_line_reported := 3
+                                when @prev_id = @cur_id then @cur_arv_line_reported
+                                else @cur_arv_line_reported := null
+                            end as cur_arv_line_reported,
 
                             case
                                 when obs regexp "!!1255=(1107|1260)!!" then @cur_arv_line := null
-                                when obs regexp "!!1250=(6467|6964|792|633|631|9759)!!" then @cur_arv_line := 1
+                                when (obs regexp "!!1250=630!!" and obs regexp "!!1250=9759!!") or (obs regexp "!!1250=10268!!" and obs regexp "!!1250=6160!!") then @cur_arv_line := 3
+                                when obs regexp "!!1250=10268!!" and obs regexp "!!1250=6157!!" and obs regexp "!!1250=795!!" then @cur_arv_line := 3
+                                when obs regexp "!!1250=10268!!" and obs regexp "!!1250=6157!!" and obs regexp "!!1250=795!!" and obs regexp "!!1250=6158!!" then @cur_arv_line := 3
+                                when obs regexp "!!1250=1400!!" and obs regexp "!!1250=6156!!" and obs regexp "!!1250=6157!!" and obs regexp "!!1250=795!!" then @cur_arv_line := 3
+                                when (obs regexp "!!1088=630!!" and obs regexp "!!1088=9759!!") or (obs regexp "!!1088=10268!!" and obs regexp "!!1088=6160!!") then @cur_arv_line := 3
+                                when obs regexp "!!1088=10268!!" and obs regexp "!!1088=6157!!" and obs regexp "!!1088=795!!" then @cur_arv_line := 3
+                                when obs regexp "!!1088=10268!!" and obs regexp "!!1088=6157!!" and obs regexp "!!1088=795!!" and obs regexp "!!1088=6158!!" then @cur_arv_line := 3
+                                when obs regexp "!!1088=1400!!" and obs regexp "!!1088=6156!!" and obs regexp "!!1088=6157!!" and obs regexp "!!1088=795!!" then @cur_arv_line := 3
+                                when (obs regexp "!!2154=630!!" and obs regexp "!!2154=9759!!") or (obs regexp "!!2154=10268!!" and obs regexp "!!2154=6160!!") then @cur_arv_line := 3
+                                when obs regexp "!!2154=10268!!" and obs regexp "!!2154=6157!!" and obs regexp "!!2154=795!!" then @cur_arv_line := 3
+                                when obs regexp "!!2154=10268!!" and obs regexp "!!2154=6157!!" and obs regexp "!!2154=795!!" and obs regexp "!!2154=6158!!" then @cur_arv_line := 3
+                                when obs regexp "!!2154=1400!!" and obs regexp "!!2154=6156!!" and obs regexp "!!2154=6157!!" and obs regexp "!!2154=795!!" then @cur_arv_line := 3
+                                when ((obs regexp "!!1088=1400!!" and obs regexp "!!1088=9759!!") or (obs regexp "!!1250=1400!!" and obs regexp "!!1250=9759!!") 
+									or (obs regexp "!!2154=1400!!" and obs regexp "!!2154=9759!!")) and @cur_arv_line_reported = 3 then @cur_arv_line := 3
+								when ((obs regexp "!!1088=1400!!" and obs regexp "!!1088=6160!!")
+									 or (obs regexp "!!1250=1400!!" and obs regexp "!!1250=6160!!")
+									 or (obs regexp "!!2154=1400!!" and obs regexp "!!2154=6160!!")) and @cur_arv_line_reported = 3 then @cur_arv_line := 3
+                                when (obs regexp "!!1088=10268!!" or obs regexp "!!1250=10268!!" or obs regexp "!!2154=10268!!") and @cur_arv_line_reported = 3 then @cur_arv_line := 3
+								when ((obs regexp "!!1088=9759!!" and obs regexp "!!1088=628!!" and obs regexp "!!1088=6160!!")
+									 or (obs regexp "!!1250=9759!!" and obs regexp "!!1250=628!!" and obs regexp "!!1250=6160!!")
+									 or (obs regexp "!!2154=9759!!" and obs regexp "!!2154=628!!" and obs regexp "!!2154=6160!!")) and @cur_arv_line_reported = 3 then @cur_arv_line := 3
+								when ((obs regexp "!!1088=9759!!" and obs regexp "!!1088=6157!!" and obs regexp "!!1088=795!!" and obs regexp "!!1088=6679!!")
+								 or (obs regexp "!!1250=9759!!" and obs regexp "!!1250=6157!!" and obs regexp "!!1250=795!!" and obs regexp "!!1250=6679!!")
+								 or (obs regexp "!!2154=9759!!" and obs regexp "!!2154=6157!!" and obs regexp "!!2154=795!!" and obs regexp "!!2154=6679!!")) and @cur_arv_line_reported = 3 then @cur_arv_line := 3
+								when ((obs regexp "!!1088=628!!" and obs regexp "!!1088=6157!!" and obs regexp "!!1088=795!!" and obs regexp "!!1088=6156!!")
+								 or (obs regexp "!!1250=628!!" and obs regexp "!!1250=6157!!" and obs regexp "!!1250=795!!" and obs regexp "!!1250=6156!!")
+								 or (obs regexp "!!2154=628!!" and obs regexp "!!2154=6157!!" and obs regexp "!!2154=795!!" and obs regexp "!!2154=6156!!")) and @cur_arv_line_reported = 3 then @cur_arv_line := 3
+								when obs regexp "!!1250=(6467|6964|792|633|631|9759)!!" then @cur_arv_line := 1
                                 when obs regexp "!!1250=(794|635|6160|6159)!!" then @cur_arv_line := 2
-                                when obs regexp "!!1250=(6156)!!" then @cur_arv_line := 3
                                 when obs regexp "!!1088=(6467|6964|792|633|631|9759)!!" then @cur_arv_line := 1
                                 when obs regexp "!!1088=(794|635|6160|6159)!!" then @cur_arv_line := 2
-                                when obs regexp "!!1088=(6156)!!" then @cur_arv_line := 3
                                 when obs regexp "!!2154=(6467|6964|792|633|631|9759)!!" then @cur_arv_line := 1
                                 when obs regexp "!!2154=(794|635|6160|6159)!!" then @cur_arv_line := 2
-                                when obs regexp "!!2154=(6156)!!" then @cur_arv_line := 3
                                 when @prev_id = @cur_id then @cur_arv_line
                                 else @cur_arv_line := null
                             end as cur_arv_line,
@@ -1140,40 +1176,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 when obs regexp "!!2154=(6156)!!" then 3
                                 else null
                             end as cur_arv_line_strict,
-                            
-
-                            
-                            
-                            
-                            
-                            
-                            
-                            
-                            case
-                                when obs regexp "!!6976=6693!!" then @cur_arv_line_reported := 1
-                                when obs regexp "!!6976=6694!!" then @cur_arv_line_reported := 2
-                                when obs regexp "!!6976=6695!!" then @cur_arv_line_reported := 3
-
-                                when obs regexp "!!6744=6693!!" then @cur_arv_line_reported := 1
-                                when obs regexp "!!6744=6694!!" then @cur_arv_line_reported := 2
-                                when obs regexp "!!6744=6695!!" then @cur_arv_line_reported := 3
-                                when @prev_id = @cur_id then @cur_arv_line_reported
-                                else @cur_arv_line_reported := null
-                            end as cur_arv_line_reported,
-
-
 
 
                             case
                                 when @prev_id=@cur_id then @prev_arv_start_date := @arv_start_date
                                 else @prev_arv_start_date := null
                             end as prev_arv_start_date,
-
-                            
-                            
-                            
-                            
-                            
 
                             case
                                 when obs regexp "!!1255=(1256|1259|1850)" or (obs regexp "!!1255=(1257|1259|981|1258|1849|1850)!!" and @arv_start_date is null ) then @arv_start_date := date(t1.encounter_datetime)
@@ -1196,10 +1204,6 @@ SELECT @person_ids_count AS 'num patients to sync';
                                 else @prev_arv_adherence := null
                             end as prev_arv_adherence,
 
-                            
-                            
-                            
-                            
                             case
                                 when obs regexp "!!8288=6343!!" then @cur_arv_adherence := 'GOOD'
                                 when obs regexp "!!8288=6655!!" then @cur_arv_adherence := 'FAIR'
@@ -2006,8 +2010,9 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when obs regexp "!!1724=9070"  then @patient_category := 9070
 							when obs regexp "!!1724=11550"  then @patient_category := 11550
                             when @prev_id = @cur_id then @patient_category
-                            else @patient_category := null
+                            else @patient_category := 0
                         end as patient_category,
+                        
                         case
 							when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs REGEXP "!!11883_drug=607"  then @tb_prophylaxis_duration := 3
                             when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs REGEXP "!!1194_drug=608"  then @tb_prophylaxis_duration := 3
@@ -2016,14 +2021,12 @@ SELECT @person_ids_count AS 'num patients to sync';
                             when (obs regexp "!!9742=1065" or @ipt_start_date  is not null) and obs regexp "!!656_drug=60" then @tb_prophylaxis_duration := 6
 							when @cur_id != @prev_id then @tb_prophylaxis_duration := null
 							else @tb_prophylaxis_duration
-						end as tb_prophylaxis_duration
-
+						end as tb_prophylaxis_duration,
                         case
                             when obs regexp "!!1264=" then @tb_prophylaxis_medication := t2.value_drug
                             when @cur_id != @prev_id then  @tb_prophylaxis_medication := null
                             else @tb_prophylaxis_medication
                         end as tb_prophylaxis_medication
-                            
         
 
                         from flat_hiv_summary_0 t1
@@ -2348,7 +2351,7 @@ SELECT @person_ids_count AS 'num patients to sync';
 
 
                             case
-                                    when obs regexp "!!1285=!!" then @transfer_out := 1
+                                    when obs regexp "!!1285=(1287|9068|1286|2050)!!" then @transfer_out := 1
                                     when obs regexp "!!1596=1594!!" then @transfer_out := 1
                                     when obs regexp "!!9082=(1287|1594|9068|9504|1285)!!" then @transfer_out := 1
                                     when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out := 1
@@ -2356,8 +2359,8 @@ SELECT @person_ids_count AS 'num patients to sync';
                             end as transfer_out,
 
                             case 
-                                when obs regexp "!!1285=(1287|9068|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
-                                when obs regexp "!!1285=1286!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
+                                when obs regexp "!!1285=(1287|9068)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9999
+                                when obs regexp "!!1285=(1286|2050)!!" and next_clinical_datetime_hiv is null then @transfer_out_location_id := 9998
                                 when next_clinical_location_id != location_id and next_encounter_type_hiv != 186 then @transfer_out_location_id := prev_clinical_location_id
                                 else @transfer_out_location_id := null
                             end transfer_out_location_id,
@@ -2372,13 +2375,15 @@ SELECT @person_ids_count AS 'num patients to sync';
                             
                             */
                             
-                             case 
-                                when @transfer_out and next_clinical_datetime_hiv is null then @transfer_out_date := date(cur_rtc_date)
-                                when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
-                                when transfer_transfer_out_bncd then @transfer_out_date := date(IF(cur_rtc_date > transfer_transfer_out_bncd,cur_rtc_date,transfer_transfer_out_bncd))
-								-- when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
-                                else @transfer_out_date := null
-                            end transfer_out_date
+                            case 
+								when @transfer_out and next_clinical_datetime_hiv is null and @transfer_out_location_id = 9999 then @transfer_out_date := date(@cur_rtc_date)
+								when @transfer_out and next_clinical_datetime_hiv is null and (@transfer_out_location_id = 9998 or @transfer_out_location_id is null) then @transfer_out_date := date_add(@cur_rtc_date, interval 28 day) 
+								when next_clinical_location_id != location_id then @transfer_out_date := date(next_clinical_datetime_hiv)
+								when transfer_transfer_out_bncd and @transfer_out_location_id = 9999 then @transfer_out_date := date(IF(@cur_rtc_date > transfer_transfer_out_bncd,@cur_rtc_date,transfer_transfer_out_bncd))
+								when transfer_transfer_out_bncd and (@transfer_out_location_id = 9998 or @transfer_out_location_id is null) then @transfer_out_date := date(IF(cur_rtc_date > transfer_transfer_out_bncd,date_add(cur_rtc_date, interval 28 day),transfer_transfer_out_bncd))
+								when transfer_transfer_out_bncd then @transfer_out_date := date(transfer_transfer_out_bncd)
+								else @transfer_out_date := null
+							end transfer_out_date
 
                                                         
                         
@@ -2544,7 +2549,6 @@ SELECT @total_rows_written;
                         tb_test_result,
                         tb_test_date,
                         gbv_screening_result,
-                        patient_category,
                         on_modern_contraceptive,
                         modern_contraceptive_reporting_date,
                         continue_fp as continue_on_fp,
@@ -2552,7 +2556,8 @@ SELECT @total_rows_written;
                         NULL AS transfer_out_date_type,
                         tb_prophylaxis_duration,
                         outreach_result,
-                        tb_prophylaxis_medication
+						tb_prophylaxis_medication,
+                        patient_category
                         from flat_hiv_summary_4 t1
                         join amrs.location t2 using (location_id))');
 
