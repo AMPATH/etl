@@ -145,6 +145,11 @@ BEGIN
 				case
 					when obs regexp concat('!!',question_concept_ids,'=(5424|5811)!!') then "5424 ## "
 					else ""   
+				end,
+
+			    case
+					when obs regexp concat('!!',question_concept_ids,'=12053!!') then "12053 ## "
+					else ""
 				end
 
 			) into e;
@@ -152,5 +157,4 @@ BEGIN
             
             return if(e="",null,substring(e,1,length(e)-4));
             
-        END$$
-DELIMITER ;
+        END;
