@@ -4,8 +4,8 @@ BEGIN
 # v2.0 notes: add join to flat obs so that patients with an untraceable status can be excluded
 # v2.2 notes : removed flat_obs join after update to out_of_care
 # v2.3 notes : excluded encounter_type 116 (TRANSFERFORM). Fixes bug where transferred out patients appears in ‘Defaulters list
-# v2.4 notes: add check for whether encounter is a clinical encounter. Fixes issue where LTFUs who had been seen via an In-Patient Peer visit 
-# and had a drug pickup encounter in an AMPATH facility other than their mother facility were appearing as LTFUs in that other facility instead 
+# v2.4 notes: add check for whether encounter is a clinical encounter. Fixes issue where LTFUs who had been seen via an In-Patient Peer visit
+# and had a drug pickup encounter in an AMPATH facility other than their mother facility were appearing as LTFUs in that other facility instead
 # of being on the defaulter list at their mother clinic.
 
 select @table_version := "flat_defaulters_v2.4";
@@ -14,12 +14,22 @@ select @last_date_created := (select max(max_date_created) from flat_obs);
 
 ####################################################
 
+# Get the latest location excluding Drug Pickup locations, Transfer Out encounters
+drop table if exists latest_parent_location;
+create temporary table latest_parent_location(person_id int, primary key (person_id))
+(select person_id,
+	encounter_datetime,
+ 	location_id,
+	 location_uuid from flat_hiv_summary_v15b where encounter_type not in (110, 116, 186)
+	  group by person_id
+	  order by encounter_datetime desc);
+
 drop table if exists flat_defaulters_0;
 create temporary table flat_defaulters_0 (encounter_id int, primary key (encounter_id))
 (select
 	encounter_id,
 	person_id,
-	t1.location_id,	
+	t1.location_id,
 	t1.location_uuid,
 	t1.uuid as patient_uuid,
 	timestampdiff(day,if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)),curdate()) as days_since_rtc,
@@ -29,11 +39,13 @@ create temporary table flat_defaulters_0 (encounter_id int, primary key (encount
 	t1.encounter_type
 
 from flat_hiv_summary_v15b t1
+left join amrs.person p on (p.person_id = t1.person_id and p.voided = 0)
+left latest_parent_location ll on (ll.person_id = t1.person_id)
 where next_encounter_datetime_hiv is null #and rtc_date <= date_sub(now(),interval 90 day)
 #	and if(rtc_date,date_add(rtc_date,interval 90 day),date_add(t1.encounter_datetime,interval 180 day)) <= now()
 	and if(rtc_date,rtc_date,date_add(t1.encounter_datetime,interval 90 day)) < now()
 	and death_date is null
-	and encounter_type not in (110,116)
+	-- and encounter_type not in (110,116, 186)
 	and out_of_care is null
 	and transfer_out is null
     and is_clinical_encounter IN (1)
