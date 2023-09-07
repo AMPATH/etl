@@ -255,11 +255,11 @@ BEGIN
 				THEN
 					@status:='active'
 				WHEN
-					timestampdiff(day,rtc_date, endDate) between 1 and 30
+					timestampdiff(day,rtc_date, endDate) between 1 and 7
 				THEN
 					@status:='defaulter'
 				WHEN
-					timestampdiff(day,rtc_date, endDate) > 30
+					timestampdiff(day,rtc_date, endDate) > 7
 				THEN
 					@status:='ltfu'
 				ELSE @status:='unknown'
@@ -268,7 +268,7 @@ BEGIN
 			if( @status = 'active' or @status = 'defaulter', 1, 0) as active_on_prep_this_month,
 			if( @status = 'defaulter', 1, 0) as prep_defaulter_this_month,
 			if( @status = 'ltfu', 1, 0) as cumulative_prep_ltfu_this_month,
-			if( @status = 'ltfu' AND timestampdiff(day,rtc_date, endDate) < 60 , 1, 0) as prep_ltfu_this_month,
+			if( @status = 'ltfu' AND timestampdiff(day,rtc_date, endDate) < 30 , 1, 0) as prep_ltfu_this_month,
 			if( @status = 'discontinued' and discontinued_prep_date between date_format(endDate,"%Y-%m-01") and endDate, 1, 0) as prep_discontinued_this_month,
 			if( @status = 'discontinued', 1, 0) as cumulative_prep_discontinued_this_month,
 
