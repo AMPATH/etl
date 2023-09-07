@@ -1,6 +1,7 @@
-use etl;
-DELIMITER $$
-CREATE PROCEDURE `generate_hiv_monthly_report_dataset_v1_4`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int, IN start_date varchar(50))
+CREATE DEFINER=`replication`@`%` PROCEDURE `generate_hiv_monthly_report_dataset_v1_4`(IN query_type varchar(50),
+                                                                                 IN queue_number int, IN queue_size int,
+                                                                                 IN cycle_size int,
+                                                                                 IN start_date varchar(50))
 BEGIN
 
 			set @start = now();
@@ -304,6 +305,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					enrollment_date,
                     
 					case
+                        when transfer_in_date between date_format(endDate,"%Y-%m-01")  and endDate then 0
 						when arv_first_regimen_start_date < enrollment_date then 0
                         when enrollment_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
 						else 0
@@ -324,6 +326,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					
 					transfer_out_location_id,
 					transfer_out_date,
+                    /*
 					case
 						when date_format(endDate, "%Y-%m-01") > t2.death_date then @status := "dead"
 #						when transfer_out_date < date_format(endDate,"%Y-%m-01") then @status := "transfer_out"
@@ -333,12 +336,24 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) > 90 then @status := "ltfu"
 						else @status := "unknown"
 					end as status,
-
+                    */
+                    
+                    case
+						when date_format(endDate, "%Y-%m-01") > t2.death_date then @status := "dead"
+#						when transfer_out_date < date_format(endDate,"%Y-%m-01") then @status := "transfer_out"
+						when date_format(endDate, "%Y-%m-01") > transfer_out_date AND date_format(transfer_out_date,'%Y-%m-%d') = date_format(transfer_transfer_out_bncd,'%Y-%m-%d') then @status := "transfer_out"
+                        when date(transfer_out_date) < date(endDate)  AND date_format(transfer_out_date,'%Y-%m-%d') != date_format(transfer_transfer_out_bncd,'%Y-%m-%d') then @status := "transfer_out"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) <= 30 then @status := "active"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) between 31 and 90 then @status := "defaulter"
+						when timestampdiff(day,if(rtc_date,rtc_date,date_add(encounter_datetime, interval 30 day)),endDate) > 90 then @status := "ltfu"
+						else @status := "unknown"
+					end as status,
+					
 					case 
 						when arv_first_regimen_location_id is not null then arv_first_regimen_location_id 
 						when arv_first_regimen_location_id is null and arv_first_regimen_start_date is not null then location_id else
                     null end as arv_first_regimen_location_id,
-										
+                    
 					arv_first_regimen,
                     get_arv_names(arv_first_regimen) as arv_first_regimen_names,
 					date(arv_first_regimen_start_date) as arv_first_regimen_start_date,
@@ -355,7 +370,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 					end as art_cohort_num,
 
 					case
-						when @status="active" and arv_first_regimen_start_date between date_format(endDate,"%Y-%m-01")  and endDate then @started_art_this_month := 1
+						when @status="active" and arv_first_regimen_start_date between date_format(endDate,"%Y-%m-01") and endDate then @started_art_this_month := 1
 						else @started_art_this_month :=0
 					end as started_art_this_month,
                     
@@ -493,7 +508,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 						when @got_follow_up_vl then timestampdiff(day,vl_2_date, vl_1_date)
 						else null
 					end as num_days_to_follow_vl,
-						
+					
 
 					case
 						when @got_follow_up_vl AND vl_1 < 1000 then @follow_up_vl_suppressed := 1
@@ -1136,8 +1151,7 @@ SET @dyn_sql=CONCAT('delete t1 from hiv_monthly_report_dataset_v1_2 t1 join ',@q
 
 			set @end = now();
             -- not sure why we need last date_created, I've replaced this with @start
-			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+  			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 			select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
-        END$$
-DELIMITER ;
+        END
