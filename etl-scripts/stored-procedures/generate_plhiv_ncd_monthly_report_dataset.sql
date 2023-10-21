@@ -30,13 +30,6 @@ BEGIN
 		`prev_rtc_month` int(6) DEFAULT NULL,
 		`rtc_date` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
 		`rtc_month` int(6) DEFAULT NULL,
-		`cur_prep_meds_names` text,
-		`first_prep_regimen` longtext,
-		`prep_start_date` varbinary(10) DEFAULT NULL,
-		`is_breastfeeding` INT DEFAULT NULL,
-		`is_pregnant` INT DEFAULT NULL,
-		`population_type` INT  DEFAULT NULL,
-		`sub_population_type` INT DEFAULT NULL,
 		`visit_this_month` int(3) DEFAULT NULL,
 		`appointment_this_month` int(3) DEFAULT NULL,
 		`scheduled_visit_this_month` int(1) NOT NULL DEFAULT '0',
@@ -44,19 +37,6 @@ BEGIN
 		`late_appointment_this_month` int(1) NOT NULL DEFAULT '0',
 		`missed_appointment_this_month` int(1) NOT NULL DEFAULT '0',
 		`days_since_rtc_date` varchar(23) CHARACTER SET utf8 DEFAULT NULL,
-		`status` varchar(12) CHARACTER SET utf8 DEFAULT NULL,
-		`active_on_prep_this_month` int(1) NOT NULL DEFAULT '0',
-		`prep_defaulter_this_month` int(1) NOT NULL DEFAULT '0',
-        `cumulative_prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
-		`prep_ltfu_this_month` int(1) NOT NULL DEFAULT '0',
-		`prep_discontinued_this_month` int(1) NOT NULL DEFAULT '0',
-        `cumulative_prep_discontinued_this_month` int(1) NOT NULL DEFAULT '0',
-		`enrolled_in_prep_this_month` int(1) NOT NULL DEFAULT '0',
-		`discontinued_from_prep_this_month` int(1) NOT NULL DEFAULT '0',
-		`turned_positive_this_month` int(1) NOT NULL DEFAULT '0',
-        `cumulative_turned_positive_this_month` int(1) NOT NULL DEFAULT '0',
-		`prev_on_prep_and_turned_positive` int(1) NOT NULL DEFAULT '0',
-        `has_hiv_rapid_test_this_month` int(1) NOT NULL DEFAULT '0',
 		PRIMARY KEY (`elastic_id`),
 		KEY `person_id` (`person_id`),
 		KEY `person_id_2` (`person_id`,`endDate`),
@@ -137,14 +117,6 @@ BEGIN
 		EXECUTE s1; 
 		DEALLOCATE PREPARE s1;
 		
-		drop temporary table if exists plhiv_ncd_patients_temp_queue;
-		create temporary table plhiv_ncd_patients_temp_queue (person_id int primary key) 
-		(
-			select distinct q.person_id from plhiv_ncd_monthly_report_temp_queue q
-			inner join etl.flat_obs t0 using (person_id)
-			where t0.encounter_type in (133,134)
-		);
-		
 		drop temporary table if exists plhiv_ncd_summary_in_queue;
 		create temporary table plhiv_ncd_summary_in_queue               
 		(index (person_id), index(person_id, encounter_datetime),  index(encounter_id), index(encounter_datetime), index(rtc_date))
@@ -153,7 +125,6 @@ BEGIN
 			etl.plhiv_ncd_summary_v1
 			where
 			encounter_datetime >= '2018-01-01'
-			-- AND is_prep_clinical_encounter = 1
 			order by person_id, encounter_datetime
 		);
 		
@@ -210,13 +181,6 @@ BEGIN
 			@prev_rtc_month := month(prev_rtc_date) as prev_rtc_month,
 			rtc_date,
 			@rtc_month := month(rtc_date) as rtc_month,
-			cur_prep_meds_names,
-			first_prep_regimen,
-			prep_start_date,
-			is_breastfeeding,
-			is_pregnant,
-			population_type,
-			sub_population_type,
 			
 			CASE 
 				WHEN  encounter_datetime between date_format(endDate,"%Y-%m-01")  and endDate THEN @visit_this_month := 1
@@ -241,43 +205,6 @@ BEGIN
 
 			timestampdiff(day,rtc_date, endDate) as days_since_rtc_date,
 				
-			CASE
-				WHEN 
-					DATE(endDate) > DATE(t1.death_date) 
-				THEN @status:='dead'
-				WHEN 
-					discontinued_prep_date is not null
-					THEN 
-					@status:='discontinued'
-				WHEN
-					timestampdiff(day,rtc_date, endDate) <= 0
-				THEN
-					@status:='active'
-				WHEN
-					timestampdiff(day,rtc_date, endDate) between 1 and 7
-				THEN
-					@status:='defaulter'
-				WHEN
-					timestampdiff(day,rtc_date, endDate) > 7
-				THEN
-					@status:='ltfu'
-				ELSE @status:='unknown'
-			END AS status,
-			
-			if( @status = 'active' or @status = 'defaulter', 1, 0) as active_on_prep_this_month,
-			if( @status = 'defaulter', 1, 0) as prep_defaulter_this_month,
-			if( @status = 'ltfu', 1, 0) as cumulative_prep_ltfu_this_month,
-			if( @status = 'ltfu' AND timestampdiff(day,rtc_date, endDate) < 30 , 1, 0) as prep_ltfu_this_month,
-			if( @status = 'discontinued' and discontinued_prep_date between date_format(endDate,"%Y-%m-01") and endDate, 1, 0) as prep_discontinued_this_month,
-			if( @status = 'discontinued', 1, 0) as cumulative_prep_discontinued_this_month,
-
-			if(enrollment_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as enrolled_in_prep_this_month,
-			if(discontinued_prep_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as discontinued_from_prep_this_month,
-			if(turned_positive_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as turned_positive_this_month,
-            if(turned_positive = 1, 1, 0) as cumulative_turned_positive_this_month,
-			if((@turned_positive_this_month = 1 and @status = 'discontinued'), 1, 0) as prev_on_prep_and_turned_positive,
-            if(hiv_rapid_test_result in (703, 664, 1138) and hiv_rapid_test_date between date_format(endDate,"%Y-%m-01")  and endDate, 1, 0) as has_hiv_rapid_test_this_month
-			
 			from 
 			plhiv_ncd_patient_encounters t1
             inner join amrs.person t2 on (t1.person_id = t2.person_id and t2.voided = 0)
@@ -291,12 +218,9 @@ BEGIN
 
 
 		SET @dyn_sql=CONCAT('delete t1 from ',@queue_table,' t1 join plhiv_ncd_monthly_report_temp_queue t2 using (person_id);'); 
-
-				PREPARE s1 from @dyn_sql; 
-				EXECUTE s1; 
-				DEALLOCATE PREPARE s1;  
-		
-		
+		PREPARE s1 from @dyn_sql; 
+		EXECUTE s1; 
+		DEALLOCATE PREPARE s1;  
 		
 		SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table,';'); 
 		PREPARE s1 from @dyn_sql; 
