@@ -84,8 +84,6 @@ BEGIN
 		INDEX date_created (date_created)
 	);
 
-
-
 	if(@query_type="build") then
 		select 'BUILDING..........................................';
 

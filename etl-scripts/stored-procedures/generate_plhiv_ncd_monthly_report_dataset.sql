@@ -37,6 +37,11 @@ BEGIN
 		`late_appointment_this_month` int(1) NOT NULL DEFAULT '0',
 		`missed_appointment_this_month` int(1) NOT NULL DEFAULT '0',
 		`days_since_rtc_date` varchar(23) CHARACTER SET utf8 DEFAULT NULL,
+		`has_comorbidity` TINYINT(1),
+		`has_mental_disorder_comorbidity` TINYINT(1),
+		`has_diabetic_comorbidity` TINYINT(1),
+		`has_hypertension_comorbidity` TINYINT(1),
+		`has_other_comorbidity` TINYINT(1),
 		PRIMARY KEY (`elastic_id`),
 		KEY `person_id` (`person_id`),
 		KEY `person_id_2` (`person_id`,`endDate`),
@@ -132,17 +137,19 @@ BEGIN
 		create table plhiv_ncd_patient_encounters               
 		(index (person_id), index(person_id, endDate, encounter_id))
 		( 
-			select * from (select 
-				*
-				from 
-				etl.dates m
-				join
-				plhiv_ncd_summary_in_queue h
-				WHERE
-			h.encounter_datetime < DATE_ADD(endDate, INTERVAL 1 DAY)
-            and m.endDate BETWEEN '2018-01-01' AND DATE_ADD(now(), INTERVAL 2 YEAR)
-		ORDER BY h.person_id , month(endDate), h.encounter_datetime desc , rtc_date
-		 ) p group by person_id, month(endDate));
+			select 
+				* 
+			from (
+				select 
+					*
+				from  etl.dates m
+				join plhiv_ncd_summary_in_queue h
+				WHERE 	h.encounter_datetime < DATE_ADD(endDate, INTERVAL 1 DAY)
+						and m.endDate BETWEEN '2018-01-01' AND DATE_ADD(now(), INTERVAL 2 YEAR)
+				ORDER BY h.person_id , month(endDate), h.encounter_datetime desc , rtc_date
+		 	) p 
+			group by person_id, month(endDate)
+		 );
 		
 		
 		drop temporary table if exists stage_1;
@@ -204,19 +211,23 @@ BEGIN
 			IF(@visit_this_month = 0  AND @appointment_this_month = 1,1,0) AS missed_appointment_this_month,
 
 			timestampdiff(day,rtc_date, endDate) as days_since_rtc_date,
-				
+			t1.has_comorbidity,
+			t1.has_mental_disorder_comorbidity,
+			t1.has_diabetic_comorbidity,
+			t1.has_hypertension_comorbidity,
+			t1.has_other_comorbidity
 			from 
 			plhiv_ncd_patient_encounters t1
             inner join amrs.person t2 on (t1.person_id = t2.person_id and t2.voided = 0)
 			);
 			
-			replace into plhiv_ncd_monthly_report_dataset
-		(select
-			*
-			from stage_1);
+		replace into plhiv_ncd_monthly_report_dataset
+		(
+			select
+				*
+			from stage_1
+		);
 		
-
-
 		SET @dyn_sql=CONCAT('delete t1 from ',@queue_table,' t1 join plhiv_ncd_monthly_report_temp_queue t2 using (person_id);'); 
 		PREPARE s1 from @dyn_sql; 
 		EXECUTE s1; 
