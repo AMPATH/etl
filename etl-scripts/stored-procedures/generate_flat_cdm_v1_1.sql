@@ -444,7 +444,7 @@ BEGIN
 							@htn_meds := etl.GetValues(obs,10241) as htn_meds,
                             t2.prescriptions as prescriptions,
 
-                            @problems := concat(etl.GetValues(obs,6042 ), ' ## ', etl.GetValues(obs,11679)) as problems,
+                            @problems := concat(etl.GetValues(obs,6042 ), ' ## ', etl.GetValues(obs,11679), ' ## ', etl.GetValues(obs,6796)) as problems,
 							@comorbidities := etl.GetValues(obs,10239 ) as comorbidities,
 							@rheumatologic_disorder := etl.GetValues(obs,12293) as rheumatologic_disorder
                             @kidney_disease := etl.GetValues(obs, 6033) as kidney_disease,
@@ -459,7 +459,8 @@ BEGIN
 							@indicated_mhd_tx := etl.GetValues(obs, 7781) as indicated_mhd_tx,
 							@prev_hbp_findings := etl.GetValues(obs, 9092) as prev_hbp_findings,
 							@type_of_follow_up := etl.GetValues(obs, 2332) as type_of_follow_up,
-							@review_of_med_history := etl.GetValues(obs, 6245) as review_of_med_history
+							@review_of_med_history := etl.GetValues(obs, 6245) as review_of_med_history,
+							@psychiatric_exam_findings := etl.GetValues(obs, 6245) as review_of_med_history
 							
 						from flat_cdm_0 t1
 							join amrs.person p using (person_id)
