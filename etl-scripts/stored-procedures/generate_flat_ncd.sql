@@ -1,10 +1,7 @@
-DELIMITER $$
-CREATE PROCEDURE `generate_flat_cdm_v1_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE PROCEDURE `etl`.`generate_flat_ncd_v1_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
-					set @primary_table := "flat_cdm_v1";
+					set @primary_table := "flat_ncd";
 					set @query_type = query_type;
-#set @query_type = "build";
- 
                     
                     set @total_rows_written = 0;
                     
@@ -14,7 +11,7 @@ BEGIN
                     set @other_encounter_types = "(-1)";
                     
 					set @start = now();
-					set @table_version = "flat_cdm_v1.1";
+					set @table_version = "flat_ncd_v1.0";
 
 					set session sort_buffer_size=512000000;
 
@@ -22,7 +19,7 @@ BEGIN
                     set @boundary = "!!";
 					set @last_date_created = (select max(max_date_created) from etl.flat_obs);
 
-					create table if not exists flat_cdm_v1 (
+					create table if not exists flat_ncd (
 						date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 						person_id int,
 						uuid varchar(100),
@@ -80,17 +77,18 @@ BEGIN
 						prev_hbp_findings text,
 						type_of_follow_up text,
 						review_of_med_history text,
+						psychiatric_exam_findings text,
                         
-						prev_encounter_datetime_cdm datetime,
-						next_encounter_datetime_cdm datetime,
-						prev_encounter_type_cdm mediumint,
-						next_encounter_type_cdm mediumint,
-						prev_clinical_datetime_cdm datetime,
-						next_clinical_datetime_cdm datetime,
-                        prev_clinical_location_id_cdm mediumint,
-                        next_clinical_location_id_cdm mediumint,
-						prev_clinical_rtc_date_cdm datetime,
-                        next_clinical_rtc_date_cdm datetime,
+						prev_encounter_datetime_ncd datetime,
+						next_encounter_datetime_ncd datetime,
+						prev_encounter_type_ncd mediumint,
+						next_encounter_type_ncd mediumint,
+						prev_clinical_datetime_ncd datetime,
+						next_clinical_datetime_ncd datetime,
+                        prev_clinical_location_id_ncd mediumint,
+                        next_clinical_location_id_ncd mediumint,
+						prev_clinical_rtc_date_ncd datetime,
+                        next_clinical_rtc_date_ncd datetime,
 
                         primary key encounter_id (encounter_id),
                         index person_date (person_id, encounter_datetime),
@@ -99,7 +97,7 @@ BEGIN
 						index enc_date_location (encounter_datetime, location_uuid),
 						index location_id_rtc_date (location_id,rtc_date),
                         index location_uuid_rtc_date (location_uuid,rtc_date),
-                        index loc_id_enc_date_next_clinical (location_id, encounter_datetime, next_clinical_datetime_cdm),
+                        index loc_id_enc_date_next_clinical (location_id, encounter_datetime, next_clinical_datetime_ncd),
                         index encounter_type (encounter_type),
                         index date_created (date_created)
                         
@@ -110,8 +108,8 @@ BEGIN
 					if(@query_type="build") then
 							select 'BUILDING..........................................';                   												
 
-                            set @write_table = concat("flat_cdm_temp_",queue_number);
-							set @queue_table = concat("flat_cdm_build_queue_",queue_number);                    												
+                            set @write_table = concat("flat_ncd_temp_",queue_number);
+							set @queue_table = concat("flat_ncd_build_queue_",queue_number);                    												
 							
 							
 							SET @dyn_sql=CONCAT('Create table if not exists ',@write_table,' like ',@primary_table);
@@ -119,12 +117,12 @@ BEGIN
 							EXECUTE s1; 
 							DEALLOCATE PREPARE s1;  
 
-							SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_cdm_build_queue limit ', queue_size, ');'); 
+							SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,' (select * from flat_ncd_build_queue limit ', queue_size, ');'); 
 							PREPARE s1 from @dyn_sql; 
 							EXECUTE s1; 
 							DEALLOCATE PREPARE s1;  
 							
-							SET @dyn_sql=CONCAT('delete t1 from flat_cdm_build_queue t1 join ',@queue_table, ' t2 using (person_id);'); 
+							SET @dyn_sql=CONCAT('delete t1 from flat_ncd_build_queue t1 join ',@queue_table, ' t2 using (person_id);'); 
 							PREPARE s1 from @dyn_sql; 
 							EXECUTE s1; 
 							DEALLOCATE PREPARE s1;  
@@ -134,9 +132,9 @@ BEGIN
 					
 					if (@query_type="sync") then
 							select 'SYNCING..........................................';
-							set @write_table = "flat_cdm_v1";
-							set @queue_table = "flat_cdm_sync_queue";
-                            create table if not exists flat_cdm_sync_queue (person_id int primary key);                            
+							set @write_table = "flat_ncd_v1";
+							set @queue_table = "flat_ncd_sync_queue";
+                            create table if not exists flat_ncd_sync_queue (person_id int primary key);                            
                             
 
 
@@ -144,37 +142,37 @@ BEGIN
 
                             select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;														
 
-							replace into flat_cdm_sync_queue
+							replace into flat_ncd_sync_queue
 							(select distinct patient_id
 								from amrs.encounter
 								where date_changed > @last_update
 							);
 
-							replace into flat_cdm_sync_queue
+							replace into flat_ncd_sync_queue
 							(select distinct person_id
 								from etl.flat_obs
 								where max_date_created > @last_update
 							);
 
-							replace into flat_cdm_sync_queue
+							replace into flat_ncd_sync_queue
 							(select distinct person_id
 								from etl.flat_lab_obs
 								where max_date_created > @last_update
 							);
 
-							replace into flat_cdm_sync_queue
+							replace into flat_ncd_sync_queue
 							(select distinct person_id
 								from etl.flat_orders
 								where max_date_created > @last_update
 							);
                             
-                            replace into flat_cdm_sync_queue
+                            replace into flat_ncd_sync_queue
                             (select person_id from 
 								amrs.person 
 								where date_voided > @last_update);
 
 
-                            replace into flat_cdm_sync_queue
+                            replace into flat_ncd_sync_queue
                             (select person_id from 
 								amrs.person 
 								where date_changed > @last_update);
@@ -246,9 +244,9 @@ BEGIN
 						set @loop_start_time = now();
                         
 						#create temp table with a set of person ids
-						drop temporary table if exists flat_cdm_build_queue__0;
+						drop temporary table if exists flat_ncd_build_queue__0;
 						
-						SET @dyn_sql=CONCAT('create temporary table flat_cdm_build_queue__0 (person_id int primary key) (select * from ',@queue_table,' limit ',cycle_size,');'); 
+						SET @dyn_sql=CONCAT('create temporary table flat_ncd_build_queue__0 (person_id int primary key) (select * from ',@queue_table,' limit ',cycle_size,');'); 
 						PREPARE s1 from @dyn_sql; 
 						EXECUTE s1; 
 						DEALLOCATE PREPARE s1;  
@@ -257,9 +255,9 @@ BEGIN
 
 
 
-						drop temporary table if exists flat_cdm_0a;
+						drop temporary table if exists flat_ncd_0a;
 						SET @dyn_sql = CONCAT(
-								'create temporary table flat_cdm_0a
+								'create temporary table flat_ncd_0a
 								(select
 									t1.person_id,
 									t1.visit_id,
@@ -282,7 +280,7 @@ BEGIN
 									end as encounter_type_sort_index,
 									t2.orders
 								from etl.flat_obs t1
-									join flat_cdm_build_queue__0 t0 using (person_id)
+									join flat_ncd_build_queue__0 t0 using (person_id)
 									left join etl.flat_orders t2 using(encounter_id)
 								where t1.encounter_type in ',@encounter_types,');');
                             
@@ -291,7 +289,7 @@ BEGIN
 						DEALLOCATE PREPARE s1;  
 
                             
-						insert into flat_cdm_0a
+						insert into flat_ncd_0a
 						(select
 							t1.person_id,
 							null,
@@ -306,12 +304,12 @@ BEGIN
 							1 as encounter_type_sort_index,
 							null
 							from etl.flat_lab_obs t1
-								join flat_cdm_build_queue__0 t0 using (person_id)
+								join flat_ncd_build_queue__0 t0 using (person_id)
 						);
 
-						drop temporary table if exists flat_cdm_0;
-						create temporary table flat_cdm_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
-						(select * from flat_cdm_0a
+						drop temporary table if exists flat_ncd_0;
+						create temporary table flat_ncd_0(index encounter_id (encounter_id), index person_enc (person_id,encounter_datetime))
+						(select * from flat_ncd_0a
 						order by person_id, date(encounter_datetime), encounter_type_sort_index
 						);
 
@@ -333,8 +331,8 @@ BEGIN
 						# screened for cervical ca
 						# exposed infant
 
-						drop temporary table if exists flat_cdm_1;
-						create temporary table flat_cdm_1 (index encounter_id (encounter_id))
+						drop temporary table if exists flat_ncd_1;
+						create temporary table flat_ncd_1 (index encounter_id (encounter_id))
 						(select
 							obs,
 							encounter_type_sort_index,
@@ -440,13 +438,28 @@ BEGIN
                             
 							@dm_status := etl.GetValues(obs,7287) as dm_status,
                             @htn_status := etl.GetValues(obs,7288) as htn_status,
-                            @dm_meds := etl.GetValues(obs,7290) as dm_meds,
-							@htn_meds := etl.GetValues(obs,10241) as htn_meds,
-                            t2.prescriptions as prescriptions,
+                            @dm_meds := concat_ws(' ## ',
+							    etl.GetValues(obs,7290),
+								etl.GetValues(obs,7304)
+							) as dm_meds,
+							@htn_meds := concat_ws(' ## ',
+								etl.GetValues(obs,7291),
+								etl.GetValues(obs,7332),
+								etl.GetValues(obs,10241)
+							 ) as htn_meds,
+							 
+                             t2.prescriptions as prescriptions,
 
-                            @problems := concat(etl.GetValues(obs,6042 ), ' ## ', etl.GetValues(obs,11679), ' ## ', etl.GetValues(obs,6796)) as problems,
+                            @problems := concat_ws(' ## ',
+								etl.GetValues(obs,6042 ),
+								etl.GetValues(obs,11679),
+								etl.GetValues(obs,6796),
+								etl.GetValues(obs,2072),
+								etl.GetValues(obs,6097),
+								etl.GetValues(obs,6461)
+							) as problems,
 							@comorbidities := etl.GetValues(obs,10239 ) as comorbidities,
-							@rheumatologic_disorder := etl.GetValues(obs,12293) as rheumatologic_disorder
+							@rheumatologic_disorder := etl.GetValues(obs,12293) as rheumatologic_disorder,
                             @kidney_disease := etl.GetValues(obs, 6033) as kidney_disease,
                             @ckd_staging := etl.GetValues(obs,10101) as ckd_staging,
                             @cardiovascular_disorder := etl.GetValues(obs, 7971) as cardiovascular_disorder,
@@ -460,9 +473,9 @@ BEGIN
 							@prev_hbp_findings := etl.GetValues(obs, 9092) as prev_hbp_findings,
 							@type_of_follow_up := etl.GetValues(obs, 2332) as type_of_follow_up,
 							@review_of_med_history := etl.GetValues(obs, 6245) as review_of_med_history,
-							@psychiatric_exam_findings := etl.GetValues(obs, 6245) as review_of_med_history
+							@psychiatric_exam_findings := etl.GetValues(obs, 1130) as psychiatric_exam_findings
 							
-						from flat_cdm_0 t1
+						from flat_ncd_0 t1
 							join amrs.person p using (person_id)
                             left outer join prescriptions t2 using (encounter_id)						
 						);
@@ -483,10 +496,10 @@ BEGIN
 						set @cur_clinical_location_id = null;
 
 
-						alter table flat_cdm_1 drop prev_id, drop cur_id;
+						alter table flat_ncd_1 drop prev_id, drop cur_id;
 
-						drop table if exists flat_cdm_2;
-						create temporary table flat_cdm_2
+						drop table if exists flat_ncd_2;
+						create temporary table flat_ncd_2
 						(select *,
 							@prev_id := @cur_id as prev_id,
 							@cur_id := person_id as cur_id,
@@ -494,26 +507,26 @@ BEGIN
 							case
 								when @prev_id = @cur_id then @prev_encounter_datetime := @cur_encounter_datetime
 								else @prev_encounter_datetime := null
-							end as next_encounter_datetime_cdm,
+							end as next_encounter_datetime_ncd,
 
 							@cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 							case
 								when @prev_id=@cur_id then @next_encounter_type := @cur_encounter_type
 								else @next_encounter_type := null
-							end as next_encounter_type_cdm,
+							end as next_encounter_type_ncd,
 
 							@cur_encounter_type := encounter_type as cur_encounter_type,
 
 							case
 								when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 								else @prev_clinical_datetime := null
-							end as next_clinical_datetime_cdm,
+							end as next_clinical_datetime_ncd,
 
                             case
 								when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
 								else @prev_clinical_location_id := null
-							end as next_clinical_location_id_cdm,
+							end as next_clinical_location_id_ncd,
 
 							case
 								when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
@@ -530,7 +543,7 @@ BEGIN
 						    case
 								when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
 								else @prev_clinical_rtc_date := null
-							end as next_clinical_rtc_date_cdm,
+							end as next_clinical_rtc_date_ncd,
 
 							case
 								when is_clinical_encounter then @cur_clinical_rtc_date := cur_rtc_date
@@ -538,11 +551,11 @@ BEGIN
 								else @cur_clinical_rtc_date:= null
 							end as cur_clinical_rtc_date
 
-							from flat_cdm_1
+							from flat_ncd_1
 							order by person_id, date(encounter_datetime) desc, encounter_type_sort_index desc
 						);
 
-						alter table flat_cdm_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime, drop cur_clinical_rtc_date;
+						alter table flat_ncd_2 drop prev_id, drop cur_id, drop cur_encounter_type, drop cur_encounter_datetime, drop cur_clinical_rtc_date;
 
 
 						set @prev_id = null;
@@ -556,8 +569,8 @@ BEGIN
                         set @prev_clinical_location_id = null;
 						set @cur_clinical_location_id = null;
 
-						drop temporary table if exists flat_cdm_3;
-						create temporary table flat_cdm_3 (prev_encounter_datetime datetime, prev_encounter_type int, index person_enc (person_id, encounter_datetime desc))
+						drop temporary table if exists flat_ncd_3;
+						create temporary table flat_ncd_3 (prev_encounter_datetime datetime, prev_encounter_type int, index person_enc (person_id, encounter_datetime desc))
 						(select
 							*,
 							@prev_id := @cur_id as prev_id,
@@ -566,25 +579,25 @@ BEGIN
 							case
 						        when @prev_id=@cur_id then @prev_encounter_type := @cur_encounter_type
 						        else @prev_encounter_type:=null
-							end as prev_encounter_type_cdm,	
+							end as prev_encounter_type_ncd,	
                             @cur_encounter_type := encounter_type as cur_encounter_type,
 
 							case
 						        when @prev_id=@cur_id then @prev_encounter_datetime := @cur_encounter_datetime
 						        else @prev_encounter_datetime := null
-						    end as prev_encounter_datetime_cdm,
+						    end as prev_encounter_datetime_ncd,
 
                             @cur_encounter_datetime := encounter_datetime as cur_encounter_datetime,
 
 							case
 								when @prev_id = @cur_id then @prev_clinical_datetime := @cur_clinical_datetime
 								else @prev_clinical_datetime := null
-							end as prev_clinical_datetime_cdm,
+							end as prev_clinical_datetime_ncd,
 
                             case
 								when @prev_id = @cur_id then @prev_clinical_location_id := @cur_clinical_location_id
 								else @prev_clinical_location_id := null
-							end as prev_clinical_location_id_cdm,
+							end as prev_clinical_location_id_ncd,
 
 							case
 								when is_clinical_encounter then @cur_clinical_datetime := encounter_datetime
@@ -601,7 +614,7 @@ BEGIN
 							case
 								when @prev_id = @cur_id then @prev_clinical_rtc_date := @cur_clinical_rtc_date
 								else @prev_clinical_rtc_date := null
-							end as prev_clinical_rtc_date_cdm,
+							end as prev_clinical_rtc_date_ncd,
 
 							case
 								when is_clinical_encounter then @cur_clinical_rtc_date := cur_rtc_date
@@ -609,13 +622,13 @@ BEGIN
 								else @cur_clinical_rtc_date:= null
 							end as cur_clinic_rtc_date
 
-							from flat_cdm_2 t1
+							from flat_ncd_2 t1
 							order by person_id, date(encounter_datetime), encounter_type_sort_index
 						);
                                         
 
 
-					select count(*) into @new_encounter_rows from flat_cdm_3;
+					select count(*) into @new_encounter_rows from flat_ncd_3;
                     
                     select @new_encounter_rows;                    
 					set @total_rows_written = @total_rows_written + @new_encounter_rows;
@@ -674,19 +687,20 @@ BEGIN
 						prev_hbp_findings,
 						type_of_follow_up,
 						review_of_med_history,
+						psychiatric_exam_findings,
                         
-						prev_encounter_datetime_cdm,
-						next_encounter_datetime_cdm,
-						prev_encounter_type_cdm,
-						next_encounter_type_cdm,
-						prev_clinical_datetime_cdm,
-						next_clinical_datetime_cdm,
-                        prev_clinical_location_id_cdm,
-                        next_clinical_location_id_cdm,
-						prev_clinical_rtc_date_cdm,
-                        next_clinical_rtc_date_cdm
+						prev_encounter_datetime_ncd,
+						next_encounter_datetime_ncd,
+						prev_encounter_type_ncd,
+						next_encounter_type_ncd,
+						prev_clinical_datetime_ncd,
+						next_clinical_datetime_ncd,
+                        prev_clinical_location_id_ncd,
+                        next_clinical_location_id_ncd,
+						prev_clinical_rtc_date_ncd,
+                        next_clinical_rtc_date_ncd
                         
-                        from flat_cdm_3 t1
+                        from flat_ncd_3 t1
                         join amrs.location t2 using (location_id))');
 
 					PREPARE s1 from @dyn_sql; 
@@ -694,16 +708,15 @@ BEGIN
 					DEALLOCATE PREPARE s1;  
                     
 
-				    #delete from @queue_table where person_id in (select person_id from flat_cdm_build_queue__0);
+				    #delete from @queue_table where person_id in (select person_id from flat_ncd_build_queue__0);
 
-					SET @dyn_sql=CONCAT('delete t1 from ',@queue_table,' t1 join flat_cdm_build_queue__0 t2 using (person_id);'); 
-#					select @dyn_sql;
+					SET @dyn_sql=CONCAT('delete t1 from ',@queue_table,' t1 join flat_ncd_build_queue__0 t2 using (person_id);'); 
 					PREPARE s1 from @dyn_sql; 
                     EXECUTE s1; 
 					DEALLOCATE PREPARE s1;  
                     
                     
-					#select @person_ids_count := (select count(*) from flat_cdm_build_queue_2);                        
+					#select @person_ids_count := (select count(*) from flat_ncd_build_queue_2);                        
 					SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table,';'); 
 					PREPARE s1 from @dyn_sql; 
 					EXECUTE s1; 
@@ -765,5 +778,4 @@ BEGIN
 				 insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
 				 select concat(@table_version," : Time to complete: ",timestampdiff(minute, @start, @end)," minutes");
 
-		END$$
-DELIMITER ;
+		END
