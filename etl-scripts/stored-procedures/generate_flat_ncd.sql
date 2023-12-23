@@ -1,4 +1,4 @@
-CREATE PROCEDURE `etl`.`generate_flat_ncd_v1_1`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE DEFINER=`hkorir`@`%` PROCEDURE `generate_flat_ncd`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 					set @primary_table := "flat_ncd";
 					set @query_type = query_type;
@@ -132,7 +132,7 @@ BEGIN
 					
 					if (@query_type="sync") then
 							select 'SYNCING..........................................';
-							set @write_table = "flat_ncd_v1";
+							set @write_table = "flat_ncd";
 							set @queue_table = "flat_ncd_sync_queue";
                             create table if not exists flat_ncd_sync_queue (person_id int primary key);                            
                             
@@ -140,7 +140,8 @@ BEGIN
 
 							set @last_update = null;
 
-                            select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;														
+                            select max(date_updated) into @last_update from etl.flat_log where table_name=@table_version;
+                            select @last_update := if(@last_update,@last_update,'1900-01-01');
 
 							replace into flat_ncd_sync_queue
 							(select distinct patient_id
@@ -251,10 +252,6 @@ BEGIN
 						EXECUTE s1; 
 						DEALLOCATE PREPARE s1;  
 
-						
-
-
-
 						drop temporary table if exists flat_ncd_0a;
 						SET @dyn_sql = CONCAT(
 								'create temporary table flat_ncd_0a
@@ -282,7 +279,7 @@ BEGIN
 								from etl.flat_obs t1
 									join flat_ncd_build_queue__0 t0 using (person_id)
 									left join etl.flat_orders t2 using(encounter_id)
-								where t1.encounter_type in ',@encounter_types,');');
+								);');
                             
                         PREPARE s1 from @dyn_sql; 
 						EXECUTE s1; 
@@ -369,9 +366,7 @@ BEGIN
                             
                             @lmp := etl.GetValues(obs,1836) as lmp,
                                                 
-							case
-									when obs regexp "!!5085=" then @sbp := etl.GetValues(obs,5085)                                    
-							end as sbp,                            
+							@sbp := etl.GetValues(obs,5085) as sbp,                            
                             
                             @dbp := etl.GetValues(obs,5086) as dbp,
 
@@ -438,26 +433,26 @@ BEGIN
                             
 							@dm_status := etl.GetValues(obs,7287) as dm_status,
                             @htn_status := etl.GetValues(obs,7288) as htn_status,
-                            @dm_meds := concat_ws(' ## ',
+                            @dm_meds := nullif(concat_ws(' ## ',
 							    etl.GetValues(obs,7290),
 								etl.GetValues(obs,7304)
-							) as dm_meds,
-							@htn_meds := concat_ws(' ## ',
+							),'') as dm_meds,
+							@htn_meds := nullif(concat_ws(' ## ',
 								etl.GetValues(obs,7291),
 								etl.GetValues(obs,7332),
 								etl.GetValues(obs,10241)
-							 ) as htn_meds,
+							 ),'') as htn_meds,
 							 
                              t2.prescriptions as prescriptions,
 
-                            @problems := concat_ws(' ## ',
+                            @problems := nullif(concat_ws(' ## ',
 								etl.GetValues(obs,6042 ),
 								etl.GetValues(obs,11679),
 								etl.GetValues(obs,6796),
 								etl.GetValues(obs,2072),
 								etl.GetValues(obs,6097),
 								etl.GetValues(obs,6461)
-							) as problems,
+							), '') as problems,
 							@comorbidities := etl.GetValues(obs,10239 ) as comorbidities,
 							@rheumatologic_disorder := etl.GetValues(obs,12293) as rheumatologic_disorder,
                             @kidney_disease := etl.GetValues(obs, 6033) as kidney_disease,
