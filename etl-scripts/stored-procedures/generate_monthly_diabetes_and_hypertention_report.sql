@@ -1,5 +1,5 @@
 DELIMITER $$
-CREATE PROCEDURE `generate_monthly_diabetes_and_hypertention_report`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
+CREATE  PROCEDURE `generate_monthly_diabetes_and_hypertention_report`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
 BEGIN
 set @start = now();
 			set @table_version = "monthly_diabetes_and_hypertention_report_v1.0";
@@ -30,10 +30,12 @@ CREATE TABLE IF NOT EXISTS monthly_diabetes_and_hypertention_report (
     diabetes_mellitus_type int,
     cumulative_htn_patient SMALLINT,
     has_htn smallint,
+    htn_diagnosis_date DATE,
     newly_diagnosed_htn_this_month smallint,
     htn_type INT,
     htn_stage INT,
     is_co_morbid SMALLINT,
+    co_morbid_diagnosis_date DATE,
     newly_diagnosed_co_morbid_this_month smallint,
     co_morbid_type INT,
     stroke_diagnosis SMALLINT,
@@ -53,6 +55,9 @@ CREATE TABLE IF NOT EXISTS monthly_diabetes_and_hypertention_report (
     hba1c_date DATE,
     on_exercise smallint,
     on_diet smallint,
+    on_antihypertensives_this_month smallint,
+    systolic int,
+    diastolic int,
     PRIMARY KEY diabetes_and_hypertention_id (diabetes_and_hypertention_id),
     INDEX person_enc_date (person_id , encounter_date),
     INDEX person_report_date (person_id , endDate),
@@ -154,22 +159,24 @@ CREATE TABLE IF NOT EXISTS monthly_diabetes_and_hypertention_report_sync_queue (
                     fd.diabetes_status,
                     1 as cumulative_in_care,
                     case
-                      when fd.has_diabetes = 1 AND fd.diagnosis_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
+                      when fd.has_diabetes = 1 AND fd.diabetes_diagnosis_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
                       else 0
                     end as newly_diagnosed_diabetes_this_month,
                     fd.ncd_visit_type,
                     fd.diabetes_mellitus_type,
                     fd.has_htn as cumulative_htn_patient,
                     fd.has_htn,
+                    fd.htn_diagnosis_date,
                     case
-                      when fd.has_htn = 1 AND fd.diagnosis_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
+                      when fd.has_htn = 1 AND fd.htn_diagnosis_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
                       else 0
                     end as newly_diagnosed_htn_this_month,
                     fd.htn_type	,
 					fd.htn_stage,
 					fd.is_co_morbid,
+                    fd.co_morbid_diagnosis_date,
                      case
-                      when fd.is_co_morbid = 1 AND fd.co_morbid_type = 1154 AND fd.diagnosis_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
+                      when fd.is_co_morbid = 1 AND fd.co_morbid_type = 1154 AND fd.co_morbid_diagnosis_date between date_format(endDate,"%Y-%m-01")  and endDate then 1
                       else 0
                     end as newly_diagnosed_co_morbid_this_month,
 					fd.co_morbid_type,
@@ -198,7 +205,10 @@ CREATE TABLE IF NOT EXISTS monthly_diabetes_and_hypertention_report_sync_queue (
                     fd.hba1c,
                     fd.hba1c_date,
                     fd.on_exercise,
-                    fd.on_diet
+                    fd.on_diet,
+                    fd.on_antihypertensives as on_antihypertensive_this_month,
+                    fd.systolic,
+                    fd.diastolic
 					from etl.dates t1
 					join etl.flat_diabetes_and_hypertention_summary fd
                     join amrs.location l on (l.location_id = fd.location_id)
@@ -247,10 +257,12 @@ FROM
                     diabetes_mellitus_type,
                     cumulative_htn_patient,
                     has_htn,
+                    htn_diagnosis_date,
                     newly_diagnosed_htn_this_month,
                     htn_type	,
 					htn_stage,
 					is_co_morbid,
+                    co_morbid_diagnosis_date,
                     newly_diagnosed_co_morbid_this_month,
 					co_morbid_type,
 					stroke_diagnosis,
@@ -269,7 +281,10 @@ FROM
 					hba1c,
                     hba1c_date,
 					on_exercise,
-                    on_diet
+                    on_diet,
+					on_antihypertensive_this_month,
+                    systolic,
+                    diastolic
 					from monthly_diabetes_and_hypertention_report_0 t1
 				);
                 

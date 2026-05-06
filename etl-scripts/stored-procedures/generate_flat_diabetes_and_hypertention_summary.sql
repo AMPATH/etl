@@ -25,13 +25,16 @@ CREATE TABLE IF NOT EXISTS flat_diabetes_and_hypertention_summary (
     next_clinical_encounter_datetime DATETIME,
     ncd_visit_type SMALLINT,
     has_diabetes SMALLINT,
+    diabetes_diagnosis_date DATE,
     diabetes_status INT,
     diabetes_mellitus_type INT,
     diagnosis_date DATE,
     has_htn INT,
+    htn_diagnosis_date DATE,
     htn_type INT,
     htn_stage INT,
     is_co_morbid SMALLINT,
+    co_morbid_diagnosis_date DATE,
     co_morbid_type INT,
     stroke_diagnosis SMALLINT,
     ischemic_heart_disease_diagnosis SMALLINT,
@@ -54,6 +57,9 @@ CREATE TABLE IF NOT EXISTS flat_diabetes_and_hypertention_summary (
     hba1c_date DATE,
     on_exercise SMALLINT,
     on_diet SMALLINT,
+    on_antihypertensives SMALLINT,
+    systolic INT,
+    diastolic INT,
     PRIMARY KEY encounter_id (encounter_id),
     INDEX person_date (person_id , encounter_datetime),
     INDEX encounter_type (encounter_type),
@@ -222,14 +228,6 @@ CREATE temporary TABLE flat_diabetes_and_hypertention_summary_1 (
         ELSE NULL
     END AS diagnosis_date,
     CASE
-        WHEN t1.obs REGEXP '!!11679=10239!!' THEN 1
-        ELSE 0
-    END AS is_co_morbid,
-    CASE
-        WHEN t1.obs REGEXP '!!10239=' THEN etl.GetValues(t1.obs, 10239)
-        ELSE NULL
-    END AS co_morbid_type,
-    CASE
         WHEN stroke.diagnosis_coded IS NOT NULL THEN 1
         ELSE 0
     END AS stroke_diagnosis,
@@ -337,6 +335,7 @@ ORDER BY t.encounter_datetime DESC);
      set @has_diabetes := null;
      set @diabetes_status := null;
      set @has_htn := null;
+     set @htn_diagnosis_date:=null;
      set @htn_type := null;
      set @htn_stage := null;
      set @diabetes_mellitus_type:=null;
@@ -354,6 +353,10 @@ ORDER BY t.encounter_datetime DESC);
      set @current_location_id:=null;
      set @on_exercise:=null;
      set @on_diet:=null;
+     set @is_co_morbid:=null;
+     set @co_morbid_diagnosis_date:=null;
+     set @co_morbid_type:=null;
+     set @diabetes_diagnosis_date:=null;
     
     drop  table if exists etl.flat_diabetes_and_hypertention_summary_lag;
 	CREATE TABLE etl.flat_diabetes_and_hypertention_summary_lag (SELECT @prev_id:=@cur_id AS prev_id,
@@ -363,6 +366,13 @@ ORDER BY t.encounter_datetime DESC);
         WHEN @prev_id = @cur_id THEN @has_diabetes
         ELSE @has_diabetes:=NULL
     END AS has_diabetes,
+    CASE
+        WHEN t.obs REGEXP '!!11679=175!!' AND t.obs REGEXP '!!11098=!!' THEN @diabetes_diagnosis_date:=etl.GetValues(t.obs, 11098)
+        WHEN t.obs REGEXP '!!11679=175!!' AND t.obs NOT REGEXP '!!11098=!!'  AND t.obs REGEXP '!!7287=7281!!' THEN @diabetes_diagnosis_date:=t.encounter_datetime
+        WHEN t.obs REGEXP '!!11679=175!!' AND t.obs NOT REGEXP '!!11098=!!'  AND t.obs REGEXP '!!7287=7282!!' THEN @diabetes_diagnosis_date:='1900-01-01'
+        WHEN @prev_id = @cur_id THEN @diabetes_diagnosis_date
+        ELSE @diabetes_diagnosis_date:=NULL
+    END AS diabetes_diagnosis_date,
     CASE
         WHEN t.obs REGEXP '!!7287=' THEN @diabetes_status:=etl.GetValues(t.obs, 7287)
         WHEN @prev_id = @cur_id THEN @diabetes_status
@@ -388,6 +398,14 @@ ORDER BY t.encounter_datetime DESC);
         WHEN @prev_id = @cur_id THEN @has_htn
         ELSE @has_htn:=NULL
     END AS has_htn,
+    CASE
+        WHEN t.obs REGEXP '!!11679=903!!' AND t.obs REGEXP '!!11098=' THEN @htn_diagnosis_date:=etl.GetValues(t.obs, 11098)
+        WHEN t.obs REGEXP '!!11679=903!!' AND t.obs REGEXP '!!9728=' THEN @htn_diagnosis_date:=etl.GetValues(t.obs,9728)
+		WHEN t.obs REGEXP '!!11679=903!!' AND t.obs REGEXP '!!7288=7285!!' and t.obs NOT REGEXP '!!9728=' AND @htn_diagnosis_date is null THEN @htn_diagnosis_date:=t.encounter_datetime
+        WHEN t.obs REGEXP '!!11679=903!!' AND t.obs REGEXP '!!7288=7286!!' and t.obs NOT REGEXP '!!9728=' AND @htn_diagnosis_date is null THEN @htn_diagnosis_date:='1900-01-01'
+        WHEN @prev_id = @cur_id THEN @htn_diagnosis_date
+        ELSE @htn_diagnosis_date:=NULL
+    END AS htn_diagnosis_date,
     CASE
         WHEN t.obs REGEXP '!!7288=' THEN @htn_type:=etl.GetValues(t.obs, 7288)
         WHEN @prev_id = @cur_id THEN @htn_type
@@ -463,6 +481,26 @@ ORDER BY t.encounter_datetime DESC);
      WHEN @prev_id = @cur_id THEN @on_diet
      ELSE @on_diet:=null
     END as on_diet,
+    0 as on_antihypertensives,
+    0 as systolic,
+    0 as  diastolic,
+    CASE
+        WHEN t.obs REGEXP '!!11679=10239!!' THEN @is_co_morbid:=1
+        WHEN @prev_id = @cur_id THEN @is_co_morbid
+        ELSE @is_co_morbid:=null
+    END AS is_co_morbid,
+    CASE
+        WHEN t.obs REGEXP '!!10239=' THEN @co_morbid_type:=etl.GetValues(t.obs, 10239)
+        WHEN @prev_id = @cur_id THEN @co_morbid_type
+        ELSE @co_morbid_type:=NULL
+    END AS co_morbid_type,
+    CASE
+        WHEN t.obs REGEXP '!!11679=10239!!' AND t.obs REGEXP '!!10706=' THEN @co_morbid_diagnosis_date:=etl.GetValues(t.obs,10706)
+        WHEN t.obs REGEXP '!!11679=10239!!' AND t.obs NOT REGEXP '!!10706=' AND t.obs REGEXP '!!10239=1154!!' THEN @co_morbid_diagnosis_date:=t.encounter_datetime
+		WHEN t.obs REGEXP '!!11679=10239!!' AND t.obs NOT REGEXP '!!10706=' AND t.obs REGEXP '!!10239=12778!!' THEN @co_morbid_diagnosis_date:='1900-01-01'
+        WHEN @prev_id = @cur_id THEN @co_morbid_diagnosis_date
+        ELSE @co_morbid_diagnosis_date:=NULL
+    END AS co_morbid_diagnosis_date,
     t.* FROM
     flat_diabetes_and_hypertention_summary_next t
 ORDER BY t.encounter_datetime);
@@ -491,13 +529,16 @@ INTO @new_encounter_rows FROM
                                 next_clinical_encounter_datetime,
                                 ncd_visit_type,
                                 has_diabetes,
+                                diabetes_diagnosis_date,
                                 diabetes_status,
                                 diabetes_mellitus_type,
                                 diagnosis_date,
                                 has_htn,
+                                htn_diagnosis_date,
                                 htn_type,
                                 htn_stage,
                                 is_co_morbid,
+                                co_morbid_diagnosis_date,
                                 co_morbid_type,
                                 stroke_diagnosis,
 								ischemic_heart_disease_diagnosis,
@@ -519,7 +560,10 @@ INTO @new_encounter_rows FROM
                                 hba1c,
                                 hba1c_date,
                                 on_exercise,
-                                on_diet
+                                on_diet,
+								on_antihypertensives,
+								systolic,
+								diastolic
                         from flat_diabetes_and_hypertention_summary_lag);');
 
 						PREPARE s1 from @dyn_sql; 
@@ -593,13 +637,16 @@ SELECT
                                 next_clinical_encounter_datetime,
                                 ncd_visit_type,
                                 has_diabetes,
+                                diabetes_diagnosis_date,
                                 diabetes_status,
                                 diabetes_mellitus_type,
                                 diagnosis_date,
                                 has_htn,
+                                htn_diagnosis_date,
                                 htn_type,
                                 htn_stage,
                                 is_co_morbid,
+                                co_morbid_diagnosis_date,
                                 co_morbid_type,
                                 stroke_diagnosis,
 								ischemic_heart_disease_diagnosis,
@@ -621,7 +668,10 @@ SELECT
                                 hba1c,
                                 hba1c_date,
                                 on_exercise,
-                                on_diet
+                                on_diet,
+                                on_antihypertensives,
+								systolic,
+								diastolic
                             from ',@write_table,');');
                         PREPARE s1 from @dyn_sql; 
                         EXECUTE s1; 
