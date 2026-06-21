@@ -113,7 +113,7 @@ wait_for_replication_catchup = BashOperator(
 
 update_hiv_summary = MySqlOperator(
     task_id='update_hiv_summary',
-    sql='generate_flat_hiv_summary("sync",1,15000,20);',
+    sql='call generate_flat_hiv_summary("sync",1,15000,20);',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
@@ -146,6 +146,14 @@ update_vitals = MySqlOperator(
 update_flat_labs_and_imaging = MySqlOperator(
     task_id='update_flat_labs_and_imaging',
     sql='call generate_flat_labs_and_imaging("sync",1,15000,100);',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
+
+update_flat_family_testing = MySqlOperator(
+    task_id='update_flat_family_testing',
+    sql='CALL etl.generate_flat_family_testing("sync",1,15000,20);',
     mysql_conn_id=MYSQL_CONN_ID,
     database='etl',
     dag=dag
@@ -207,8 +215,13 @@ update_case_management = MySqlOperator(
     dag=dag
 )
 
-
-
+update_hei_summary = MySqlOperator(
+    task_id='update_hei_summary',
+    sql='CALL `etl`.`generate_flat_hei_summary_v1_0`("sync",1,10000,1);',
+    mysql_conn_id=MYSQL_CONN_ID,
+    database='etl',
+    dag=dag
+)
 finish = DummyOperator(
     task_id='finish',
     dag=dag
@@ -267,11 +280,12 @@ wait_for_base_tables >> update_flat_labs_and_imaging
 #wait_for_base_tables >> update_vitals
 
 
-update_hiv_summary >> update_appointments >> update_onc_tables >> update_pep_summary >> cdm_branch
-update_hiv_summary >> update_flat_covid >> update_case_management >> cdm_branch
+update_hiv_summary >> update_appointments >> update_onc_tables >>  update_pep_summary >> cdm_branch
+update_hiv_summary >> update_flat_covid >> update_case_management >> update_hei_summary >> cdm_branch
 cdm_branch >> update_cdm_summary >> update_defaulters >> update_vitals >> finish
 cdm_branch >> finish
-update_flat_labs_and_imaging >> finish
+update_flat_labs_and_imaging >> update_flat_family_testing 
+update_flat_family_testing >> finish
 #update_vitals >> finish
 
 
