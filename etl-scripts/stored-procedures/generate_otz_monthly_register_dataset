@@ -1,0 +1,322 @@
+CREATE DEFINER=`root`@`%` PROCEDURE `generate_otz_monthly_register_dataset`(IN query_type varchar(50),
+                                                                                 IN queue_number int, IN queue_size int,
+                                                                                 IN cycle_size int,
+                                                                                 IN start_date varchar(50))
+BEGIN
+
+			set @start = now();
+			set @table_version = "otz_monthly_register_dataset";
+			set @last_date_created = (select max(date_created) from etl.flat_otz_summary);
+            
+
+CREATE TABLE IF NOT EXISTS otz_monthly_register_dataset (
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+    elastic_id BIGINT,
+    endDate DATE,
+    encounter_id INT,
+    person_id INT,
+    birthdate DATE,
+    age_at_otz_enrollment DOUBLE,
+    gender VARCHAR(1),
+    encounter_date DATE,
+    location_id MEDIUMINT,
+    encounter_type INT,
+    date_enrolled_to_otz DATE,
+    previously_enrolled_to_otz TINYINT,
+	original_art_start_date DATETIME,
+    original_art_regimen varchar(500),
+    vl_result_at_otz_enrollment INT,
+    vl_result_date_at_otz_enrollment DATE,
+    vl_result_post_otz_enrollment VARCHAR(500),
+    art_regimen_at_otz_enrollment VARCHAR(500),
+    art_regimen_start_date_at_otz_enrollment DATETIME,
+    art_regimen_line_at_otz_enrollment int,
+    first_regimen_switch VARCHAR(500),
+    first_regimen_switch_date DATE,
+    first_regimen_switch_reason VARCHAR(500),
+    second_regimen_switch VARCHAR(500),
+    second_regimen_switch_date DATE,
+    second_regimen_switch_reason VARCHAR(500),
+    third_regimen_switch VARCHAR(500),
+    third_regimen_switch_date DATE,
+    third_regimen_switch_reason VARCHAR(500),
+    fourth_regimen_switch VARCHAR(500),
+    fourth_regimen_switch_date DATE,
+    fourth_regimen_switch_reason VARCHAR(500),
+    otz_orientation TINYINT,
+    otz_treatment_literacy TINYINT,
+    otz_participation TINYINT,
+    otz_peer_mentorship TINYINT,
+    otz_leadership TINYINT,
+    otz_positive_health_dignity_prevention TINYINT,
+    otz_future_decison_making TINYINT,
+    otz_transition_adult_care TINYINT,
+    discontinue_otz_reason INT,
+    discontinue_otz_date DATETIME,
+    clinical_remarks VARCHAR(500),
+    PRIMARY KEY elastic_id (elastic_id),
+    INDEX person_enc_date (person_id , encounter_date),
+    INDEX person_report_date (person_id , endDate),
+    INDEX endDate_location_id (endDate , location_id),
+    INDEX date_created (date_created)
+);
+
+
+			if (query_type = "build") then
+					select "BUILDING.......................";
+					set @queue_table = concat("otz_monthly_register_dataset_build_queue_",queue_number);                                       				 
+					SET @dyn_sql=CONCAT('Create table if not exists ',@queue_table,'(person_id int primary key) (select * from otz_monthly_register_dataset_build_queue limit ', queue_size, ');'); 
+					PREPARE s1 from @dyn_sql; 
+					EXECUTE s1; 
+					DEALLOCATE PREPARE s1;
+                    
+					SET @dyn_sql=CONCAT('delete t1 from otz_monthly_register_dataset_build_queue t1 join ',@queue_table, ' t2 using (person_id)'); 
+					PREPARE s1 from @dyn_sql; 
+					EXECUTE s1; 
+					DEALLOCATE PREPARE s1;  
+			end if;
+
+			
+            if (query_type = "sync") then
+					set @queue_table = "otz_monthly_register_dataset_sync_queue";
+CREATE TABLE IF NOT EXISTS otz_monthly_register_dataset_sync_queue (
+    person_id INT PRIMARY KEY
+);
+                    
+					SELECT 
+    @last_update:=(SELECT 
+            MAX(date_updated)
+        FROM
+            etl.flat_log
+        WHERE
+            table_name = @table_version);
+
+					replace into otz_monthly_register_dataset_sync_queue
+                    (select distinct person_id from flat_otz_summary where date_created >= @last_update);
+            end if;
+                        
+
+			SET @num_ids := 0;
+			SET @dyn_sql=CONCAT('select count(*) into @num_ids from ',@queue_table,';'); 
+			PREPARE s1 from @dyn_sql; 
+			EXECUTE s1; 
+			DEALLOCATE PREPARE s1;          
+            
+            
+            SET @person_ids_count = 0;
+			SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table); 
+			PREPARE s1 from @dyn_sql; 
+			EXECUTE s1; 
+			DEALLOCATE PREPARE s1;  
+            
+            
+SET @dyn_sql=CONCAT('delete t1 from otz_monthly_register_dataset t1 join ',@queue_table,' t2 using (person_id);'); 
+
+			PREPARE s1 from @dyn_sql; 
+			EXECUTE s1; 
+			DEALLOCATE PREPARE s1;  
+            
+            set @total_time=0;
+			set @cycle_number = 0;
+                    
+			while @person_ids_count > 0 do
+			
+				set @loop_start_time = now();                        
+				
+
+				drop temporary table if exists otz_monthly_register_dataset_build_queue__0;
+                create temporary table otz_monthly_register_dataset_build_queue__0 (person_id int primary key);                
+ 
+                SET @dyn_sql=CONCAT('insert into otz_monthly_register_dataset_build_queue__0 (select * from ',@queue_table,' limit ',cycle_size,');'); 
+				PREPARE s1 from @dyn_sql; 
+				EXECUTE s1; 
+				DEALLOCATE PREPARE s1;
+                
+                
+                set @age =null;
+                set @status = null;
+                
+                drop temporary table if exists otz_monthly_register_dataset_0;
+				CREATE temporary TABLE otz_monthly_register_dataset_0 (SELECT NULL AS date_created,
+    CONCAT(DATE_FORMAT(endDate, '%Y%m'), person_id) AS elastic_id,
+    t1.endDate,
+    t2.encounter_id,
+    t2.person_id,
+    t2.birth_date AS birthdate,
+    t2.age_at_otz_enrollment,
+    t2.gender,
+    t2.encounter_datetime,
+    t2.location_id,
+    t2.encounter_type,
+    t2.date_enrolled_to_otz,
+    t2.previously_enrolled_to_otz,
+	t2.original_art_start_date,
+	t2.original_art_regimen,
+    t2.vl_result_at_otz_enrollment,
+    t2.vl_result_date_at_otz_enrollment,
+    t2.vl_result_post_otz_enrollment,
+    t2.art_regimen_at_otz_enrollment,
+    t2.art_regimen_start_date_at_otz_enrollment,
+    t2.art_regimen_line_at_otz_enrollment,
+    t2.first_regimen_switch,
+    t2.first_regimen_switch_date,
+    t2.first_regimen_switch_reason,
+    t2.second_regimen_switch,
+    t2.second_regimen_switch_date,
+    t2.second_regimen_switch_reason,
+    t2.third_regimen_switch,
+    t2.third_regimen_switch_date,
+    t2.third_regimen_switch_reason,
+    t2.fourth_regimen_switch,
+    t2.fourth_regimen_switch_date,
+    t2.fourth_regimen_switch_reason,
+    t2.otz_orientation,
+    t2.otz_treatment_literacy,
+    t2.otz_participation,
+    t2.otz_peer_mentorship,
+    t2.otz_leadership,
+    t2.otz_positive_health_dignity_prevention,
+    t2.otz_future_decison_making,
+    t2.otz_transition_adult_care,
+    t2.discontinue_otz_reason,
+    t2.discontinue_otz_date,
+    t2.clinical_remarks
+    FROM
+    etl.dates t1
+        JOIN
+    etl.flat_otz_summary t2
+        JOIN
+    etl.otz_monthly_register_dataset_build_queue__0 t5 USING (person_id)
+WHERE
+    t2.encounter_datetime < DATE_ADD(endDate, INTERVAL 1 DAY)
+        AND (t2.next_encounter_datetime IS NULL
+        OR t2.next_encounter_datetime >= DATE_ADD(t1.endDate, INTERVAL 1 DAY))
+        AND t1.endDate BETWEEN start_date AND DATE_ADD(NOW(), INTERVAL 2 YEAR)
+ORDER BY person_id , endDate);
+
+			drop temporary table if exists otz_monthly_vl_post_enrollment;
+			CREATE temporary TABLE otz_monthly_vl_post_enrollment (SELECT m.person_id,
+    m.endDate,
+    GROUP_CONCAT(DATE_FORMAT(l.test_datetime, '%Y-%m-%d'),
+        '=',
+        l.hiv_viral_load) AS vl_result_post_otz_enrollment FROM
+    otz_monthly_register_dataset_0 m
+        JOIN
+    etl.flat_labs_and_imaging l ON (l.person_id = m.person_id
+        AND DATE(m.date_enrolled_to_otz) < DATE(l.test_datetime)
+        AND DATE(l.test_datetime) <= DATE(m.endDate)
+        AND l.hiv_viral_load IS NOT NULL)
+GROUP BY m.person_id , m.endDate
+ORDER BY m.person_id , m.endDate , l.test_datetime DESC);
+                
+                drop temporary table if exists otz_monthly_register_dataset_interim;
+CREATE temporary TABLE otz_monthly_register_dataset_interim LIKE otz_monthly_register_dataset;
+                
+                replace into otz_monthly_register_dataset_interim (
+                select 
+                        null as date_created,
+                        t2.elastic_id,
+						t2.endDate,
+						t2.encounter_id,
+						t2.person_id,
+						t2.birthdate,
+						t2.age_at_otz_enrollment,
+						t2.gender,
+						t2.encounter_datetime,
+						t2.location_id,
+						t2.encounter_type,
+						t2.date_enrolled_to_otz,
+						t2.previously_enrolled_to_otz,
+                        t2.original_art_start_date,
+						replace(get_arv_names(t2.original_art_regimen), '##', '+') as original_art_regimen,
+						t2.vl_result_at_otz_enrollment,
+						t2.vl_result_date_at_otz_enrollment,
+						v.vl_result_post_otz_enrollment,
+                        replace(get_arv_names(t2.art_regimen_at_otz_enrollment), '##', '+') as art_regimen_at_otz_enrollment,
+						t2.art_regimen_start_date_at_otz_enrollment,
+						t2.art_regimen_line_at_otz_enrollment,
+                        replace(get_arv_names(t2.first_regimen_switch), '##', '+') as first_regimen_switch,
+						t2.first_regimen_switch_date,
+						t2.first_regimen_switch_reason,
+                        replace(get_arv_names(t2.second_regimen_switch), '##', '+') as second_regimen_switch,
+						t2.second_regimen_switch_date,
+						t2.second_regimen_switch_reason,
+                        replace(get_arv_names(t2.third_regimen_switch), '##', '+') as third_regimen_switch,
+						t2.third_regimen_switch_date,
+						t2.third_regimen_switch_reason,
+                        replace(get_arv_names(t2.fourth_regimen_switch), '##', '+') as fourth_regimen_switch,
+						t2.fourth_regimen_switch_date,
+						t2.fourth_regimen_switch_reason,
+						t2.otz_orientation,
+						t2.otz_treatment_literacy,
+						t2.otz_participation,
+						t2.otz_peer_mentorship,
+						t2.otz_leadership,
+						t2.otz_positive_health_dignity_prevention,
+						t2.otz_future_decison_making,
+						t2.otz_transition_adult_care,
+						t2.discontinue_otz_reason,
+						t2.discontinue_otz_date,
+						t2.clinical_remarks
+                
+                from otz_monthly_register_dataset_0 t2 
+                join otz_monthly_vl_post_enrollment v on (t2.person_id = v.person_id and t2.endDate = v.endDate)
+                );
+                
+                replace into otz_monthly_register_dataset (
+                select 
+                t2.*
+                
+                
+                from otz_monthly_register_dataset_interim t2
+                );
+
+
+				SET @dyn_sql=CONCAT('delete t1 from ',@queue_table,' t1 join otz_monthly_register_dataset_build_queue__0 t2 using (person_id);'); 
+				PREPARE s1 from @dyn_sql; 
+				EXECUTE s1; 
+				DEALLOCATE PREPARE s1;  
+				
+				#select @person_ids_count := (select count(*) from @queue_table);                        
+				SET @dyn_sql=CONCAT('select count(*) into @person_ids_count from ',@queue_table,';'); 
+				PREPARE s1 from @dyn_sql; 
+				EXECUTE s1; 
+				DEALLOCATE PREPARE s1;  
+                
+
+                
+				set @cycle_length = timestampdiff(second,@loop_start_time,now());
+                 
+				set @total_time = @total_time + @cycle_length;
+				set @cycle_number = @cycle_number + 1;
+				
+
+				set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
+                
+SELECT 
+    @num_in_hmrd AS num_in_hmrd,
+    @person_ids_count AS num_remaining,
+    @cycle_length AS 'Cycle time (s)',
+    CEIL(@person_ids_count / cycle_size) AS remaining_cycles,
+    @remaining_time AS 'Est time remaining (min)';
+
+
+			end while;
+
+			if(query_type = "build") then
+					SET @dyn_sql=CONCAT('drop table ',@queue_table,';'); 
+					PREPARE s1 from @dyn_sql; 
+					EXECUTE s1; 
+					DEALLOCATE PREPARE s1;  
+			end if;            
+
+			set @end = now();
+            -- not sure why we need last date_created, I've replaced this with @start
+  			insert into etl.flat_log values (@start,@last_date_created,@table_version,timestampdiff(second,@start,@end));
+			SELECT 
+    CONCAT(@table_version,
+            ' : Time to complete: ',
+            TIMESTAMPDIFF(MINUTE, @start, @end),
+            ' minutes');
+
+        END
