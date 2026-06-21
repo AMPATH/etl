@@ -5,8 +5,7 @@ SET @tah := NULL;
 SET @tah_datetime := NULL;
 SET @id := (SELECT person_id FROM etl.flat_labs_and_imaging WHERE uuid = person_uuid LIMIT 1);
 
-DROP TABLE IF EXISTS latest_ca_cx_info;
-SELECT * FROM  (SELECT 
+SELECT * FROM (SELECT 
     o.person_id,
     o.concept_id,
     o.value_coded,
@@ -14,7 +13,11 @@ SELECT * FROM  (SELECT
     fli.via_or_via_vili,
     fli.pap_smear,
     fli.hpv,
-    DATE_FORMAT(fli.test_datetime, '%d-%m-%Y') AS 'test_date',
+    fli.test_datetime,
+    CASE
+        WHEN (fhs.ca_cx_screening_result_datetime IS NOT NULL) THEN DATE_FORMAT(fhs.ca_cx_screening_result_datetime, '%d-%m-%Y')
+        WHEN (fli.test_datetime IS NOT NULL) THEN DATE_FORMAT(fli.test_datetime, '%d-%m-%Y') 
+	END AS 'test_date',
     CASE
         WHEN via_or_via_vili IS NOT NULL THEN 'VIA or VIA/VILI'
         WHEN pap_smear IS NOT NULL THEN 'PAP SMEAR'
@@ -40,30 +43,38 @@ SELECT * FROM  (SELECT
     fhs.ca_cx_screening_result_datetime,
     CASE
         WHEN  o.value_coded = 5276 THEN @tah := 1
-	END as female_sterilization,
+	END AS female_sterilization,
     CASE
         WHEN  o.value_coded = 12109 THEN 1
-	END as cervix_not_accessible,
+	END AS cervix_not_accessible,
     CASE
         WHEN  o.value_coded = 1504 THEN 1
-	END as Patient_refusal,
+	END AS Patient_refusal,
     CASE
         WHEN  o.value_coded = 5989 THEN 1
-	END as menstruating,
+	END AS menstruating,
     @tah := IF(o.value_coded = 5276 , 1, @tah) as tah_done,
-    @tah_datetime := IF(o.value_coded = 5276 , @tah_datetime := o.obs_datetime, @tah_datetime) as tah_confirmation_datetime
+    -- @tah_datetime := IF(o.value_coded = 5276 , @tah_datetime := o.obs_datetime, @tah_datetime) AS tah_confirmation_datetime
+    CASE
+        WHEN ((@tah_datetime is null) AND (o.value_coded = 5276))  then @tah_datetime := o.obs_datetime
+        WHEN (@tah_datetime is not null) then @tah_datetime
+        ELSE @tah_datetime
+	 END AS tah_confirmation_datetime
 FROM
     amrs.obs o
+        INNER JOIN
+	amrs.person p ON p.person_id = o.person_id
         LEFT JOIN
     etl.flat_hiv_summary_v15b fhs ON o.person_id = fhs.person_id
-        AND o.encounter_id = fhs.encounter_id
+        AND o.encounter_id = fhs.encounter_id AND fhs.encounter_type = 69
         LEFT JOIN
     etl.flat_labs_and_imaging fli ON o.person_id = fli.person_id
         AND (fli.via_or_via_vili IS NOT NULL
         OR fli.pap_smear IS NOT NULL
         OR fli.hpv IS NOT NULL)
 WHERE
+    p.gender = 'F' AND
     o.concept_id IN (12110 , 10400)
         AND o.person_id = @id
-        AND o.voided = 0) latest_ca_cx_info ORDER BY obs_datetime DESC, test_date desc, tah_done desc limit 1; 
+        AND o.voided = 0) latest_ca_cx_info ORDER BY obs_datetime DESC, test_datetime desc, test_date DESC, tah_done DESC LIMIT 1; 
 END
