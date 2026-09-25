@@ -1,3 +1,5 @@
+DELIMITER //
+
 CREATE DEFINER=`openmrs_user`@`%` PROCEDURE `etl`.`generate_flat_moh_717_v1`(
     IN query_type   VARCHAR(50),
     IN queue_number INT,
@@ -1054,4 +1056,6 @@ BEGIN
 
     SELECT CONCAT(@table_version, ' : Time to complete: ', TIMESTAMPDIFF(MINUTE, @start, @end), ' minutes');
 
-END
+END //
+
+DELIMITER ;

@@ -1,5 +1,4 @@
-CREATE DEFINER=`replication`@`%` PROCEDURE `etl`.`generate_flat_obs_v_4_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)
-BEGIN
+CREATE DEFINER=`datalake`@`%` PROCEDURE `etl`.`generate_flat_obs_v_4_0`(IN query_type varchar(50), IN queue_number int, IN queue_size int, IN cycle_size int)BEGIN
 
     SET @primary_table := "flat_obs";
     SET @query_type = query_type;
@@ -8,6 +7,9 @@ BEGIN
     SET @start = now();
     SET @table_version = "flat_obs_v1.3";
     SET SESSION sort_buffer_size = 512000000;
+    CREATE TABLE IF NOT EXISTS etl.flat_hiv_summary_sync_queue (
+        person_id INT PRIMARY KEY
+    );
     SELECT @fake_visit_id := 10000000;
     SELECT @boundary := '!!';
     set @drug_separator := ' ## ';
@@ -108,6 +110,13 @@ SELECT "CREATING....";
 
     SET @total_time = 0;
     SET @cycle_number = 0;
+
+    -- Create the per-cycle temp queue up front so the build-mode cleanup
+    -- join below is safe even when the queue is empty and the WHILE loop
+    -- never runs (the loop drops and repopulates it each cycle anyway).
+    DROP TEMPORARY TABLE IF EXISTS flat_obs_build_queue__0;
+    CREATE TEMPORARY TABLE flat_obs_build_queue__0 (person_id INT PRIMARY KEY);
+
     WHILE @person_ids_count > 0 do
         SET @loop_start_time = now();
         DROP temporary table if exists flat_obs_build_queue__0;
@@ -122,10 +131,13 @@ SELECT "CREATING....";
         FROM @dyn_sql;
         EXECUTE s1;
         DEALLOCATE PREPARE s1;
+        -- encounter_id is the natural PK (one row per encounter from
+        -- amrs.encounter); declaring it also lets ONLY_FULL_GROUP_BY infer
+        -- functional dependence in the packing GROUP BY below.
         CREATE temporary TABLE IF NOT EXISTS flat_person_encounters__0 (
             person_id INT,
             visit_id INT,
-            encounter_id INT,
+            encounter_id INT PRIMARY KEY,
             encounter_datetime DATETIME,
             encounter_type INT,
             location_id INT
@@ -140,13 +152,18 @@ SELECT "CREATING....";
                 e.encounter_datetime,
                 e.encounter_type,
                 e.location_id
-            FROM etl.flat_obs_build_queue__0 `p`
+            -- FIX: temporary tables are not visible through schema-qualified
+            --       names (etl.<tmp>), so reference flat_obs_build_queue__0
+            --       unqualified or MySQL reports it as missing.
+            FROM flat_obs_build_queue__0 `p`
                  JOIN amrs.encounter `e` on (e.patient_id = p.person_id)
         );
 
         DROP  TABLE if exists flat_obs__0;
+        -- MIN keeps the packing query valid under ONLY_FULL_GROUP_BY while
+        -- returning the single patient_id associated with each encounter.
         CREATE  table flat_obs__0 (
-            select o.person_id,
+            select MIN(o.person_id) as person_id,
                 case
                     when e.visit_id is not null then e.visit_id
                     else @fake_visit_id := @fake_visit_id + 1
@@ -325,7 +342,7 @@ SELECT "CREATING....";
                 ) as obs_datetimes,
                 max(o.date_created) as max_date_created
             from amrs.obs o
-                join etl.flat_obs_build_queue__0 `e` using (person_id)
+                join flat_obs_build_queue__0 `e` using (person_id)
             where o.encounter_id is null
                 and o.voided = 0
             group by person_id,
@@ -448,7 +465,11 @@ SELECT "CREATING....";
 
     SET @end := NOW();
     SET @date_created := NOW();
-    # INSERT INTO etl.flat_log VALUES (@start, @date_created, @table_version, TIMESTAMPDIFF(SECOND, @start, @end));
+    -- Advance the sync watermark.  This insert was commented out, which
+    -- left sync runs with a NULL watermark (date_created > NULL matches
+    -- nothing), so incremental syncs silently processed no one.
+    INSERT INTO etl.flat_log
+    VALUES (@start, @date_created, @table_version, TIMESTAMPDIFF(SECOND, @start, @end));
     SELECT CONCAT(@table_version, ': Time to complete: ', TIMESTAMPDIFF(MINUTE, @start, @end), ' minutes');
 
 END
