@@ -7,6 +7,7 @@ CREATE DEFINER=`datalake`@`%` PROCEDURE `etl`.`generate_flat_obs_v_4_0`(IN query
     SET @start = now();
     SET @table_version = "flat_obs_v1.3";
     SET SESSION sort_buffer_size = 512000000;
+    SET SESSION group_concat_max_len = 1000000;
     CREATE TABLE IF NOT EXISTS etl.flat_hiv_summary_sync_queue (
         person_id INT PRIMARY KEY
     );
@@ -21,8 +22,8 @@ SELECT "CREATING....";
         encounter_datetime DATETIME,
         encounter_type INT,
         location_id INT,
-        obs TEXT,
-        obs_datetimes TEXT,
+        obs MEDIUMTEXT,
+        obs_datetimes MEDIUMTEXT,
         max_date_created DATETIME,
         INDEX encounter_id (encounter_id),
         INDEX person_date (person_id, encounter_datetime),
@@ -30,6 +31,9 @@ SELECT "CREATING....";
         INDEX date_created (max_date_created),
         PRIMARY KEY (encounter_id)
     );
+    ALTER TABLE flat_obs
+        MODIFY COLUMN obs MEDIUMTEXT,
+        MODIFY COLUMN obs_datetimes MEDIUMTEXT;
     SELECT CONCAT('Created flat_obs_table');
 
     IF(@query_type = "build") THEN
@@ -46,6 +50,13 @@ SELECT "CREATING....";
 		FROM @dyn_sql;
 		EXECUTE s1;
 		DEALLOCATE PREPARE s1;
+        SET @dyn_sql = CONCAT(
+                'ALTER TABLE ', @write_table,
+                ' MODIFY COLUMN obs MEDIUMTEXT, MODIFY COLUMN obs_datetimes MEDIUMTEXT'
+            );
+        PREPARE s1 FROM @dyn_sql;
+        EXECUTE s1;
+        DEALLOCATE PREPARE s1;
 		SET @dyn_sql = CONCAT(
 				'Create table if not exists ',
 				@queue_table,
@@ -120,6 +131,8 @@ SELECT "CREATING....";
     WHILE @person_ids_count > 0 do
         SET @loop_start_time = now();
         DROP temporary table if exists flat_obs_build_queue__0;
+        DROP TEMPORARY TABLE IF EXISTS flat_person_encounters__0;
+        DROP TEMPORARY TABLE IF EXISTS flat_obs__0;
         SET @dyn_sql = CONCAT(
                 'create temporary table IF NOT EXISTS flat_obs_build_queue__0 (person_id int primary key) (select * from ',
                 @queue_table,
@@ -134,7 +147,7 @@ SELECT "CREATING....";
         -- encounter_id is the natural PK (one row per encounter from
         -- amrs.encounter); declaring it also lets ONLY_FULL_GROUP_BY infer
         -- functional dependence in the packing GROUP BY below.
-        CREATE temporary TABLE IF NOT EXISTS flat_person_encounters__0 (
+        CREATE temporary TABLE flat_person_encounters__0 (
             person_id INT,
             visit_id INT,
             encounter_id INT PRIMARY KEY,
@@ -159,10 +172,11 @@ SELECT "CREATING....";
                  JOIN amrs.encounter `e` on (e.patient_id = p.person_id)
         );
 
-        DROP  TABLE if exists flat_obs__0;
+        DROP TEMPORARY TABLE IF EXISTS flat_obs__0;
         -- MIN keeps the packing query valid under ONLY_FULL_GROUP_BY while
         -- returning the single patient_id associated with each encounter.
-        CREATE  table flat_obs__0 (
+        CREATE TEMPORARY TABLE flat_obs__0 LIKE flat_obs;
+        INSERT INTO flat_obs__0 (
             select MIN(o.person_id) as person_id,
                 case
                     when e.visit_id is not null then e.visit_id
@@ -452,10 +466,6 @@ SELECT "CREATING....";
 				@time_to_write,
 				' seconds '
 			);
-        
-        PREPARE s1 from @dyn_sql;
-        EXECUTE s1;
-        DEALLOCATE PREPARE s1;
         SET @dyn_sql = CONCAT('drop table ', @write_table, ';');
         PREPARE s1
         from @dyn_sql;
