@@ -1,7 +1,9 @@
-CREATE DEFINER=`openmrs_user`@`%` FUNCTION `etl`.`GetValues`(obs varchar(10000), concept_id int) RETURNS varchar(1000) CHARSET latin1 COLLATE latin1_swedish_ci
+DROP FUNCTION IF EXISTS `etl`.`GetValues`;
+
+CREATE DEFINER=`openmrs_user`@`%` FUNCTION `etl`.`GetValues`(obs TEXT, concept_id int) RETURNS varchar(1000) CHARSET latin1 COLLATE latin1_swedish_ci
     DETERMINISTIC
 BEGIN
-	DECLARE e varchar(100);	
+	DECLARE e varchar(1000);
 	DECLARE sep varchar(10);
     DECLARE k varchar(50);
     
