@@ -12,14 +12,17 @@ official MOH report output.
 | File | Procedure / object | Writes table | Reads |
 |---|---|---|---|
 | `getValues.sql` | function `etl.GetValues(obs, concept_id)` | — | packed obs strings |
+| `create_concept_value_map.sql` | `etl.concept_value_map`, `etl.refresh_concept_value_map()` | `concept_value_map` | `amrs.concept`, `amrs.concept_name`, `amrs.concept_answer` |
+| `getCodedValue.sql` | functions `etl.GetCodedValue`, `etl.GetConceptName` | — | `etl.concept_value_map` |
 | `generate_flat_obs.sql` | `etl.generate_flat_obs_v_4_0` | `flat_obs` | `amrs.obs`, `amrs.encounter` |
 | `generate_flat_lab_obs.sql` | `etl.generate_flat_lab_obs` | `flat_lab_obs` (v2) | `amrs.obs`, `amrs.encounter` |
 | `generate_flat_orders.sql` | `etl.generate_flat_orders_v2_0` | `flat_orders_2` | `amrs.orders` |
 | `generate_flat_labs_and_imaging.sql` | `etl.generate_flat_labs_and_imaging` | `flat_labs_and_imaging` | `flat_lab_obs`, `flat_orders` |
-| `generate_flat_moh_706.sql` | `etl.generate_flat_moh_706_v1` | `flat_moh_706_report` | `flat_lab_obs_v2` |
+| `generate_flat_moh_706.sql` | `etl.generate_flat_moh_706_v1` | `flat_moh_706_report` | `amrs.orders`, `amrs.obs`, `amrs.encounter`, `amrs.fhir_diagnostic_report*` |
 | `generate_flat_moh_710.sql` | `etl.generate_flat_moh_710_v1` | `flat_moh_710_report` | `flat_obs` |
 | `generate_flat_moh_711.sql` | `etl.generate_flat_moh_711_v1` | `flat_moh_711_report` | `flat_obs` |
 | `generate_flat_moh_717.sql` | `etl.generate_flat_moh_717_v1` | `flat_moh_717_report` | `flat_obs` |
+| `create_flat_moh_706.sql` | DDL | `flat_moh_706_report` + build/sync queues | — |
 | `create_flat_moh_710.sql` | DDL | `flat_moh_710_report` + build/sync queues | — |
 | `create_flat_moh_711.sql` | DDL | `flat_moh_711_report` + build/sync queues | — |
 | `create_flat_moh_717.sql` | DDL | `flat_moh_717_report` + build/sync queues | — |
@@ -43,20 +46,40 @@ CALL etl.<procedure>(query_type, queue_number, queue_size, cycle_size);
    { echo 'DELIMITER $$'; cat getValues.sql; echo '$$'; echo 'DELIMITER ;'; } | mysql etl
    ```
 
+3a. Concept translation for coded answers (MOH 706). These two files already
+   contain `DELIMITER` directives, so pipe them directly:
+
+   ```sh
+   mysql etl < create_concept_value_map.sql
+   mysql etl < getCodedValue.sql
+   CALL etl.refresh_concept_value_map();
+   ```
+
+   Refresh the map after adding or renaming concepts in `amrs`.
+
 4. The MOH report tables (idempotent, plain SQL — pipe directly):
 
    ```sh
+   mysql etl < create_flat_moh_706.sql
    mysql etl < create_flat_moh_710.sql
    mysql etl < create_flat_moh_711.sql
    mysql etl < create_flat_moh_717.sql
+   ```
+
+   `create_flat_moh_706.sql` defines the order-grain MOH 706 table. The old
+   encounter-grain table cannot be migrated in place; drop it first and let
+   the build recreate it:
+
+   ```sql
+   DROP TABLE IF EXISTS etl.flat_moh_706_report;
    ```
 
 5. Install each procedure the same DELIMITER-wrapped way as `getValues.sql`.
    Note the `DEFINER` clauses (`openmrs_user`@`%` / `replication`@`%`): either
    create those users or adjust the definers, and set
    `log_bin_trust_function_creators = 1` if binary logging is enabled.
-6. Build `flat_obs` (and `flat_lab_obs` for 706) before the report
-   procedures — they are the extraction source.
+6. Build `flat_obs` before the 710/711/717 procedures. MOH 706 reads
+   `amrs.orders` and `amrs.obs` directly and has no `flat_obs` dependency.
 
 ## Running
 
@@ -96,12 +119,27 @@ WHERE encounter_datetime >= '2026-08-01' AND encounter_datetime < '2026-09-01'
 GROUP BY location_id;
 ```
 
+MOH 706 is at order grain and stores raw facts (the test's `concept_id` plus
+the raw result), so aggregate over the raw columns rather than test columns:
+
+```sql
+SELECT location_id,
+       COUNT(*) AS urine_protein_tests,
+       SUM(result_concept_id = 703) AS positive
+FROM etl.flat_moh_706_report
+WHERE test_datetime >= '2026-08-01' AND test_datetime < '2026-09-01'
+  AND concept_id = 2339                      -- URINE PROTEIN
+  AND result_concept_id IS NOT NULL          -- a result exists
+GROUP BY location_id;
+```
+
+Coded answers stay ids in the table (`703` = POSITIVE); translate for display
+through `etl.concept_value_map`, the same way the lab-706 json-reports do.
+
 ## Conventions
 
-- **Grain**: one row per person-encounter, restricted to the union of the
-  report section encounter types; key columns are
-  `person_id, uuid, encounter_id, encounter_datetime, encounter_type,
-  location_id, birth_date, gender`.
+- **Grain**: one row per person-encounter for MOH 710/711/717; one row per
+  laboratory order for MOH 706 (see its per-report note).
 - **Indicator columns** are `VARCHAR(5)` holding `1`, `0` or `NULL`
   (`NULL` matches the upstream base reports' "1, NULL" style, and placeholder
   columns are always `NULL`). All-VARCHAR keeps dirty data from failing CASTs;
@@ -120,10 +158,27 @@ GROUP BY location_id;
 
 ## Per-report notes
 
-- **MOH 706** (`flat_moh_706_report`, ~47 lab columns): reads
-  `flat_lab_obs_v2` via `GetValues`. There is no `create_flat_moh_706.sql` —
-  create `flat_moh_706_report_build_queue (person_id INT PRIMARY KEY)` by hand
-  before build mode.
+- **MOH 706** (`flat_moh_706_report`, v3.0) is **order grain and raw facts
+  only**: one row per `amrs.orders.order_id`, and `lab_no` is the order's
+  `order_number`. Each row carries the test's `concept_id` and the raw result
+  (`result_concept_id` / `result_numeric` / `result_text` /
+  `result_datetime`) resolved through the `order → any-order-obs →
+  encounter-obs` fallback chain, plus the sample-collection datetime
+  (obs 10253), the order instructions, the fhir diagnostic-report link and
+  stamps, and the fhir performer name (`testing_officer`). Lab obs with no
+  order at all are still emitted as synthetic rows with a negative
+  `report_id`, `lab_no` NULL — including obs with no encounter, which land
+  with `encounter_id` NULL. Every presentation concern — names, addresses,
+  coded-answer translation (through `etl.concept_value_map`), the 49 test
+  slots and the register columns A–AA — is derived at request time by the
+  lab-706 json-reports in etl-rest-server (`lab-706-base.json`,
+  `lab-706-patient-list.json`); `amount_charged`, `receipt_number`,
+  `prior_treatment`, `condition_of_specimen` and `signature` are emitted as
+  NULL aliases there (no standard-model source). `1985` is red blood cells in
+  this dictionary, so it fills `urine_rbc` (the legacy
+  `urine_s_haematobium` slot is left NULL). Sync queues watch only orders,
+  order-linked/specimen obs and fhir reports — person/encounter/diagnosis
+  changes no longer requeue since those fields are derived at retrieval.
 - **MOH 710** (58 columns): Immunization + Tetanus/HPV. Vaccine dose numbers
   (concept 10888) come from same-encounter co-occurrence instead of the
   upstream `obs_group_id` self-join, which the flat_obs packing loses; see the
