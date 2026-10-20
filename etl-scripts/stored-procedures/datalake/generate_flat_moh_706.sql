@@ -243,11 +243,18 @@ BEGIN
             person_id INT PRIMARY KEY
         );
 
-        -- Orders changed/created since the watermark.
+        -- Orders created/stopped/voided since the watermark.  The analytics
+        -- replica's amrs.orders extract has no date_changed column (OpenMRS
+        -- core has it, the extract does not), so watch the mutation columns
+        -- it does have: date_stopped catches discontinuations and
+        -- date_voided catches voided orders.  Plain edits (e.g. instruction
+        -- text changes) leave no trace in the extract and cannot requeue.
         REPLACE INTO flat_moh_706_report_sync_queue
             (SELECT DISTINCT patient_id
                FROM amrs.orders
-              WHERE date_changed >= @last_update OR date_created >= @last_update);
+              WHERE date_created >= @last_update
+                 OR date_stopped >= @last_update
+                 OR date_voided >= @last_update);
 
         -- Lab obs changed since the watermark: result obs carry an order_id,
         -- and specimen-collection obs (10253) feed test_datetime.  Everything
