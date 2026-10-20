@@ -23,6 +23,7 @@ official MOH report output.
 | `generate_flat_moh_711.sql` | `etl.generate_flat_moh_711_v1` | `flat_moh_711_report` | `flat_obs` |
 | `generate_flat_moh_717.sql` | `etl.generate_flat_moh_717_v1` | `flat_moh_717_report` | `flat_obs` |
 | `create_flat_moh_706.sql` | DDL | `flat_moh_706_report` + build/sync queues | — |
+| `create_flat_moh_706_results.sql` | `concept_set_map`, `refresh_concept_set_map()`, results DDL | `flat_moh_706_report_results`, `concept_set_map` | `amrs.obs`, `amrs.concept`, `amrs.concept_set` |
 | `create_flat_moh_710.sql` | DDL | `flat_moh_710_report` + build/sync queues | — |
 | `create_flat_moh_711.sql` | DDL | `flat_moh_711_report` + build/sync queues | — |
 | `create_flat_moh_717.sql` | DDL | `flat_moh_717_report` + build/sync queues | — |
@@ -72,6 +73,28 @@ CALL etl.<procedure>(query_type, queue_number, queue_size, cycle_size);
 
    ```sql
    DROP TABLE IF EXISTS etl.flat_moh_706_report;
+   ```
+
+   `create_flat_moh_706_results.sql` (v3.1) adds the panel-member results
+   table and the empirical panel→member map. Install it, then run ONE build
+   of MOH 706 before any sync: the v3.1 procedure keeps its own
+   `flat_moh_706_report_v3.1` watermark and sync refuses to run until a
+   build has logged it (a cold sync would scan all of `amrs.obs` by date).
+
+   ```sh
+   mysql etl < create_flat_moh_706_results.sql
+   mysql etl -e "CALL etl.refresh_concept_set_map(NULL);"
+   ```
+
+   Then populate the build queue (the DDL creates it **empty**, and every
+   build drains it — a build over an empty queue SIGNALs rather than
+   silently logging the v3.1 watermark with nothing built) and run one
+   build before any sync:
+
+   ```sql
+   INSERT INTO etl.flat_moh_706_report_build_queue (person_id)
+   SELECT person_id FROM amrs.person;
+   CALL etl.generate_flat_moh_706_v1('build', 1, 1000, 5000);
    ```
 
 5. Install each procedure the same DELIMITER-wrapped way as `getValues.sql`.
@@ -172,10 +195,11 @@ through `etl.concept_value_map`, the same way the lab-706 json-reports do.
   coded-answer translation (through `etl.concept_value_map`), the 49 test
   slots and the register columns A–AA — is derived at request time by the
   lab-706 json-reports in etl-rest-server (`lab-706-base.json`,
-  `lab-706-patient-list.json`); `amount_charged`, `receipt_number`,
-  `prior_treatment`, `condition_of_specimen` and `signature` are emitted as
-  NULL aliases there (no standard-model source). `1985` is red blood cells in
-  this dictionary, so it fills `urine_rbc` (the legacy
+  `lab-706-patient-list.json`); `prior_treatment`,
+  `condition_of_specimen` and `signature` are emitted as NULL aliases there
+  (no standard-model source), while `amount_charged` and `receipt_number`
+  are derived from the billing module (`cashier_bill_line_item` links to the
+  order via `order_id`). `1985` is red blood cells in this dictionary, so it fills `urine_rbc` (the legacy
   `urine_s_haematobium` slot is left NULL). Sync queues watch only orders,
   order-linked/specimen obs and fhir reports — person/encounter/diagnosis
   changes no longer requeue since those fields are derived at retrieval.
