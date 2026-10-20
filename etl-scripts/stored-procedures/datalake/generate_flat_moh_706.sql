@@ -633,20 +633,26 @@ BEGIN
     END WHILE;
 
     -- Remove voided persons (children first).
-    SET @dyn_sql = CONCAT(
-        'DELETE rr FROM flat_moh_706_report_results rr
-         JOIN ', @primary_table, ' r ON rr.report_id = r.report_id
-         JOIN amrs.person t2 ON t2.person_id = r.person_id
-         WHERE t2.voided = 1'
-    );
-    PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+    -- This sweep is GLOBAL (whole primary table), so in parallel builds every
+    -- worker would otherwise serialise on each other's locks -> ER_LOCK_WAIT_
+    -- TIMEOUT (1205).  Only the queue_number = 1 worker sweeps on build; sync
+    -- always sweeps.
+    IF @query_type <> 'build' OR @queue_number = 1 THEN
+        SET @dyn_sql = CONCAT(
+            'DELETE rr FROM flat_moh_706_report_results rr
+             JOIN ', @primary_table, ' r ON rr.report_id = r.report_id
+             JOIN amrs.person t2 ON t2.person_id = r.person_id
+             WHERE t2.voided = 1'
+        );
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
 
-    SET @dyn_sql = CONCAT(
+        SET @dyn_sql = CONCAT(
         'DELETE t1 FROM ', @primary_table, ' t1
          JOIN amrs.person t2 USING (person_id)
          WHERE t2.voided = 1'
-    );
-    PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+        );
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+    END IF;
 
     -- ------------------------------------------------------------------
     -- BUILD mode: merge temp table -> primary
