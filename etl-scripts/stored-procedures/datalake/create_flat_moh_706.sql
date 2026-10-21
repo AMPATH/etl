@@ -51,6 +51,19 @@
 --                                         are DATE()d at display time.
 --   testing_officer                     - fhir performer name; it is keyed to
 --                                         the report row, so it stays here.
+--   result_creator                      - amrs.users.user_id of the obs that
+--                                         carried the result (v3.2, F6/D11);
+--                                         the register resolves it to the
+--                                         analysing officer name at
+--                                         retrieval (fhir performer still
+--                                         overrides when present).
+--
+-- v3.2 (F1/D8): obs-only legacy rows keep report_id = -obs_id and
+-- lab_no NULL, but now carry their ADOPTED order in order_id (same
+-- person+concept+encounter, else closest-in-time person+concept), and the
+-- FHIR stamps / testing_officer / instructions resolved from that order.
+-- A full rebuild is required after installing this DDL + the v3.2
+-- procedure (sync refuses until the v3.2 watermark exists).
 --
 -- Only consumer of the presentation columns was the lab-706 JSON report chain;
 -- no other downstream reader exists, so no translation view is kept.
@@ -96,6 +109,9 @@ CREATE TABLE IF NOT EXISTS etl.flat_moh_706_report (
     report_issued           DATETIME     DEFAULT NULL,
     report_date_changed     DATETIME     DEFAULT NULL,
     testing_officer         VARCHAR(255) DEFAULT NULL,
+
+    -- who entered the result (F6/D11: analysing-officer fallback) -----------
+    result_creator          INT          DEFAULT NULL,
 
     PRIMARY KEY (report_id),
     KEY order_id (order_id),
