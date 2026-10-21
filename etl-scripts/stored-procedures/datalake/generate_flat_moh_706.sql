@@ -162,7 +162,16 @@ BEGIN
         (32), (9187), (1524), (1525), (1019), (300),
         (6709), (1322), (1325), (299),
         (12881), (11868), (305), (12880), (12875), (45), (9812),
-        (12078), (856), (2311);
+        (12078), (856), (2311),
+        -- v3.2 additions: electrolytes and tumour markers (1132, 1133, 1134,
+        -- 848, 10251, 10250, 10570, 6132, 6124), parasitology/haematology/
+        -- serology tests (1526, 21, 9008, 1327, 1032, 15092, 12019) and the
+        -- bacteriology / cytology specimen concepts (49547, 1005, 10051,
+        -- 7190, 49245, 6902).  6132 serves both 2.29 Proteins and 5.16 CSF.
+        (1132), (1133), (1134), (848), (10251), (10250), (10570),
+        (6132), (6124), (1526), (21), (9008), (1327),
+        (49547), (1005), (10051), (7190), (49245), (6902),
+        (1032), (15092), (12019);
 
     -- ------------------------------------------------------------------
     -- BUILD mode
@@ -188,8 +197,16 @@ BEGIN
         SET @dyn_sql = CONCAT('CREATE TABLE ', @results_write, ' LIKE flat_moh_706_report_results');
         PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
 
+        -- A crashed earlier run also leaves its per-worker queue slice
+        -- behind, drained empty by the cycle loop; CREATE TABLE IF NOT
+        -- EXISTS would then no-op and the empty-slice SIGNAL below would
+        -- fire even though the build queue still has rows.  DROP first so
+        -- a rerun takes a fresh slice, exactly as for the write tables.
+        SET @dyn_sql = CONCAT('DROP TABLE IF EXISTS ', @queue_table);
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+
         SET @dyn_sql = CONCAT(
-            'CREATE TABLE IF NOT EXISTS ', @queue_table,
+            'CREATE TABLE ', @queue_table,
             ' (person_id INT PRIMARY KEY) AS (SELECT * FROM ', @build_queue,
             ' LIMIT ', @queue_size, ')'
         );
@@ -243,11 +260,18 @@ BEGIN
             person_id INT PRIMARY KEY
         );
 
-        -- Orders changed/created since the watermark.
+        -- Orders created/stopped/voided since the watermark.  The analytics
+        -- replica's amrs.orders extract has no date_changed column (OpenMRS
+        -- core has it, the extract does not), so watch the mutation columns
+        -- it does have: date_stopped catches discontinuations and
+        -- date_voided catches voided orders.  Plain edits (e.g. instruction
+        -- text changes) leave no trace in the extract and cannot requeue.
         REPLACE INTO flat_moh_706_report_sync_queue
             (SELECT DISTINCT patient_id
                FROM amrs.orders
-              WHERE date_changed >= @last_update OR date_created >= @last_update);
+              WHERE date_created >= @last_update
+                 OR date_stopped >= @last_update
+                 OR date_voided >= @last_update);
 
         -- Lab obs changed since the watermark: result obs carry an order_id,
         -- and specimen-collection obs (10253) feed test_datetime.  Everything
@@ -626,20 +650,26 @@ BEGIN
     END WHILE;
 
     -- Remove voided persons (children first).
-    SET @dyn_sql = CONCAT(
-        'DELETE rr FROM flat_moh_706_report_results rr
-         JOIN ', @primary_table, ' r ON rr.report_id = r.report_id
-         JOIN amrs.person t2 ON t2.person_id = r.person_id
-         WHERE t2.voided = 1'
-    );
-    PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+    -- This sweep is GLOBAL (whole primary table), so in parallel builds every
+    -- worker would otherwise serialise on each other's locks -> ER_LOCK_WAIT_
+    -- TIMEOUT (1205).  Only the queue_number = 1 worker sweeps on build; sync
+    -- always sweeps.
+    IF @query_type <> 'build' OR @queue_number = 1 THEN
+        SET @dyn_sql = CONCAT(
+            'DELETE rr FROM flat_moh_706_report_results rr
+             JOIN ', @primary_table, ' r ON rr.report_id = r.report_id
+             JOIN amrs.person t2 ON t2.person_id = r.person_id
+             WHERE t2.voided = 1'
+        );
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
 
-    SET @dyn_sql = CONCAT(
+        SET @dyn_sql = CONCAT(
         'DELETE t1 FROM ', @primary_table, ' t1
          JOIN amrs.person t2 USING (person_id)
          WHERE t2.voided = 1'
-    );
-    PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+        );
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+    END IF;
 
     -- ------------------------------------------------------------------
     -- BUILD mode: merge temp table -> primary
