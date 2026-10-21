@@ -148,6 +148,13 @@ BEGIN
         SET @dyn_sql = CONCAT('CREATE TABLE IF NOT EXISTS ', @write_table, ' LIKE ', @primary_table);
         PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
 
+        -- A crashed earlier run leaves its per-worker queue slice behind,
+        -- drained empty by the cycle loop; CREATE TABLE IF NOT EXISTS would
+        -- then no-op and the run would silently process nothing.  DROP
+        -- first so a rerun takes a fresh slice.
+        SET @dyn_sql = CONCAT('DROP TABLE IF EXISTS ', @queue_table);
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+
         SET @dyn_sql = CONCAT(
             'CREATE TABLE IF NOT EXISTS ', @queue_table,
             ' (person_id INT PRIMARY KEY) AS (SELECT * FROM ', @build_queue,
