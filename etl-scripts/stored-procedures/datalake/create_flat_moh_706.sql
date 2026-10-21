@@ -23,11 +23,19 @@
 --   receipt_number.
 --
 --   prior_treatment / condition_of_specimen / signature have no standard-model
---   source; the retrieval JSON emits them as NULL aliases. amount_charged and
---   receipt_number are resolved at retrieval time instead: the billing
---   module's cashier_bill_line_item links to the order via order_id, so the
---   lab-706-patient-list JSON derives them there (charge = SUM(price *
---   quantity) of the order's non-voided line items, receipt from the bill).
+--   source; the retrieval JSON emits them as NULL aliases.  DECIDED
+--   2026-10-21 (report owner): there are no concepts for these three fields
+--   yet, so they stay blank by design - do not wire up a substitute.  The
+--   other blank register columns (dates, charges, receipt, diagnosis,
+--   specimen, clinician, referrals, comments) DO have sources and are
+--   blank for a fixable reason; see
+--   etl-rest-server/MOH-706-REGISTER-BLANK-COLUMNS-PLAN.md.
+--
+--   amount_charged and receipt_number are resolved at retrieval time instead:
+--   the billing module's cashier_bill_line_item links to the order via
+--   order_id, so the lab-706-patient-list JSON derives them there (charge =
+--   SUM(price * quantity) of the order's non-voided line items, receipt from
+--   the bill).
 --
 -- What stayed, and why:
 --   report_id/order_id/lab_no/person_id/encounter_id/visit_id/test_datetime/
