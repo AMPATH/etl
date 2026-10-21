@@ -162,7 +162,16 @@ BEGIN
         (32), (9187), (1524), (1525), (1019), (300),
         (6709), (1322), (1325), (299),
         (12881), (11868), (305), (12880), (12875), (45), (9812),
-        (12078), (856), (2311);
+        (12078), (856), (2311),
+        -- v3.2 additions: electrolytes and tumour markers (1132, 1133, 1134,
+        -- 848, 10251, 10250, 10570, 6132, 6124), parasitology/haematology/
+        -- serology tests (1526, 21, 9008, 1327, 1032, 15092, 12019) and the
+        -- bacteriology / cytology specimen concepts (49547, 1005, 10051,
+        -- 7190, 49245, 6902).  6132 serves both 2.29 Proteins and 5.16 CSF.
+        (1132), (1133), (1134), (848), (10251), (10250), (10570),
+        (6132), (6124), (1526), (21), (9008), (1327),
+        (49547), (1005), (10051), (7190), (49245), (6902),
+        (1032), (15092), (12019);
 
     -- ------------------------------------------------------------------
     -- BUILD mode
@@ -188,8 +197,16 @@ BEGIN
         SET @dyn_sql = CONCAT('CREATE TABLE ', @results_write, ' LIKE flat_moh_706_report_results');
         PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
 
+        -- A crashed earlier run also leaves its per-worker queue slice
+        -- behind, drained empty by the cycle loop; CREATE TABLE IF NOT
+        -- EXISTS would then no-op and the empty-slice SIGNAL below would
+        -- fire even though the build queue still has rows.  DROP first so
+        -- a rerun takes a fresh slice, exactly as for the write tables.
+        SET @dyn_sql = CONCAT('DROP TABLE IF EXISTS ', @queue_table);
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+
         SET @dyn_sql = CONCAT(
-            'CREATE TABLE IF NOT EXISTS ', @queue_table,
+            'CREATE TABLE ', @queue_table,
             ' (person_id INT PRIMARY KEY) AS (SELECT * FROM ', @build_queue,
             ' LIMIT ', @queue_size, ')'
         );
