@@ -67,13 +67,21 @@ BEGIN
     #   F6 - result_creator (amrs.users.user_id of the obs that carried the
     #        result) rides the report row; the register resolves it to the
     #        analysing officer name at retrieval (D11).
+    #
+    # v3.3: a member obs no longer also prints as its own register line -
+    #       synthetic rows whose obs is captured as a member of another
+    #       report row are dropped after member capture (F3b; the v3.2 grain
+    #       double-counted panel analytes in the *_with_members indicators,
+    #       ketones/proteins exceeded the urinalysis total on the MOH 706
+    #       form).  Row counts drop for panel-heavy data; full build
+    #       required.
 
     SET SESSION sort_buffer_size     = 512000000;
     SET SESSION group_concat_max_len = 100000;
 
     SET @start              = NOW();
     SET @primary_table      = 'flat_moh_706_report';
-    SET @table_version      = 'flat_moh_706_report_v3.2';
+    SET @table_version      = 'flat_moh_706_report_v3.3';
     SET @total_rows_written = 0;
     SET @query_type         = query_type;
     SET @queue_number       = queue_number;
@@ -263,10 +271,10 @@ BEGIN
         -- v3.1+ migration guard.  A fresh install has no watermark and
         -- syncing from 1900 would date-range scan all of amrs.obs (member
         -- obs carry no order_id and must be watched by group link instead).
-        -- Run build mode once; it logs a v3.2 row and unlocks sync.
+        -- Run build mode once; it logs a v3.3 row and unlocks sync.
         IF @last_update IS NULL THEN
             SIGNAL SQLSTATE '45000'
-               SET MESSAGE_TEXT = 'No watermark for flat_moh_706_report_v3.2 - run generate_flat_moh_706_v1 in build mode first.';
+               SET MESSAGE_TEXT = 'No watermark for flat_moh_706_report_v3.3 - run generate_flat_moh_706_v1 in build mode first.';
         END IF;
 
         -- The comparisons use >= rather than >.  flat_log.date_updated has
@@ -720,6 +728,21 @@ BEGIN
          AND (   (k.report_id > 0 AND m.report_id < 0)
               OR (SIGN(k.report_id) = SIGN(m.report_id)
                   AND ABS(k.report_id) < ABS(m.report_id)));
+
+        -- v3.3 (F3b): a member obs must not ALSO print as its own register
+        -- line.  Grouped panel members and Path-U ungrouped analytes are
+        -- reportable concepts with no order, so the obs-only branch above
+        -- gives each of them a standalone synthetic row as well - the same
+        -- result then surfaces twice (panel row Results cell + own row) and
+        -- the *_with_members indicators double-count it (ketones/proteins
+        -- totals exceeded the urinalysis panel total on the MOH 706 form).
+        -- Drop synthetic rows whose obs was captured as a member of a
+        -- different report row; the panel row keeps the result.
+        DELETE t FROM flat_moh_706_order_0 t
+        JOIN flat_moh_706_members m
+          ON m.obs_id = -t.order_id
+         AND m.report_id <> t.order_id
+        WHERE t.order_id < 0;
 
         SET @dyn_sql = CONCAT('REPLACE INTO ', @results_write, '
             (report_id, member_concept_id, result_obs_id, result_concept_id,
