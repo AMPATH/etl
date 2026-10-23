@@ -172,6 +172,50 @@ BEGIN
          53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
          53307, 53309);
 
+    -- v3.4 (F3c): the dictionary NESTS panels (panel -> sub-panel -> leaf),
+    -- and both the obs walk above and the dictionary pass are one-hop - the
+    -- sub-panel concept entered the map as a "member" while its leaves were
+    -- members of nothing (leaving them as standalone register rows that
+    -- inflated the *_with_members totals past the panel total).  Add
+    -- transitive leaf edges through intermediate set heads, then delete
+    -- every edge whose member is itself a set: the map lists LEAF analytes
+    -- only, for every level of nesting.
+    REPLACE INTO etl.concept_set_map (concept_id, concept_set, sort_weight)
+    SELECT h.concept_id, gc.concept_id, gc.concept_id
+      FROM panel_heads h
+      JOIN amrs.obs sub ON sub.obs_group_id = h.obs_id AND sub.voided = 0
+      JOIN amrs.obs gc  ON gc.obs_group_id  = sub.obs_id AND gc.voided = 0
+     WHERE since_datetime IS NULL
+        OR sub.date_created >= since_datetime
+        OR gc.date_created  >= since_datetime
+     GROUP BY h.concept_id, gc.concept_id;
+
+    REPLACE INTO etl.concept_set_map (concept_id, concept_set, sort_weight)
+    SELECT cs1.concept_id, cs2.concept_set, cs2.sort_weight
+      FROM amrs.concept_set cs1
+      JOIN amrs.concept_set cs2 ON cs2.concept_id = cs1.concept_set
+     WHERE cs1.concept_id IN (
+         887, 10627, 790, 857, 1297, 655, 653, 654, 717, 785,
+         1010, 1006, 1009, 1008, 7881, 7882, 7880, 10249,
+         2340, 302, 7276, 2339, 1984, 1985, 15086, 15084,
+         6337, 9307, 32, 9187, 1524, 1525, 1019, 300,
+         6709, 1322, 1325, 299, 12881, 11868, 305, 12880, 12875, 45, 9812,
+         12078, 856, 2311,
+         1132, 1133, 1134, 848, 10251, 10250, 10570,
+         6132, 6124, 1526, 21, 9008, 1327,
+         49547, 1005, 10051, 7190, 49245, 6902,
+         1032, 15092, 12019,
+         53247, 53248, 53249, 53250,
+         53311, 53312, 53313, 53314, 53315,
+         53269, 53270, 53316, 53279, 53280, 53281, 53282, 53283, 53284,
+         53285, 53286, 53287, 53288,
+         53289, 53290, 53291, 53292, 53293, 53294, 53295, 53296, 53297,
+         53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
+         53307, 53309);
+
+    DELETE FROM etl.concept_set_map
+     WHERE concept_set IN (SELECT concept_id FROM amrs.concept_set);
+
     DROP TEMPORARY TABLE panel_heads;
 
     SELECT COUNT(*) AS concept_set_map_rows FROM etl.concept_set_map;

@@ -75,13 +75,19 @@ BEGIN
     #       ketones/proteins exceeded the urinalysis total on the MOH 706
     #       form).  Row counts drop for panel-heavy data; full build
     #       required.
+    #
+    # v3.4: nested-dictionary panels (panel -> sub-panel -> leaf) - Path G
+    #       captures leaf members at any depth (skipping valueless
+    #       intermediate heads via G2), refresh_concept_set_map carries
+    #       transitive leaf edges only, and map members that are themselves
+    #       sets are dropped.  Full build required.
 
     SET SESSION sort_buffer_size     = 512000000;
     SET SESSION group_concat_max_len = 100000;
 
     SET @start              = NOW();
     SET @primary_table      = 'flat_moh_706_report';
-    SET @table_version      = 'flat_moh_706_report_v3.3';
+    SET @table_version      = 'flat_moh_706_report_v3.4';
     SET @total_rows_written = 0;
     SET @query_type         = query_type;
     SET @queue_number       = queue_number;
@@ -296,10 +302,10 @@ BEGIN
         -- v3.1+ migration guard.  A fresh install has no watermark and
         -- syncing from 1900 would date-range scan all of amrs.obs (member
         -- obs carry no order_id and must be watched by group link instead).
-        -- Run build mode once; it logs a v3.3 row and unlocks sync.
+        -- Run build mode once; it logs a v3.4 row and unlocks sync.
         IF @last_update IS NULL THEN
             SIGNAL SQLSTATE '45000'
-               SET MESSAGE_TEXT = 'No watermark for flat_moh_706_report_v3.3 - run generate_flat_moh_706_v1 in build mode first.';
+               SET MESSAGE_TEXT = 'No watermark for flat_moh_706_report_v3.4 - run generate_flat_moh_706_v1 in build mode first.';
         END IF;
 
         -- The comparisons use >= rather than >.  flat_log.date_updated has
@@ -720,7 +726,28 @@ BEGIN
         FROM flat_moh_706_order_0 t
         JOIN amrs.obs c ON c.obs_group_id = t.anchor_obs_id AND c.voided = 0
         WHERE t.anchor_obs_id IS NOT NULL
+          -- v3.4 (F3c): leaf members only - intermediate sub-panel heads are
+          -- valueless and their leaves arrive via G2 below; capturing heads
+          -- produced empty "Not done" members and starved F3b of the real
+          -- leaf memberships (nested-dictionary panels never released their
+          -- standalone analyte rows, inflating *_with_members past the
+          -- panel total).
+          AND NOT EXISTS (SELECT 1 FROM amrs.concept hc
+                           WHERE hc.concept_id = c.concept_id AND hc.is_set = 1)
         GROUP BY t.order_id, c.concept_id;
+
+        -- v3.4 (F3c) Path G2: leaves under intermediate sub-panel heads
+        -- (the dictionary nests panels - panel -> sub-panel -> leaf - and
+        -- one obs_group_id hop never reached them).
+        INSERT IGNORE INTO flat_moh_706_members (report_id, member_concept_id, obs_id)
+        SELECT t.order_id, c2.concept_id, MAX(c2.obs_id)
+        FROM flat_moh_706_order_0 t
+        JOIN amrs.obs sub ON sub.obs_group_id = t.anchor_obs_id AND sub.voided = 0
+        JOIN amrs.obs c2 ON c2.obs_group_id = sub.obs_id AND c2.voided = 0
+        WHERE t.anchor_obs_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM amrs.concept hc2
+                           WHERE hc2.concept_id = c2.concept_id AND hc2.is_set = 1)
+        GROUP BY t.order_id, c2.concept_id;
 
         INSERT IGNORE INTO flat_moh_706_members (report_id, member_concept_id, obs_id)
         SELECT t.order_id, x.concept_id, MAX(x.obs_id)
