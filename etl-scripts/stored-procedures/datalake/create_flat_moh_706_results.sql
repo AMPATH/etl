@@ -91,11 +91,14 @@ BEGIN
         KEY concept_id (concept_id)
     );
 
-    -- Reportable panels only (the set-flagged entries of
+    -- Reportable concepts only (the set-flagged entries of
     -- flat_moh_706_lab_concepts in generate_flat_moh_706_v1; keep the lists
     -- in sync): every consumer of this map already intersects it with the
     -- lab concept list, so the scope costs nothing and keeps the head pass
-    -- off the rest of amrs.obs.
+    -- off the rest of amrs.obs.  v3.2 (F3): the scope is the FULL reportable
+    -- list, not just 302/1010/1019 - the is_set join admits only actual
+    -- panels, so any set-flagged concept added to the reportable list is
+    -- picked up here without another edit.
     INSERT INTO panel_heads (obs_id, concept_id)
     SELECT o.obs_id, o.concept_id
     FROM amrs.obs o
@@ -103,7 +106,17 @@ BEGIN
       ON c.concept_id = o.concept_id
      AND c.is_set = 1
      AND c.retired  = 0
-     AND c.concept_id IN (302, 1010, 1019)
+     AND c.concept_id IN (
+         887, 10627, 790, 857, 1297, 655, 653, 654, 717, 785,
+         1010, 1006, 1009, 1008, 7881, 7882, 7880, 10249,
+         2340, 302, 7276, 2339, 1984, 1985, 15086, 15084,
+         6337, 9307, 32, 9187, 1524, 1525, 1019, 300,
+         6709, 1322, 1325, 299, 12881, 11868, 305, 12880, 12875, 45, 9812,
+         12078, 856, 2311,
+         1132, 1133, 1134, 848, 10251, 10250, 10570,
+         6132, 6124, 1526, 21, 9008, 1327,
+         49547, 1005, 10051, 7190, 49245, 6902,
+         1032, 15092, 12019)
     WHERE o.voided = 0
       AND (since_datetime IS NULL OR o.date_created >= since_datetime);
 
@@ -115,20 +128,35 @@ BEGIN
     END IF;
 
     -- Empirical edges: head concept -> every observed child concept.
+    -- v3.2 (F3/F4.2): empirical rows get sort_weight = concept_set (the
+    -- stable-concept-id proxy) so the register's Results ORDER BY
+    -- cs.sort_weight, cs.concept_set is deterministic; observed-position
+    -- ordering can replace it later without a consumer change.
     REPLACE INTO etl.concept_set_map (concept_id, concept_set, sort_weight)
-    SELECT h.concept_id, ch.concept_id, NULL
+    SELECT h.concept_id, ch.concept_id, ch.concept_id
     FROM panel_heads h
     JOIN amrs.obs ch ON ch.obs_group_id = h.obs_id AND ch.voided = 0
     GROUP BY h.concept_id, ch.concept_id;
 
     -- Dictionary edges last: fills gaps the empirical pass missed and keeps
-    -- the real sort_weight where known.  Same panel scope as the head pass:
-    -- unscoped, this would re-insert every set membership in the dictionary
-    -- and re-widen the map the head pass just kept narrow.
+    -- the real sort_weight where known (REPLACE overwrites the proxy).
+    -- Same reportable scope as the head pass: unscoped, this would re-insert
+    -- every set membership in the dictionary and re-widen the map the head
+    -- pass just kept narrow.
     REPLACE INTO etl.concept_set_map (concept_id, concept_set, sort_weight)
     SELECT concept_id, concept_set, sort_weight
       FROM amrs.concept_set
-     WHERE concept_id IN (302, 1010, 1019);
+     WHERE concept_id IN (
+         887, 10627, 790, 857, 1297, 655, 653, 654, 717, 785,
+         1010, 1006, 1009, 1008, 7881, 7882, 7880, 10249,
+         2340, 302, 7276, 2339, 1984, 1985, 15086, 15084,
+         6337, 9307, 32, 9187, 1524, 1525, 1019, 300,
+         6709, 1322, 1325, 299, 12881, 11868, 305, 12880, 12875, 45, 9812,
+         12078, 856, 2311,
+         1132, 1133, 1134, 848, 10251, 10250, 10570,
+         6132, 6124, 1526, 21, 9008, 1327,
+         49547, 1005, 10051, 7190, 49245, 6902,
+         1032, 15092, 12019);
 
     DROP TEMPORARY TABLE panel_heads;
 

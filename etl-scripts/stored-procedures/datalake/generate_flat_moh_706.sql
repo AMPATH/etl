@@ -50,13 +50,30 @@ BEGIN
     # run build mode once after installing, with the build queue populated
     # (every build drains it; an empty slice SIGNALs rather than silently
     # logging a watermark that unlocks sync with nothing built).
+    #
+    # v3.2: register blank-columns release (see etl-rest-server/
+    # MOH-706-REGISTER-BLANK-COLUMNS-PLAN.md):
+    #   F1 - obs-only rows adopt the best-matching order (same person+concept
+    #        +encounter, else closest-in-time person+concept) so the FHIR
+    #        stamps, testing_officer and instructions can be populated;
+    #        report_id stays -obs_id and lab_no stays NULL (additive, D8).
+    #   F2 - the FHIR diagnostic report is picked deterministically
+    #        (issued DESC, id DESC) instead of MAX(id).  The encounter
+    #        fallback of plan F2.1 needs the fhir_diagnostic_report extract's
+    #        column list confirmed first and is NOT implemented yet.
+    #   F3 - Path U member capture also fires for obs-only rows and for
+    #        order-backed rows without an encounter; an anti-overlap guard
+    #        keeps one obs under exactly one report row.
+    #   F6 - result_creator (amrs.users.user_id of the obs that carried the
+    #        result) rides the report row; the register resolves it to the
+    #        analysing officer name at retrieval (D11).
 
     SET SESSION sort_buffer_size     = 512000000;
     SET SESSION group_concat_max_len = 100000;
 
     SET @start              = NOW();
     SET @primary_table      = 'flat_moh_706_report';
-    SET @table_version      = 'flat_moh_706_report_v3.1';
+    SET @table_version      = 'flat_moh_706_report_v3.2';
     SET @total_rows_written = 0;
     SET @query_type         = query_type;
     SET @queue_number       = queue_number;
@@ -90,6 +107,7 @@ BEGIN
         report_issued           DATETIME     DEFAULT NULL,
         report_date_changed     DATETIME     DEFAULT NULL,
         testing_officer         VARCHAR(255) DEFAULT NULL,
+        result_creator          INT          DEFAULT NULL,
         PRIMARY KEY (report_id),
         KEY order_id (order_id),
         KEY person_date (person_id, test_datetime),
@@ -242,13 +260,13 @@ BEGIN
           FROM etl.flat_log
          WHERE table_name = @table_version;
 
-        -- v3.1 migration guard.  A fresh v3.1 install has no watermark and
+        -- v3.1+ migration guard.  A fresh install has no watermark and
         -- syncing from 1900 would date-range scan all of amrs.obs (member
         -- obs carry no order_id and must be watched by group link instead).
-        -- Run build mode once; it logs a v3.1 row and unlocks sync.
+        -- Run build mode once; it logs a v3.2 row and unlocks sync.
         IF @last_update IS NULL THEN
             SIGNAL SQLSTATE '45000'
-               SET MESSAGE_TEXT = 'No watermark for flat_moh_706_report_v3.1 - run generate_flat_moh_706_v1 in build mode first.';
+               SET MESSAGE_TEXT = 'No watermark for flat_moh_706_report_v3.2 - run generate_flat_moh_706_v1 in build mode first.';
         END IF;
 
         -- The comparisons use >= rather than >.  flat_log.date_updated has
@@ -412,6 +430,8 @@ BEGIN
             report_issued              DATETIME     DEFAULT NULL,
             report_date_changed        DATETIME     DEFAULT NULL,
             testing_officer            VARCHAR(255) DEFAULT NULL,
+            result_creator             INT          DEFAULT NULL,
+            adopted_order_id           BIGINT       DEFAULT NULL,
             PRIMARY KEY (order_id),
             INDEX person_enc (person_id, encounter_id)
         );
@@ -422,7 +442,7 @@ BEGIN
              value_text, value_datetime, obs_datetime,
              sample_collection_datetime, anchor_obs_id, diagnostic_report_id,
              report_date_created, report_issued, report_date_changed,
-             testing_officer)
+             testing_officer, result_creator, adopted_order_id)
         SELECT
                 o.order_id,
                 o.order_number,
@@ -465,7 +485,14 @@ BEGIN
                     AND pn.voided = 0
                   WHERE fp.diagnostic_report_id = f.diagnostic_report_id
                   ORDER BY pn.preferred DESC, pn.person_name_id DESC
-                  LIMIT 1) AS testing_officer
+                  LIMIT 1) AS testing_officer,
+
+                -- v3.2 (F6/D11): who entered the result.  Same obs lineage
+                -- as the value COALESCE above; for panels this is almost
+                -- always the head-obs creator (re).
+                COALESCE(ro.creator, ra.creator, re.creator) AS result_creator,
+
+                NULL AS adopted_order_id
 
             FROM amrs.orders o
             JOIN temp_queue_table q ON q.person_id = o.patient_id
@@ -479,40 +506,91 @@ BEGIN
             LEFT JOIN amrs.obs s_o ON s_o.obs_id = latest.sample_order_obs_id
             LEFT JOIN amrs.obs s_e ON s_e.obs_id = latest.sample_enc_obs_id
 
+            -- v3.2 (F2): deterministic pick instead of MAX(id) - a report
+            -- edited later must not lose to an older sibling on id order.
+            -- The encounter fallback (plan F2.1) is deliberately not here:
+            -- its column names on the amrs.fhir_diagnostic_report extract
+            -- are unconfirmed; add it after Q12-style verification.
             LEFT JOIN amrs.fhir_diagnostic_report f
               ON f.diagnostic_report_id = (
-                    SELECT MAX(fsr.diagnostic_report_id)
+                    SELECT fsr.diagnostic_report_id
                       FROM amrs.fhir_diagnostic_report_service_request fsr
-                     WHERE fsr.order_id = o.order_id)
+                      JOIN amrs.fhir_diagnostic_report f2
+                        ON f2.diagnostic_report_id = fsr.diagnostic_report_id
+                     WHERE fsr.order_id = o.order_id
+                     ORDER BY f2.issued DESC, fsr.diagnostic_report_id DESC
+                     LIMIT 1)
 
             WHERE o.voided = 0;
 
         -- Legacy lab obs with no order at all.  Synthetic negative order_id
         -- keeps report_id unique; lab_no stays NULL (no order exists), and so
         -- does encounter_id when the obs itself has no encounter.
-        INSERT INTO flat_moh_706_order_0
-            (order_id, order_number, person_id, encounter_id, concept_id,
-             date_activated, instructions, value_coded, value_numeric,
-             value_text, value_datetime, obs_datetime,
-             sample_collection_datetime, anchor_obs_id, diagnostic_report_id,
-             report_date_created, report_issued, report_date_changed,
-             testing_officer)
+        --
+        -- v3.2 (F1, D8 additive): the synthetic row ADOPTS the best-matching
+        -- order so the FHIR stamps, testing_officer and instructions have a
+        -- source.  report_id stays -obs_id and lab_no stays NULL - the obs
+        -- has no order number of its own, and the adopted order's number
+        -- must not be misattributed to it.  Adoption preference: a non-voided
+        -- order of the same person + concept + encounter (NULL-safe; for
+        -- encounter-bearing obs the NOT EXISTS guard above already excluded
+        -- those, so this tier only fires for encounter-less obs), else the
+        -- same person + concept closest in time to the obs (tie: highest
+        -- order id).  Double-count risk with the order row's own register
+        -- entry is handled at retrieval: billing aggregates the whole
+        -- encounter (plan F5).
+        DROP TEMPORARY TABLE IF EXISTS flat_moh_706_obs_only;
+        CREATE TEMPORARY TABLE flat_moh_706_obs_only (
+            obs_id           BIGINT NOT NULL,
+            person_id        INT    DEFAULT NULL,
+            encounter_id     INT    DEFAULT NULL,
+            concept_id       INT    DEFAULT NULL,
+            value_coded      INT    DEFAULT NULL,
+            value_numeric    DOUBLE DEFAULT NULL,
+            value_text       TEXT,
+            value_datetime   DATETIME DEFAULT NULL,
+            obs_datetime     DATETIME DEFAULT NULL,
+            creator          INT    DEFAULT NULL,
+            adopted_order_id BIGINT DEFAULT NULL,
+            PRIMARY KEY (obs_id),
+            INDEX adopted (adopted_order_id)
+        );
+
+        INSERT INTO flat_moh_706_obs_only
+            (obs_id, person_id, encounter_id, concept_id,
+             value_coded, value_numeric, value_text, value_datetime,
+             obs_datetime, creator, adopted_order_id)
         SELECT
-            -x.obs_id,
-            NULL,
+            x.obs_id,
             x.person_id,
             x.encounter_id,
             x.concept_id,
-            x.obs_datetime,
-            NULL,
             x.value_coded,
             x.value_numeric,
             x.value_text,
             x.value_datetime,
             x.obs_datetime,
-            x.obs_datetime,
-            x.obs_id,
-            NULL, NULL, NULL, NULL, NULL
+            x.creator,
+            COALESCE(
+                (SELECT o2.order_id
+                   FROM amrs.orders o2
+                  WHERE o2.patient_id    = x.person_id
+                    AND o2.concept_id    = x.concept_id
+                    AND o2.voided        = 0
+                    AND o2.encounter_id <=> x.encounter_id
+                  ORDER BY o2.date_activated DESC, o2.order_id DESC
+                  LIMIT 1),
+                (SELECT o3.order_id
+                   FROM amrs.orders o3
+                  WHERE o3.patient_id = x.person_id
+                    AND o3.concept_id = x.concept_id
+                    AND o3.voided     = 0
+                  ORDER BY ABS(TIMESTAMPDIFF(SECOND, o3.date_activated,
+                                             x.obs_datetime)) IS NULL,
+                           ABS(TIMESTAMPDIFF(SECOND, o3.date_activated,
+                                             x.obs_datetime)),
+                           o3.order_id DESC
+                  LIMIT 1))
         FROM amrs.obs x
         JOIN temp_queue_table q ON q.person_id = x.person_id
         JOIN flat_moh_706_lab_concepts lc ON lc.concept_id = x.concept_id
@@ -526,6 +604,64 @@ BEGIN
                    AND o2.voided = 0
                    AND (o2.encounter_id = x.encounter_id
                         OR (o2.encounter_id IS NULL AND x.encounter_id IS NULL)));
+
+        INSERT INTO flat_moh_706_order_0
+            (order_id, order_number, person_id, encounter_id, concept_id,
+             date_activated, instructions, value_coded, value_numeric,
+             value_text, value_datetime, obs_datetime,
+             sample_collection_datetime, anchor_obs_id, diagnostic_report_id,
+             report_date_created, report_issued, report_date_changed,
+             testing_officer, result_creator, adopted_order_id)
+        SELECT
+            -x.obs_id,
+            NULL,
+            x.person_id,
+            x.encounter_id,
+            x.concept_id,
+            x.obs_datetime,
+            ao.instructions,
+            x.value_coded,
+            x.value_numeric,
+            x.value_text,
+            x.value_datetime,
+            x.obs_datetime,
+            x.obs_datetime,
+            -- v3.2 (F3): anchor only when this obs really is a group head
+            -- (has children) - otherwise leave NULL so Path U can capture the
+            -- ungrouped encounter-level analyte pattern for obs-only panels.
+            CASE WHEN EXISTS (SELECT 1
+                                FROM amrs.obs ch
+                               WHERE ch.obs_group_id = x.obs_id)
+                 THEN x.obs_id ELSE NULL END,
+            f.diagnostic_report_id,
+            f.date_created  AS report_date_created,
+            f.issued        AS report_issued,
+            f.date_changed  AS report_date_changed,
+            (SELECT CONCAT_WS(' ', pn.given_name,
+                              NULLIF(pn.middle_name, ''),
+                              pn.family_name)
+               FROM amrs.fhir_diagnostic_report_performers fp
+               JOIN amrs.provider pr
+                 ON pr.provider_id = fp.provider_id
+               JOIN amrs.person_name pn
+                 ON pn.person_id = pr.person_id
+                AND pn.voided = 0
+              WHERE fp.diagnostic_report_id = f.diagnostic_report_id
+              ORDER BY pn.preferred DESC, pn.person_name_id DESC
+              LIMIT 1),
+            x.creator,
+            x.adopted_order_id
+        FROM flat_moh_706_obs_only x
+        LEFT JOIN amrs.orders ao ON ao.order_id = x.adopted_order_id
+        LEFT JOIN amrs.fhir_diagnostic_report f
+          ON f.diagnostic_report_id = (
+                SELECT fsr.diagnostic_report_id
+                  FROM amrs.fhir_diagnostic_report_service_request fsr
+                  JOIN amrs.fhir_diagnostic_report f2
+                    ON f2.diagnostic_report_id = fsr.diagnostic_report_id
+                 WHERE fsr.order_id = x.adopted_order_id
+                 ORDER BY f2.issued DESC, fsr.diagnostic_report_id DESC
+                 LIMIT 1);
 
         -- --------------------------------------------------------------
         -- Panel members (v3.1): grain report_id x analyte.
@@ -564,9 +700,26 @@ BEGIN
                       AND (x.encounter_id = t.encounter_id
                            OR x.order_id = t.order_id)
         WHERE t.anchor_obs_id IS NULL
-          AND t.order_id > 0                  -- true orders only
-          AND t.encounter_id IS NOT NULL
+          -- v3.2 (F3): also fire for obs-only rows (their anchor is their
+          -- own obs id, so this gate used to exclude them) and for
+          -- order-backed rows without an encounter (the x.order_id arm of
+          -- the join covers those).  Encounter-less obs-only rows still
+          -- cannot resolve - both join arms compare NULL - and stay out.
+          AND (t.encounter_id IS NOT NULL OR t.order_id > 0)
         GROUP BY t.order_id, x.concept_id;
+
+        -- v3.2 (F3): anti-overlap guard.  Paths G and U probe different
+        -- anchors, so the same member obs can land under two report rows
+        -- (e.g. a synthetic panel row and its adopted order's row).  Keep
+        -- the order-backed report (positive id); among same-sign ids keep
+        -- the earliest order / earliest obs.
+        DELETE m FROM flat_moh_706_members m
+        JOIN flat_moh_706_members k
+          ON k.obs_id = m.obs_id
+         AND k.report_id <> m.report_id
+         AND (   (k.report_id > 0 AND m.report_id < 0)
+              OR (SIGN(k.report_id) = SIGN(m.report_id)
+                  AND ABS(k.report_id) < ABS(m.report_id)));
 
         SET @dyn_sql = CONCAT('REPLACE INTO ', @results_write, '
             (report_id, member_concept_id, result_obs_id, result_concept_id,
@@ -602,10 +755,13 @@ BEGIN
              result_concept_id, result_numeric, result_text, result_datetime,
              obs_datetime, sample_collection_datetime, instructions,
              diagnostic_report_id, report_date_created, report_issued,
-             report_date_changed, testing_officer)
+             report_date_changed, testing_officer, result_creator)
         SELECT
             o.order_id,
-            IF(o.order_id > 0, o.order_id, NULL),
+            -- v3.2 (F1): synthetic rows carry their adopted order here (the
+            -- order-keyed retrieval fallbacks - billing, FHIR dates, orderer
+            -- - resolve through it); report_id stays negative.
+            IF(o.order_id > 0, o.order_id, o.adopted_order_id),
             o.order_number,
             o.person_id,
             o.encounter_id,
@@ -625,7 +781,8 @@ BEGIN
             o.report_date_created,
             o.report_issued,
             o.report_date_changed,
-            o.testing_officer
+            o.testing_officer,
+            o.result_creator
         FROM flat_moh_706_order_0 o
         LEFT JOIN amrs.encounter e ON e.encounter_id = o.encounter_id');
         PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
