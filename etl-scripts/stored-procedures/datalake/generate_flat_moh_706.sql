@@ -197,7 +197,32 @@ BEGIN
         (1132), (1133), (1134), (848), (10251), (10250), (10570),
         (6132), (6124), (1526), (21), (9008), (1327),
         (49547), (1005), (10051), (7190), (49245), (6902),
-        (1032), (15092), (12019);
+        (1032), (15092), (12019),
+        -- New reportable concepts (2026-10-23, additional_concepts.tsv):
+        -- 1.10 Bacteria (53247), 2.24/2.26 tumour markers CA 15-3 / CA 125
+        -- (53248, 53249), 4.8 Coagulation profile (53250), 5.2-5.8
+        -- bacteriology specimens (53311 Pus swabs, 53312 Throat swab, 53313
+        -- Rectal swab, 53314 Water, 53315 Food), 5.12-5.28 epidemic-prone
+        -- organisms (53269 Shigella dysenteriae type 1, 53270
+        -- E. coli O157:H7, 53316 V. cholerae O1, 53279-53284
+        -- N. meningitidis A/B/C/W135/Y/indeterminate, 53285
+        -- S. pneumoniae, 53286 H. influenzae b, 53287 B. anthracis, 53288
+        -- Y. pestis), 6.4-6.25 histology/cytology specimen sites
+        -- (53289-53307; 49245 6.10 CSF is already listed above) and 7.8
+        -- Hepatitis A (53309).  The TSV also maps 5.15 V. cholerae O139 to
+        -- 53316 - one concept id, one register line, so O139 stays unlisted
+        -- until its own concept exists.  Historical orders of these concepts
+        -- need one full build backfill (sync will not requeue them).
+        (53247),
+        (53248), (53249), (53250),
+        (53311), (53312), (53313), (53314), (53315),
+        (53269), (53270), (53316),
+        (53279), (53280), (53281), (53282), (53283), (53284),
+        (53285), (53286), (53287), (53288),
+        (53289), (53290), (53291), (53292), (53293), (53294), (53295),
+        (53296), (53297), (53298), (53299), (53300), (53301), (53302),
+        (53303), (53304), (53305), (53306), (53307),
+        (53309);
 
     -- ------------------------------------------------------------------
     -- BUILD mode
