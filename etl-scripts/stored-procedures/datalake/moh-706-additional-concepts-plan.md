@@ -174,3 +174,161 @@ patient list still work.
   4-way check, panel counts via member EXISTS); patient-list renders
   `Coagulation profile` as `PT: 12.5; APTT: 30 | 30` and translates
   POSITIVE/NEGATIVE via `concept_value_map`.
+
+## Follow-up additions (2026-10-27, register recheck)
+
+Two register lines flagged in the owner's screen review traced to missing
+source concepts and missing indicator wiring; both now captured end-to-end
+(ETL list → base/aggregate templates → moh-706 screen).
+
+### 4.3 Hemoglobin A1c (6126) — blank instead of 0
+
+6126 was absent from the entire chain. Added:
+
+- `flat_moh_706_lab_concepts` + the three `refresh_concept_set_map()` scopes
+  (leaf, inert in the map — kept for the keep-lists-in-sync invariant).
+- base v2.9: `hba1c` numeric slot; `total_hba1c` plus the register bands
+  `hba1c_pre_diabetes` (5.7 <= v < 6.5) and `hba1c_diabetes` (v >= 6.5, ADA
+  cutoffs — fixed-band precedent like fbc_hb_*/cd4, NOT the lab reference
+  interval, which would band at the normal range instead).
+- aggregate v2.8: the three SUMs.
+- screen (haematology): the three blank `getCell()`s wired.
+
+### 1.5 Urine microscopy (1986) — total wired, positive missing
+
+`total_urine_microscopy` existed (v2.3.1) but only counted 1984/1985/15086/
+15084; 1986 URINALYSIS, MICROSCOPIC (coded leaf, also an observed 302 panel
+member) was invisible, and the "Number Positive" cell held a bold header text
+instead of a data cell. Added:
+
+- 1986 to the concept list + map scopes; member edges flow via the empirical
+  head pass (map gains (302, 1986), so the patient-list `results` readout now
+  lists the analyte for urinalysis panels).
+- base v2.9: `urine_microscopy` slot; `total_urine_microscopy` widened to
+  (1986, 1984, 1985, 15086, 15084) in BOTH arms — count rises once 1986 rows
+  exist, flag it in the release note; new `positive_urine_microscopy`
+  (any of them coded POSITIVE 703, standalone or as panel member).
+- aggregate v2.8: `positive_urine_microscopy` SUM.
+- screen (urine-analysis): 1.5 third cell → `positive_urine_microscopy`.
+
+### 2.3 Renal function test (6898) — total tests only, then panel nesting
+
+6898 was absent from the chain. Added:
+
+- `flat_moh_706_lab_concepts` + the three `refresh_concept_set_map()` scopes.
+- base v2.9: `renal_function_test` numeric slot (obs strings `!!6898=` parse
+  as numeric urea-style results in the oncology flows) and
+  `total_renal_function_test` via the **4-way has-result check** so the total
+  counts any answer datatype.
+- aggregate v2.8: `total_renal_function_test` SUM.
+- screen (blood-chemistry): the 2.3 Total Exam cell wired; its Low/High cells
+  stay unwired (not in the ask, and no reference ranges are defined for 6898).
+
+**Panel nesting (owner feedback 2026-10-27):** RFT results are grouped under
+a valueless 6898 obs head, with Sodium/Potassium nested one level deeper —
+under a 5473 sub-panel contained in 6898 — so 2.4–2.8 (Creatinine 790, Urea
+857, Sodium 1132, Potassium 1133, Chlorides 1134) read 0 for tests that were
+actually done. Fixed without new aliases (existing SUMs pick everything up):
+
+- base v2.9: the five analyte value slots COALESCE the standalone value with
+  the 6898-panel member value (lipid v2.7 pattern) — the aggregate's
+  slot-based totals and MAX/MIN become member-aware automatically; the
+  `_low/_high` flags band that same combined value; the `total_` flags count
+  standalone orders OR 6898 member results, keeping drill-down filters
+  consistent with the register numbers; `total_renal_function_test` counts a
+  6898 row with its own result OR any member result (panel-total pattern,
+  self-row excluded via `member_concept_id <> 6898`).
+- ETL: the `refresh_concept_set_map()` head pass admits 6898 unconditionally
+  (`OR o.concept_id = 6898`) — its dictionary `is_set` flag is unconfirmed,
+  and a childless admission contributes no edges. Member capture already
+  handles the nesting: Path G excludes set-flagged sub-heads, v3.4 Path G2
+  captures their leaves, and the map lists leaf analytes only (the
+  (6898, 5473) edge is deleted as a set-member).
+- Counts for these analytes rise to include panel-recorded results —
+  release note. Discovery (replica): confirm 6898/5473 `is_set` and the
+  observed member set:
+  `SELECT concept_id, is_set FROM amrs.concept WHERE concept_id IN (6898,5473);`
+  `SELECT ch.concept_id, c.concept_id AS member, COUNT(*) FROM amrs.obs ch JOIN amrs.obs c ON c.obs_group_id = ch.obs_id AND c.voided = 0 WHERE ch.concept_id IN (6898,5473) AND ch.voided = 0 GROUP BY 1,2;`
+
+### 2.8 Liver function test (953) — total tests only
+
+953 was absent from the chain and is datatype-unused elsewhere in the
+codebase. Same treatment as 6898 (2026-10-27):
+
+- concept list + map scopes; the head pass admits 953 unconditionally
+  alongside 6898 (`OR o.concept_id IN (6898, 953)` — LFT is a probable
+  panel; its member analytes 653/654/655/1297/717/785/848 are already
+  reportable).
+- base v2.9: `liver_function_test` slot via
+  `COALESCE(result_concept_id, result_numeric)` (tb_culture precedent) and
+  `total_liver_function_test` = 4-way own-result check OR any member result
+  (`member_concept_id <> 953`).
+- aggregate v2.8: `total_liver_function_test` SUM.
+- screen (blood-chemistry): the 2.8 Total Exam cell wired; Low/High stay
+  unwired. Verified by sim/audit only — the mechanism is the rig-proven 6898
+  path; no separate rig run (discovery on the replica can confirm the 953
+  recording shape with the same query pair as for 6898).
+
+### Stool examination (53310) — total tests only (parasitology row)
+
+53310 is the stool-examination concept (owner correction 2026-10-27: the
+initial wiring used 304, which was erroneously tied to 5.16 CSF in the
+dictionary and is not stool — replaced everywhere before any deploy).
+Datatype-unused in the codebase; same treatment as 953:
+
+- concept list + map scopes; head-pass admission extended to
+  `OR o.concept_id IN (6898, 953, 53310)`.
+- base v2.9: `stool_examination` slot via
+  `COALESCE(result_concept_id, result_numeric)` and
+  `total_stool_examination` = 4-way own-result check OR any member result
+  (`member_concept_id <> 53310`).
+- aggregate v2.8: `total_stool_examination` SUM.
+- screen (parasitology): the Stool Examination Total Exam cell wired (alias
+  unchanged by the concept correction). **Number Positive wired 2026-10-27**
+  after the owner defined positivity: `positive_stool_examination` = the
+  row's own answer coded POSITIVE (703) or any member result coded POSITIVE
+  (the `positive_urinalysis` shape, self-row excluded); Total Exam counts
+  stool tests with a recorded result per the register-wide has-result
+  convention.
+
+### clinician_name orderer-only (MOH 240 register, owner decision 2026-10-27)
+
+`lab-706-patient-list.json` v1.9: `clinician_name` exclusively reads the
+orderer of the row's order (amrs.orders.orderer → provider → person_name,
+preferred-first) — the encounter-provider and obs-1496 fallbacks are dropped,
+so a row whose order has no provider (or an obs-only row with no adoptable
+order) prints a blank clinician; ideally no order should miss a provider.
+`testing_officer` (D11) is untouched. The compiled patient-list SQL contains
+no `encounter_provider` reference; the fixture's orderer arm ("Jane Doc")
+was already the first arm, so the rig-covered path is unchanged.
+
+### Screen cleanup (owner 2026-10-27)
+
+Removed the erroneous "1.4 Proteins" row from the blood-chemistry
+(renal-function) block — a copy-paste leftover with three blank cells that
+duplicated the urine-analysis row number. The legitimate 1.4 Proteins row in
+urine-analysis (wired to the with_members proteins flags) is untouched.
+
+### Verification (2026-10-27)
+
+- `ampath-json2sql-sim`: 19/19 PASS — every new aggregate alias resolves in
+  the base and becomes a `1 = (expr)` drill-down row filter; versions in
+  lockstep (base 2.9 / aggregate 2.8 / uses 2.9); RFT slots/banding/total
+  flags verified member-aware and the aggregate creatinine total still
+  slot-based; 953 and 304 slot/flag shapes asserted.
+- `contract-audit.py`: all 112 moh-706 screen keys resolve
+  app ↔ aggregate ↔ base.
+- `ampath-etl-test-rig` (stubbed MariaDB, v3.4): 6126 builds order-backed
+  (5.9) and obs-only (6.2, 5.0) rows with correct bands (5.0 total-only,
+  5.9/6.2 pre-diabetes); 1986 standalone POSITIVE/NEGATIVE and a 302 panel
+  with a 1986 member POSITIVE land with correct total_/positive_ flags; the
+  nested RFT shape (6898 order → valueless 6898 head → valueless 5473
+  sub-head → 1132/1133 leaves, plus a leaf directly under the head, with
+  6898 deliberately NOT set-flagged) builds one 6898 register row carrying
+  member results 857/1132/1133, no synthetic leaf rows (F3b), map gains
+  (6898 → 857/1132/1133) with the (6898, 5473) edge deleted, and the shipped
+  slot/total/banding expressions read the member values (sodium 110 in-range,
+  standalone 150 flags high); anti-overlap clean; build + sync both clean.
+- Migration: install `create_flat_moh_706_results.sql` + the procedure, then
+  **one full `build` backfill** — historical 6126/1986 orders are not
+  requeued by sync — then `CALL etl.refresh_concept_set_map(NULL);`.

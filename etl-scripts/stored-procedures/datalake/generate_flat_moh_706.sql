@@ -231,7 +231,46 @@ BEGIN
         (53309),
         -- 5.29 TB SMEAR (coded; graded answers - SCANTY/1+/2+/3+ - are all
         -- reportable findings, so positivity is "not negative" downstream)
-        (307);
+        (307),
+        -- 4.3 Hemoglobin A1c (2026-10-27, register recheck): numeric HbA1c
+        -- results for the haematology register row; the Pre-diabetes /
+        -- Diabetes banding is applied downstream in the lab-706 templates.
+        -- Historical orders need one full build backfill (sync will not
+        -- requeue them).
+        (6126),
+        -- 1.5 Urine microscopy (2026-10-27, register recheck): coded
+        -- URINALYSIS, MICROSCOPIC.  Results surface through the widened
+        -- total_urine_microscopy / positive_urine_microscopy flags -
+        -- standalone rows via this concept and member rows under 302
+        -- through the results table.  Historical orders need one full
+        -- build backfill (sync will not requeue them).
+        (1986),
+        -- 2.3 Renal function test (2026-10-27, register recheck): results
+        -- recorded as numeric values (urea-style in the oncology flows);
+        -- the downstream total flag uses the 4-way has-result check so any
+        -- answer datatype counts.  Historical orders need one full build
+        -- backfill (sync will not requeue them).
+        (6898),
+        -- 2.8 Liver function test (2026-10-27, register recheck): datatype
+        -- unused elsewhere in the codebase, so the downstream slot carries
+        -- COALESCE(result_concept_id, result_numeric) (tb_culture
+        -- precedent) and the total flag uses the 4-way has-result check;
+        -- treated as a probable panel like 6898 (its member analytes 653,
+        -- 654, 655, 1297, 717, 785, 848 are already reportable), so the
+        -- total also counts any member result.  Historical orders need one
+        -- full build backfill (sync will not requeue them).
+        (953),
+        -- Stool examination (2026-10-27, register recheck): concept 53310.
+        -- The owner correction replaces 304, which was erroneously tied to
+        -- 5.16 CSF in the dictionary and is not stool.  Datatype unused
+        -- elsewhere in the codebase, so the downstream slot carries
+        -- COALESCE(result_concept_id, result_numeric) (tb_culture
+        -- precedent) and the total flag uses the 4-way has-result check;
+        -- treated as a probable panel like 6898/953 (stool results are
+        -- commonly recorded as grouped analyte obs), so the total also
+        -- counts any member result.  Historical orders need one full build
+        -- backfill (sync will not requeue them).
+        (53310);
 
     -- ------------------------------------------------------------------
     -- BUILD mode

@@ -98,13 +98,19 @@ BEGIN
     -- off the rest of amrs.obs.  v3.2 (F3): the scope is the FULL reportable
     -- list, not just 302/1010/1019 - the is_set join admits only actual
     -- panels, so any set-flagged concept added to the reportable list is
-    -- picked up here without another edit.
+    -- picked up here without another edit.  6898 RENAL FUNCTION TEST, 953
+    -- LIVER FUNCTION TEST and 53310 STOOL EXAMINATION are admitted
+    -- unconditionally (2026-10-27; the owner correction replaces 304,
+    -- which was erroneously tied to 5.16 CSF): their results are grouped
+    -- under obs heads whose dictionary is_set flags are unconfirmed, and a
+    -- childless admission contributes no edges, so the OR is safe either
+    -- way.
     INSERT INTO panel_heads (obs_id, concept_id)
     SELECT o.obs_id, o.concept_id
     FROM amrs.obs o
     JOIN amrs.concept c
       ON c.concept_id = o.concept_id
-     AND c.is_set = 1
+     AND (c.is_set = 1 OR o.concept_id IN (6898, 953, 53310))
      AND c.retired  = 0
      AND c.concept_id IN (
          887, 10627, 790, 857, 1297, 655, 653, 654, 717, 785,
@@ -123,7 +129,7 @@ BEGIN
          53285, 53286, 53287, 53288,
          53289, 53290, 53291, 53292, 53293, 53294, 53295, 53296, 53297,
          53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
-         53307, 53309, 307)
+         53307, 53309, 307, 6126, 1986, 6898, 953, 53310)
     WHERE o.voided = 0
       AND (since_datetime IS NULL OR o.date_created >= since_datetime);
 
@@ -170,7 +176,7 @@ BEGIN
          53285, 53286, 53287, 53288,
          53289, 53290, 53291, 53292, 53293, 53294, 53295, 53296, 53297,
          53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
-         53307, 53309, 307);
+         53307, 53309, 307, 6126, 1986, 6898, 953, 53310);
 
     -- v3.4 (F3c): the dictionary NESTS panels (panel -> sub-panel -> leaf),
     -- and both the obs walk above and the dictionary pass are one-hop - the
@@ -211,7 +217,7 @@ BEGIN
          53285, 53286, 53287, 53288,
          53289, 53290, 53291, 53292, 53293, 53294, 53295, 53296, 53297,
          53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
-         53307, 53309, 307);
+         53307, 53309, 307, 6126, 1986, 6898, 953, 53310);
 
     DELETE FROM etl.concept_set_map
      WHERE concept_set IN (SELECT concept_id FROM amrs.concept_set);
