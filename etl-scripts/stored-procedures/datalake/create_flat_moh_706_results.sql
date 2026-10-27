@@ -123,7 +123,7 @@ BEGIN
          53285, 53286, 53287, 53288,
          53289, 53290, 53291, 53292, 53293, 53294, 53295, 53296, 53297,
          53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
-         53307, 53309)
+         53307, 53309, 307)
     WHERE o.voided = 0
       AND (since_datetime IS NULL OR o.date_created >= since_datetime);
 
@@ -170,7 +170,7 @@ BEGIN
          53285, 53286, 53287, 53288,
          53289, 53290, 53291, 53292, 53293, 53294, 53295, 53296, 53297,
          53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
-         53307, 53309);
+         53307, 53309, 307);
 
     -- v3.4 (F3c): the dictionary NESTS panels (panel -> sub-panel -> leaf),
     -- and both the obs walk above and the dictionary pass are one-hop - the
@@ -211,7 +211,7 @@ BEGIN
          53285, 53286, 53287, 53288,
          53289, 53290, 53291, 53292, 53293, 53294, 53295, 53296, 53297,
          53298, 53299, 53300, 53301, 53302, 53303, 53304, 53305, 53306,
-         53307, 53309);
+         53307, 53309, 307);
 
     DELETE FROM etl.concept_set_map
      WHERE concept_set IN (SELECT concept_id FROM amrs.concept_set);
