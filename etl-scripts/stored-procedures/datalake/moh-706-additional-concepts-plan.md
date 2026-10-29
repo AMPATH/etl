@@ -309,6 +309,30 @@ Removed the erroneous "1.4 Proteins" row from the blood-chemistry
 duplicated the urine-analysis row number. The legitimate 1.4 Proteins row in
 urine-analysis (wired to the with_members proteins flags) is untouched.
 
+### Graded urinalysis positivity (owner 2026-10-27)
+
+The dictionary defines urinalysis positivity as POSITIVE (703) **or any
+graded answer** — TRACE 10900, 1+ 2301, 2+ 2302, 3+ 2303. The graded set is
+applied in the lab-706 templates to `positive_urinalysis` (both arms) and
+the glucose/ketones/proteins/pus-cells `*_with_members` flags,
+`positive_urine_t_vaginalis`, `positive_urine_yeast_cells` and
+`positive_bacteria`, plus the aggregate's t. vaginalis / yeast cells SUMs
+(they read the base value slots directly). This was why the panel Number
+Positive cells read 0: results are recorded as graded answers, which
+`= 703` never matched.
+
+- Screen: the panel rows **1.1 Urine Chemistry** and **1.5 Urine
+  Microscopy** stop displaying Number Positive (a panel-level positive
+  count was confusing); their indicators stay in the templates for
+  drill-downs.
+- **1.7 Schistosoma haematobium keeps its hardcoded-0 flags** — no source
+  concept exists yet (v2.3 note). The observed urinalysis members 6337 and
+  9307 are the likely candidates; wire `urine_s_haematobium` +
+  `total_/positive_urine_s_haematobium` (graded set) once the owner
+  confirms which one it is.
+- ETL: no change — member capture and the results table are
+  definition-agnostic; only the retrieval-layer code sets moved.
+
 ### Verification (2026-10-27)
 
 - `ampath-json2sql-sim`: 19/19 PASS — every new aggregate alias resolves in
