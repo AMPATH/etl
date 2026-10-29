@@ -270,7 +270,18 @@ BEGIN
         -- commonly recorded as grouped analyte obs), so the total also
         -- counts any member result.  Historical orders need one full build
         -- backfill (sync will not requeue them).
-        (53310);
+        (53310),
+        -- 5.30-5.33 TB sputum block (2026-10-29, owner-supplied ids): the
+        -- row's own coded answer carries the register value; positivity is
+        -- "not NEGATIVE (704)" downstream, the 5.29 TB-smear rule.  53320
+        -- Baseline folds into the New row, 53321/53322/53323 (2/3/5-month
+        -- follow-ups) into the Follow-up row.  The 6-month follow-up
+        -- concept is still UUID-only on the owner's list and joins once its
+        -- numeric id is resolved.  Historical orders need one full build
+        -- backfill (sync will not requeue them).
+        (2344), (2345),
+        (53320), (53321), (53322), (53323),
+        (11998);
 
     -- ------------------------------------------------------------------
     -- BUILD mode
