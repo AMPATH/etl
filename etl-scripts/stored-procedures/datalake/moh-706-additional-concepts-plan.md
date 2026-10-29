@@ -333,6 +333,24 @@ Positive cells read 0: results are recorded as graded answers, which
 - ETL: no change — member capture and the results table are
   definition-agnostic; only the retrieval-layer code sets moved.
 
+### TB sputum block 5.30-5.33 (owner-supplied ids 2026-10-29)
+
+The TB SPUTUM block's blank rows wire over the 5.29 TB-smear shape:
+
+- 5.30 New presumptive TB cases <- 2344 NEW + 53320 BASELINE TB
+- 5.31 TB Follow up <- 2345 FOLLOW-UP + 53321/53322/53323 (2/3/5-month)
+- 5.33 MDR TB <- 11998 MULTI DRUG RESISTANT TUBERCULOSIS INFECTION
+
+The row's coded answer is the register value; total = tests done with a
+recorded answer; positive = any coded answer that is not NEGATIVE (704).
+The dictionary extract shows 0 obs / 0 orders, datatype N/A, is_set 0 for
+all seven - nothing backfills until results flow.
+
+Deferred: the 6-month follow-up concept is still UUID-only on the owner's
+list (77e0840e-07b5-4b60-9a0d-dc89747d7018 - resolve its numeric concept_id
+on the replica, then add it to the Follow-up row's id list); 5.32 Rifampicin
+Resistant TB has no concept and its screen cell stays blank.
+
 ### LFT nested analytes member-aware (owner 2026-10-29)
 
 The July 2026 register showed LFT Total Exam = 1 with zeros for every
