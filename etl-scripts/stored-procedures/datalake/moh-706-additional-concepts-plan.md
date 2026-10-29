@@ -309,6 +309,48 @@ Removed the erroneous "1.4 Proteins" row from the blood-chemistry
 duplicated the urine-analysis row number. The legitimate 1.4 Proteins row in
 urine-analysis (wired to the with_members proteins flags) is untouched.
 
+### Graded urinalysis positivity (owner 2026-10-27)
+
+The dictionary defines urinalysis positivity as POSITIVE (703) **or any
+graded answer** — TRACE 10900, 1+ 2301, 2+ 2302, 3+ 2303. The graded set is
+applied in the lab-706 templates to `positive_urinalysis` (both arms) and
+the glucose/ketones/proteins/pus-cells `*_with_members` flags,
+`positive_urine_t_vaginalis`, `positive_urine_yeast_cells` and
+`positive_bacteria`, plus the aggregate's t. vaginalis / yeast cells SUMs
+(they read the base value slots directly). This was why the panel Number
+Positive cells read 0: results are recorded as graded answers, which
+`= 703` never matched.
+
+- Screen: the panel rows **1.1 Urine Chemistry** and **1.5 Urine
+  Microscopy** stop displaying Number Positive (a panel-level positive
+  count was confusing); their indicators stay in the templates for
+  drill-downs.
+- **1.7 Schistosoma haematobium keeps its hardcoded-0 flags** — no source
+  concept exists yet (v2.3 note). The observed urinalysis members 6337 and
+  9307 are the likely candidates; wire `urine_s_haematobium` +
+  `total_/positive_urine_s_haematobium` (graded set) once the owner
+  confirms which one it is.
+- ETL: no change — member capture and the results table are
+  definition-agnostic; only the retrieval-layer code sets moved.
+
+### LFT nested analytes member-aware (owner 2026-10-29)
+
+The July 2026 register showed LFT Total Exam = 1 with zeros for every
+nested analyte (2.9 Direct bilirubin, 2.10 Total bilirubin, 2.11 ASAT,
+2.12 ALAT, 2.13 Serum protein, 2.15 Alkaline phosphatase) — the same
+panel-recording pattern as RFT, and only the RFT analytes had been made
+member-aware. The lab-706 templates now give concepts 1297/655/653/654/
+717/848/785 the RFT treatment (slots COALESCE the 953-panel member value,
+_low/_high band the combined value, total_ flags count member results);
+2.14 Albumin is included — it legitimately reads 0 for July 2026 because
+the patient had no albumin result (the six documented results: total
+protein 9.89, total bili 8.27, direct bili 4.33, ALT 39, ALP 114.32,
+AST 42; expected banding per etl.reference_ranges: direct bili HIGH > 3.4,
+AST HIGH > 40, ALT 39 < 46 normal, ALP 114.32 < 390 normal, total bili
+8.27 < 17.1 normal, protein 9.89 < 60 reads LOW — likely a g/dL entry
+against a g/L range, owner to reconcile units). ETL: no change — the 953
+member results were already captured (that is why Total Exam = 1).
+
 ### Verification (2026-10-27)
 
 - `ampath-json2sql-sim`: 19/19 PASS — every new aggregate alias resolves in
