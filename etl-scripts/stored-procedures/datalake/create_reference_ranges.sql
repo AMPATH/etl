@@ -81,6 +81,10 @@ REPLACE INTO etl.reference_ranges (concept_id, low_value, high_value, units, sou
  (10249, NULL,  4.0, 'ng/ML',  'international v1'),
  (10250, NULL,  5.0, 'ng/ML',  'international v1'),
  (10251, NULL, 37.0, 'U/mL',   'international v1'),
- (10570, NULL, 10.0, 'ng/ML',  'international v1');
+ (10570, NULL, 10.0, 'ng/ML',  'international v1'),
+ -- 4.10 Erythrocyte Sedimentation Rate: high-only banding for the register
+ -- column (owner 2026-10-29).  ESR is age/sex dependent; one provisional
+ -- global cutoff (Westergren, adult) until the owner splits it.
+ (855,   NULL, 20.0, 'mm/hr',  'international v1');
 
 SELECT COUNT(*) AS reference_ranges_rows FROM etl.reference_ranges;

@@ -281,7 +281,18 @@ BEGIN
         -- backfill (sync will not requeue them).
         (2344), (2345),
         (53320), (53321), (53322), (53323),
-        (11998);
+        (11998),
+        -- Missing-indicator sweep (2026-10-29, owner CSV): 3.6/3.9/3.11
+        -- parasites (15232 Hymenolepis nana, 15233 S. mansoni, 709 Amoeba),
+        -- 4.6 Peripheral blood films (6901), 4.10 ESR (855, numeric; the
+        -- High column bands against etl.reference_ranges), 5.3 High Vaginal
+        -- Swabs (1987, total-only like the other bacteriology specimens),
+        -- 6.1 PAP smear (885, total-only like the other cytology sites) and
+        -- 6.27 Trephine biopsy (6513, total-only).  6902 BMA is already
+        -- listed and now also reports 4.7 (total + positive) beside 6.26.
+        -- Historical orders need one full build backfill.
+        (15232), (15233), (709), (6901), (855),
+        (1987), (885), (6513);
 
     -- ------------------------------------------------------------------
     -- BUILD mode
