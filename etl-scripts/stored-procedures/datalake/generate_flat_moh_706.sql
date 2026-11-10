@@ -94,6 +94,25 @@ BEGIN
     SET @queue_size         = queue_size;
     SET @cycle_size         = cycle_size;
 
+    -- Test or Fake Patient marker.  Persons carrying this attribute with a
+    -- truthy, unvoided value never enter the report: the build slices them
+    -- out, the sync refill drops them from the queue, and the end-of-run
+    -- sweep purges anything built before the exclusion existed.  The flag
+    -- set is resolved ONCE here (the person_attribute_type dictionary join
+    -- is per-sync work, not per-arm work); it stays empty - a harmless
+    -- no-op everywhere - when the attribute type does not exist on this
+    -- server.  create_sync_support_indexes.sql adds person_attribute(person_id)
+    -- for this lookup.
+    DROP TEMPORARY TABLE IF EXISTS tmp_test_patients;
+    CREATE TEMPORARY TABLE tmp_test_patients (person_id INT PRIMARY KEY) AS
+        (SELECT DISTINCT pa.person_id
+           FROM amrs.person_attribute pa
+           JOIN amrs.person_attribute_type pat
+             ON pat.person_attribute_type_id = pa.person_attribute_type_id
+          WHERE pat.name = 'Test or Fake Patient'
+            AND pa.value IN ('true', '1', 'YES')
+            AND pa.voided = 0);
+
     -- ------------------------------------------------------------------
     -- Primary table (idempotent; see create_flat_moh_706.sql)
     -- ------------------------------------------------------------------
@@ -333,6 +352,17 @@ BEGIN
         );
         PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
 
+        -- Test patients never build: drop them from the slice before the
+        -- empty-slice count so an all-test-patient slice fails as "empty"
+        -- (nothing to do) instead of building rows the end-of-run sweep
+        -- would undo.  This is the safety net behind the seeding query -
+        -- it holds no matter how the build queue was populated.
+        SET @dyn_sql = CONCAT(
+            'DELETE t1 FROM ', @queue_table, ' t1
+             JOIN tmp_test_patients t2 ON t2.person_id = t1.person_id'
+        );
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+
         -- An empty slice must fail loudly, not no-op: a silent empty pass
         -- still writes the v3.1 watermark and unlocks sync, while the
         -- historical obs-only panel groups never change again - sync can
@@ -372,10 +402,27 @@ BEGIN
                SET MESSAGE_TEXT = 'No watermark for flat_moh_706_report_v3.4 - run generate_flat_moh_706_v1 in build mode first.';
         END IF;
 
+        -- Stale-watermark guard.  Every refill arm below is a date_created
+        -- range scan whose cost is proportional to the watermark age; a
+        -- months-old watermark means the incremental path was abandoned and
+        -- the nightly volumes this procedure is sized for no longer apply.
+        -- Rebuild instead of date-scanning millions of obs rows.
+        IF @last_update < DATE_SUB(NOW(), INTERVAL 14 DAY) THEN
+            SIGNAL SQLSTATE '45000'
+               SET MESSAGE_TEXT = 'flat_moh_706_report_v3.4 watermark is older than 14 days - run generate_flat_moh_706_v1 in build mode instead of syncing.';
+        END IF;
+
         -- The comparisons use >= rather than >.  flat_log.date_updated has
         -- second precision, so a row written in the same second the previous
         -- run finished would otherwise be skipped forever.  Re-processing the
         -- boundary second is safe: the person's rows are deleted and rebuilt.
+        --
+        -- Refills use INSERT IGNORE rather than REPLACE: the queue is PK
+        -- person_id, so IGNORE skips the delete+reinsert of the same person
+        -- across arms.  The raw-obs arms are covering index range scans of
+        -- amrs.obs(date_created, person_id, concept_id, order_id, obs_group_id)
+        -- once create_sync_support_indexes.sql has run - no row lookups into
+        -- the obs table itself.
 
         CREATE TABLE IF NOT EXISTS flat_moh_706_report_sync_queue (
             person_id INT PRIMARY KEY
@@ -387,19 +434,29 @@ BEGIN
         -- it does have: date_stopped catches discontinuations and
         -- date_voided catches voided orders.  Plain edits (e.g. instruction
         -- text changes) leave no trace in the extract and cannot requeue.
-        REPLACE INTO flat_moh_706_report_sync_queue
+        -- One arm per column: the previous date_created >= ? OR
+        -- date_stopped >= ? OR date_voided >= ? form is an OR of ranges,
+        -- which the optimiser answers with a full table scan - three arms
+        -- each drive their own index (create_sync_support_indexes.sql).
+        INSERT IGNORE INTO flat_moh_706_report_sync_queue
             (SELECT DISTINCT patient_id
                FROM amrs.orders
-              WHERE date_created >= @last_update
-                 OR date_stopped >= @last_update
-                 OR date_voided >= @last_update);
+              WHERE date_created >= @last_update);
+        INSERT IGNORE INTO flat_moh_706_report_sync_queue
+            (SELECT DISTINCT patient_id
+               FROM amrs.orders
+              WHERE date_stopped >= @last_update);
+        INSERT IGNORE INTO flat_moh_706_report_sync_queue
+            (SELECT DISTINCT patient_id
+               FROM amrs.orders
+              WHERE date_voided >= @last_update);
 
         -- Lab obs changed since the watermark: result obs carry an order_id,
         -- and specimen-collection obs (10253) feed test_datetime.  Everything
         -- else the v2.0 sync watched (person/address/telephone, encounter,
         -- encounter_diagnosis) is derived at retrieval time now, so those
         -- sources were trimmed from this queue.
-        REPLACE INTO flat_moh_706_report_sync_queue
+        INSERT IGNORE INTO flat_moh_706_report_sync_queue
             (SELECT DISTINCT person_id
                FROM amrs.obs
               WHERE date_created >= @last_update
@@ -408,22 +465,27 @@ BEGIN
         -- Panel member obs and group heads carry no order_id (v3.1): watch
         -- grouped obs and panel-head concepts or panel results never
         -- requeue.  Both are date_created range scans, small windows.
-        REPLACE INTO flat_moh_706_report_sync_queue
+        INSERT IGNORE INTO flat_moh_706_report_sync_queue
             (SELECT DISTINCT person_id
                FROM amrs.obs
               WHERE date_created >= @last_update
                 AND obs_group_id IS NOT NULL);
 
-        REPLACE INTO flat_moh_706_report_sync_queue
+        INSERT IGNORE INTO flat_moh_706_report_sync_queue
             (SELECT DISTINCT x.person_id
                FROM amrs.obs x
                JOIN etl.concept_set_map cs ON cs.concept_id = x.concept_id
               WHERE x.date_created >= @last_update);
 
-        REPLACE INTO flat_moh_706_report_sync_queue
+        INSERT IGNORE INTO flat_moh_706_report_sync_queue
             (SELECT DISTINCT subject_id
                FROM amrs.fhir_diagnostic_report
               WHERE date_changed >= @last_update);
+
+        -- Test patients never requeue; the end-of-run sweep purges whatever
+        -- they already have (tmp_test_patients).
+        DELETE q FROM flat_moh_706_report_sync_queue q
+           JOIN tmp_test_patients t ON t.person_id = q.person_id;
     END IF;
 
     -- Children first: member results hang off report rows.
@@ -963,6 +1025,22 @@ BEGIN
         'DELETE t1 FROM ', @primary_table, ' t1
          JOIN amrs.person t2 USING (person_id)
          WHERE t2.voided = 1'
+        );
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+
+        -- And test patients: the exclusions above keep them out going
+        -- forward; this removes whatever was built before the exclusion
+        -- existed.  Same GLOBAL-sweep locking rules as the voided sweep.
+        SET @dyn_sql = CONCAT(
+            'DELETE rr FROM flat_moh_706_report_results rr
+             JOIN ', @primary_table, ' r ON rr.report_id = r.report_id
+             JOIN tmp_test_patients t ON t.person_id = r.person_id'
+        );
+        PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
+
+        SET @dyn_sql = CONCAT(
+            'DELETE t1 FROM ', @primary_table, ' t1
+             JOIN tmp_test_patients t ON t.person_id = t1.person_id'
         );
         PREPARE s1 FROM @dyn_sql; EXECUTE s1; DEALLOCATE PREPARE s1;
     END IF;
