@@ -35,6 +35,25 @@ BEGIN
     set @start = now();
     set @table_version = "flat_moh_505_weekly_v2";
 
+    # Test or Fake Patient marker.  Persons carrying this attribute with a
+    # truthy, unvoided value never enter the report: the build slices them
+    # out, the sync refill drops them from the queue, and the end-of-run
+    # purge removes anything built before the exclusion existed.  The flag
+    # set is resolved ONCE here (the person_attribute_type dictionary join
+    # is per-run work, not per-arm work); it stays empty - a harmless no-op
+    # everywhere - when the attribute type does not exist on this server.
+    # create_sync_support_indexes.sql adds person_attribute(person_id) for
+    # this lookup.
+    drop temporary table if exists tmp_test_patients;
+    create temporary table tmp_test_patients (person_id int primary key) as
+        (select distinct pa.person_id
+           from amrs.person_attribute pa
+           join amrs.person_attribute_type pat
+             on pat.person_attribute_type_id = pa.person_attribute_type_id
+          where pat.name = 'Test or Fake Patient'
+            and pa.value in ('true', '1', 'YES')
+            and pa.voided = 0);
+
     # A cycle_size of 0 makes the loop below insert nothing while the queue
     # never drains - the WHILE @person_ids_count > 0 condition would spin
     # forever.  Clamp it to the sibling default instead.
@@ -114,6 +133,16 @@ BEGIN
         EXECUTE s1;
         DEALLOCATE PREPARE s1;
 
+        # Test patients never build: drop them from the slice before the
+        # empty-slice count so an all-test-patient slice fails as "empty"
+        # (nothing to do) instead of building rows the end-of-run purge
+        # would undo.  This is the safety net behind the seeding query -
+        # it holds no matter how the build queue was populated.
+        SET @dyn_sql=CONCAT('delete t1 from ', @queue_table, ' t1 join tmp_test_patients t2 on t2.person_id = t1.person_id');
+        PREPARE s1 from @dyn_sql;
+        EXECUTE s1;
+        DEALLOCATE PREPARE s1;
+
         # An empty slice must fail loudly, not no-op: a silent empty pass
         # still writes the watermark and unlocks sync while nothing was
         # processed (generate_flat_moh_706 pattern).
@@ -155,18 +184,46 @@ BEGIN
                SET MESSAGE_TEXT = 'No watermark for flat_moh_505_weekly_v2 - run generate_moh_505_weekly_report_v2 in build mode first.';
         END IF;
 
-        replace into flat_moh_505_weekly_v2_sync_queue
-        (select distinct person_id from etl.flat_obs where max_date_created > @last_update);
+        # Stale-watermark guard.  Every refill arm below is a date range
+        # scan whose cost is proportional to the watermark age; a months-old
+        # watermark means the incremental path was abandoned and the nightly
+        # volumes this procedure is sized for no longer apply.  Rebuild
+        # instead of date-scanning millions of flat_obs rows.
+        IF @last_update < DATE_SUB(NOW(), INTERVAL 14 DAY) THEN
+            SIGNAL SQLSTATE '45000'
+               SET MESSAGE_TEXT = 'flat_moh_505_weekly_v2 watermark is older than 14 days - run generate_moh_505_weekly_report_v2 in build mode instead of syncing.';
+        END IF;
+
+        # Refill arms use >= (not >): flat_log.date_updated has second
+        # precision, so a row written in the same second the previous run
+        # finished would be skipped forever (generate_flat_moh_706
+        # rationale); re-processing the boundary second is safe because the
+        # person's rows are deleted and rebuilt.
+        #
+        # INSERT IGNORE instead of REPLACE: the queue is PK person_id, so
+        # IGNORE skips the delete+reinsert of the same person across arms.
+        # The flat_obs arm is a covering index range scan of
+        # (max_date_created, person_id) once create_sync_support_indexes.sql
+        # has run - no row lookups into the packed-obs TEXT rows.
+        INSERT IGNORE INTO flat_moh_505_weekly_v2_sync_queue
+        (SELECT DISTINCT person_id FROM etl.flat_obs WHERE max_date_created >= @last_update);
 
         # Catch persons whose non-obs records changed too: renamed/voided
         # persons and edited encounters need a rebuild or their flat rows go
-        # stale (generate_flat_moh_710 sync-refill pattern).
-        replace into flat_moh_505_weekly_v2_sync_queue
-        (select distinct person_id from amrs.encounter where date_changed > @last_update);
-        replace into flat_moh_505_weekly_v2_sync_queue
-        (select person_id from amrs.person where date_voided > @last_update);
-        replace into flat_moh_505_weekly_v2_sync_queue
-        (select person_id from amrs.person where date_changed > @last_update);
+        # stale (generate_flat_moh_710 sync-refill pattern).  amrs.encounter
+        # names its person column patient_id (OpenMRS naming), unlike
+        # amrs.person/amrs.person_attribute/amrs.obs which use person_id.
+        INSERT IGNORE INTO flat_moh_505_weekly_v2_sync_queue
+        (SELECT DISTINCT patient_id FROM amrs.encounter WHERE date_changed >= @last_update);
+        INSERT IGNORE INTO flat_moh_505_weekly_v2_sync_queue
+        (SELECT person_id FROM amrs.person WHERE date_voided >= @last_update);
+        INSERT IGNORE INTO flat_moh_505_weekly_v2_sync_queue
+        (SELECT person_id FROM amrs.person WHERE date_changed >= @last_update);
+
+        # Test patients never requeue; the end-of-run purge removes whatever
+        # they already have (tmp_test_patients).
+        DELETE q FROM flat_moh_505_weekly_v2_sync_queue q
+        JOIN tmp_test_patients t ON t.person_id = q.person_id;
     end if;
 
     SET @person_ids_count = 0;
@@ -304,6 +361,13 @@ BEGIN
     # Persons voided since their last build keep their flat rows forever
     # otherwise - purge them once per run (generate_flat_moh_710 pattern).
     SET @dyn_sql=CONCAT('delete t1 from ', @primary_table, ' t1 join amrs.person t2 using (person_id) where t2.voided = 1');
+    PREPARE s1 from @dyn_sql;
+    EXECUTE s1;
+    DEALLOCATE PREPARE s1;
+
+    # And test patients: the exclusions above keep them out going forward;
+    # this removes whatever was built before the exclusion existed.
+    SET @dyn_sql=CONCAT('delete t1 from ', @primary_table, ' t1 join tmp_test_patients t2 on t2.person_id = t1.person_id');
     PREPARE s1 from @dyn_sql;
     EXECUTE s1;
     DEALLOCATE PREPARE s1;
