@@ -27,6 +27,14 @@ BEGIN
     # and are captured; the per-disease death concepts still need to be
     # counterchecked against the 705 A/B procedures (DB-only, not in this
     # repo) before *_death columns can be added here.
+    #
+    # Borrowed indicators: poliomyelitis / suspected_malaria /
+    # rift_valley_fever / viral_haemorrhagic_fever / all_other_diseases are
+    # flattened from the SAME obs concepts the 705 A/B procs use (owner
+    # decision 2026-11-10; the 705 concept IDs are pinned from the live
+    # 705 procs once read from the database).  Their
+    # REGEXP slots below are PENDING 705 PIN placeholders that match
+    # nothing until the 705 concepts are read from the DB.
     set @primary_table := "flat_moh_505_weekly_v2";
     set @query_type = query_type;
     set @queue_table = "";
@@ -73,6 +81,11 @@ BEGIN
         rabies INT(1) DEFAULT 0,
         typhoid INT(1) DEFAULT 0,
         yellow_fever INT(1) DEFAULT 0,
+        poliomyelitis INT(1) DEFAULT 0,
+        suspected_malaria INT(1) DEFAULT 0,
+        rift_valley_fever INT(1) DEFAULT 0,
+        viral_haemorrhagic_fever INT(1) DEFAULT 0,
+        all_other_diseases INT(1) DEFAULT 0,
         malaria_microscopy_tested INT(1) DEFAULT 0,
         malaria_microscopy_positive INT(1) DEFAULT 0,
         malaria_mrdt_tested INT(1) DEFAULT 0,
@@ -220,6 +233,11 @@ BEGIN
             rabies INT(1) DEFAULT 0,
             typhoid INT(1) DEFAULT 0,
             yellow_fever INT(1) DEFAULT 0,
+            poliomyelitis INT(1) DEFAULT 0,
+            suspected_malaria INT(1) DEFAULT 0,
+            rift_valley_fever INT(1) DEFAULT 0,
+            viral_haemorrhagic_fever INT(1) DEFAULT 0,
+            all_other_diseases INT(1) DEFAULT 0,
             malaria_microscopy_tested INT(1) DEFAULT 0,
             malaria_microscopy_positive INT(1) DEFAULT 0,
             malaria_mrdt_tested INT(1) DEFAULT 0,
@@ -255,6 +273,16 @@ BEGIN
             IF(t1.obs REGEXP "!!(1284|11679|6042)=12918!!", 1, 0) AS rabies,
             IF(t1.obs REGEXP "!!(1284|11679|6042)=141!!", 1, 0) AS typhoid,
             IF(t1.obs REGEXP "!!(1284|11679|6042)=57!!", 1, 0) AS yellow_fever,
+            # PENDING 705 PIN - borrowed indicators (pinned from the live
+            # 705 procs; the placeholder regexes match nothing until then):
+            # the five regexes below are placeholders that match nothing
+            # (answer 0 does not exist), so the flags flatten 0 until the
+            # 705 proc's concepts are read from the DB and pinned here.
+            IF(t1.obs REGEXP "!!(1284|11679|6042)=0!!", 1, 0) AS poliomyelitis,
+            IF(t1.obs REGEXP "!!(1284|11679|6042)=0!!", 1, 0) AS suspected_malaria,
+            IF(t1.obs REGEXP "!!(1284|11679|6042)=0!!", 1, 0) AS rift_valley_fever,
+            IF(t1.obs REGEXP "!!(1284|11679|6042)=0!!", 1, 0) AS viral_haemorrhagic_fever,
+            IF(t1.obs REGEXP "!!(1284|11679|6042)=0!!", 1, 0) AS all_other_diseases,
             IF(t1.obs REGEXP "!!32=[^!]+!!", 1, 0) AS malaria_microscopy_tested,
             IF(t1.obs REGEXP "!!32=703!!", 1, 0) AS malaria_microscopy_positive,
             IF(t1.obs REGEXP "!!9187=[^!]+!!", 1, 0) AS malaria_mrdt_tested,
@@ -267,7 +295,7 @@ BEGIN
         JOIN etl.flat_obs t1 USING (person_id)
         JOIN amrs.person p ON (t1.person_id = p.person_id AND p.voided=0);
 
-        SET @dyn_sql=CONCAT('replace into ',@write_table,' (select now() as date_created, CONCAT_WS("_", IFNULL(year_week, "000000"), person_id, encounter_id) as elastic_id, person_uuid, person_id, encounter_id, encounter_datetime, location_id, year_week, age, gender, aefi, acute_jaundice, acute_malnutrition, anthrax, cholera, dengue, dysentery_bacillary, measles, maternal_deaths, neonatal_deaths, neonatal_tetanus, plague, rabies, typhoid, yellow_fever, malaria_microscopy_tested, malaria_microscopy_positive, malaria_mrdt_tested, malaria_mrdt_positive, bacterial_meningitis, meningitis_no_csf, typhoid_lab_tested, typhoid_lab_positive FROM flat_moh_505_weekly_v2_0);');
+        SET @dyn_sql=CONCAT('replace into ',@write_table,' (select now() as date_created, CONCAT_WS("_", IFNULL(year_week, "000000"), person_id, encounter_id) as elastic_id, person_uuid, person_id, encounter_id, encounter_datetime, location_id, year_week, age, gender, aefi, acute_jaundice, acute_malnutrition, anthrax, cholera, dengue, dysentery_bacillary, measles, maternal_deaths, neonatal_deaths, neonatal_tetanus, plague, rabies, typhoid, yellow_fever, poliomyelitis, suspected_malaria, rift_valley_fever, viral_haemorrhagic_fever, all_other_diseases, malaria_microscopy_tested, malaria_microscopy_positive, malaria_mrdt_tested, malaria_mrdt_positive, bacterial_meningitis, meningitis_no_csf, typhoid_lab_tested, typhoid_lab_positive FROM flat_moh_505_weekly_v2_0);');
         PREPARE s1 from @dyn_sql;
         EXECUTE s1;
         DEALLOCATE PREPARE s1;

@@ -36,6 +36,11 @@ create table if not exists flat_moh_505_weekly_v2 (
     rabies INT(1) DEFAULT 0,
     typhoid INT(1) DEFAULT 0,
     yellow_fever INT(1) DEFAULT 0,
+    poliomyelitis INT(1) DEFAULT 0,
+    suspected_malaria INT(1) DEFAULT 0,
+    rift_valley_fever INT(1) DEFAULT 0,
+    viral_haemorrhagic_fever INT(1) DEFAULT 0,
+    all_other_diseases INT(1) DEFAULT 0,
     malaria_microscopy_tested INT(1) DEFAULT 0,
     malaria_microscopy_positive INT(1) DEFAULT 0,
     malaria_mrdt_tested INT(1) DEFAULT 0,
@@ -51,6 +56,16 @@ create table if not exists flat_moh_505_weekly_v2 (
     INDEX location_id (location_id),
     INDEX encounter_datetime (encounter_datetime)
 );
+
+# Migration for tables created by the pre-borrow DDL (the proc's
+# CREATE TABLE IF NOT EXISTS no-ops on them): add the five borrowed
+# indicator columns, then run one build backfill so historical rows carry
+# the new flags (sync only revisits changed persons).
+ALTER TABLE flat_moh_505_weekly_v2 ADD COLUMN IF NOT EXISTS poliomyelitis INT(1) DEFAULT 0 AFTER yellow_fever;
+ALTER TABLE flat_moh_505_weekly_v2 ADD COLUMN IF NOT EXISTS suspected_malaria INT(1) DEFAULT 0 AFTER poliomyelitis;
+ALTER TABLE flat_moh_505_weekly_v2 ADD COLUMN IF NOT EXISTS rift_valley_fever INT(1) DEFAULT 0 AFTER suspected_malaria;
+ALTER TABLE flat_moh_505_weekly_v2 ADD COLUMN IF NOT EXISTS viral_haemorrhagic_fever INT(1) DEFAULT 0 AFTER rift_valley_fever;
+ALTER TABLE flat_moh_505_weekly_v2 ADD COLUMN IF NOT EXISTS all_other_diseases INT(1) DEFAULT 0 AFTER viral_haemorrhagic_fever;
 
 create table if not exists flat_moh_505_weekly_v2_build_queue (
     person_id INT PRIMARY KEY
