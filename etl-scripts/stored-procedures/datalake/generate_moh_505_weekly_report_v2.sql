@@ -287,6 +287,15 @@ BEGIN
         set @cycle_number = @cycle_number + 1;
         set @remaining_time = ceil((@total_time / @cycle_number) * ceil(@person_ids_count / cycle_size) / 60);
 
+        # Per-cycle progress - each SELECT streams its result set to the
+        # client as it is produced, so an interactive CALL shows the queue
+        # drain cycle by cycle (generate_flat_moh_710 pattern).
+        SELECT
+            @person_ids_count                    AS '# in queue',
+            @cycle_length                        AS 'Cycle Time (s)',
+            ceil(@person_ids_count / cycle_size) AS remaining_cycles,
+            @remaining_time                      AS 'Est time remaining (min)';
+
         if(log = 1) then
             insert into etl.flat_log values (@loop_start_time, now(), @table_version, @cycle_length);
         end if;
